@@ -185,7 +185,7 @@ function fallbackAnswers(profile: UserProfile, narrative: Record<string, unknown
     .map(([question, answer, category], index) => ({ id: `local-${index}-${Date.now()}`, question, answer, category, basedOn, edited: false }));
 }
 
-export async function POST(request: Request) {
+async function synthesizeProfile(request: Request) {
   const auth = await requireUser(request);
   if (!auth) return NextResponse.json({ error: "Sign in before building your profile." }, { status: 401, headers });
 
@@ -305,4 +305,15 @@ export async function POST(request: Request) {
   }
 
   return respond(profile, reconciled.sources, generatedAnswers, true);
+}
+
+export async function POST(request: Request) {
+  try {
+    return await synthesizeProfile(request);
+  } catch (error) {
+    console.error("Profile synthesis failed", error);
+    return NextResponse.json({
+      error: "Profile build failed on the server. Your saved resume data is still safe; please try again.",
+    }, { status: 500, headers });
+  }
 }

@@ -27,6 +27,18 @@ const STEPS = ["Resume", "Enrich", "Your story", "Details", "Build", "Review"] a
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
+async function readApiResponse(response: Response): Promise<any> {
+  const raw = await response.text();
+  try {
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    const status = response.status ? ` (${response.status})` : "";
+    throw new Error(response.ok
+      ? "The server returned an invalid response. Please try again."
+      : `The profile service returned an error${status}. Please try again.`);
+  }
+}
+
 function resumeSources(profile: Partial<UserProfile>): ProfileSources {
   const result: ProfileSources = {};
   for (const key of Object.keys(profile) as Array<keyof UserProfile>) {
@@ -145,7 +157,7 @@ function OnboardingWizard() {
       if (resumeFile) form.append("file", resumeFile);
       else form.append("text", resumeTextInput);
       const response = await fetch("/api/resume/analyze", { method: "POST", body: form });
-      const result = await response.json();
+      const result = await readApiResponse(response);
       if (!response.ok) throw new Error(result.error || "Could not read that resume.");
 
       const extractedProfile = result.profile ?? {};
@@ -177,7 +189,7 @@ function OnboardingWizard() {
     setBusy("github"); setNotice("");
     try {
       const response = await fetch("/api/enrich/github", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: githubInput }) });
-      const result = await response.json();
+      const result = await readApiResponse(response);
       if (!response.ok) throw new Error(result.error || "GitHub import failed.");
       const summary = [`GitHub @${result.username}`, result.bio, `Top languages: ${result.topLanguages.join(", ")}`,
         ...result.repositories.map((repo: { name: string; description?: string; language?: string; stars: number }) => `${repo.name} (${repo.language ?? "n/a"}, ${repo.stars}★): ${repo.description ?? ""}`)].filter(Boolean).join("\n");
@@ -200,7 +212,7 @@ function OnboardingWizard() {
     setBusy("link"); setNotice("");
     try {
       const response = await fetch("/api/enrich/link", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: linkInput }) });
-      const result = await response.json();
+      const result = await readApiResponse(response);
       if (!response.ok) throw new Error(result.error || "Could not read that link.");
       await applySignal(
         { source: "project", origin: result.url, content: [result.title, result.description, result.text].filter(Boolean).join("\n"), data: { ...result, profile: { portfolio: result.url } } },
@@ -246,7 +258,7 @@ function OnboardingWizard() {
           generateAnswers: true,
         }),
       });
-      const result = await response.json();
+      const result = await readApiResponse(response);
       if (!response.ok) throw new Error(result.error || "Profile build failed.");
       // The server also protects this boundary, but keep a client-side guard so a
       // stale/partial response can never erase the extracted resume in the review UI.
