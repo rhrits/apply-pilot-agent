@@ -1,0 +1,15 @@
+{
+  "name": "applypilot",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A resilient AI job-application copilot with universal page detection and copy/insert fallbacks.",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev:web": "npm --workspace apps/web run dev",
+    "build:web": "npm --workspace apps/web run build",
+    "build:extension": "npm --workspace apps/extension run build",
+    "test": "npm --workspace apps/extension run test",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "engines": { "node": ">=20.0.0" }
+}

@@ -1,0 +1,10 @@
+:host { all: initial; }
+* { box-sizing: border-box; }
+button { font: 600 12px Inter, system-ui, sans-serif; border: 0; cursor: pointer; }
+.ap-card { width: 260px; padding: 12px; border: 1px solid #d9d6fe; border-radius: 14px; background: #fff; color: #1f2937; box-shadow: 0 12px 35px rgba(31, 24, 71, .18); }
+.ap-title { font: 700 13px Inter, system-ui, sans-serif; color: #4f46e5; margin-bottom: 6px; }
+.ap-question { font: 500 12px Inter, system-ui, sans-serif; line-height: 1.4; margin-bottom: 8px; max-height: 48px; overflow: hidden; }
+.ap-answer { font: 600 12px Inter, system-ui, sans-serif; background: #f5f3ff; padding: 8px; border-radius: 9px; overflow-wrap: anywhere; }
+.ap-actions { display: flex; gap: 6px; margin-top: 9px; }
+.ap-primary { flex: 1; color: white; background: #4f46e5; padding: 8px 9px; border-radius: 8px; }
+.ap-secondary { color: #4338ca; background: #eef2ff; padding: 8px 9px; border-radius: 8px; }
