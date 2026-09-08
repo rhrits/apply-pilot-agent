@@ -40,6 +40,53 @@ export default function TrackerPage() {
     loaded.current = true;
   }, []);
 
+  // Pull in anything saved from the extension (or another device) so the board always
+  // reflects the authenticated user's full application history, not just this browser.
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      const { data: rows } = await supabase
+        .from("applications")
+        .select("id, status, created_at, updated_at, jobs(company, title, url, location, work_mode, employment_type, salary, source, priority, next_step, next_step_date, notes, contact_name, tags)")
+        .eq("user_id", data.user.id)
+        .order("created_at", { ascending: false });
+      if (!rows) return;
+      const cloudJobs: JobApplication[] = (rows as unknown as Array<{ id: string; status: ApplicationStatus; created_at: string; updated_at: string | null; jobs: Record<string, unknown> | Record<string, unknown>[] | null }>)
+        .filter((row) => row.jobs)
+        .map((row) => {
+          const job = (Array.isArray(row.jobs) ? row.jobs[0] : row.jobs) ?? {};
+          return {
+            id: `cloud-${row.id}`,
+            company: String(job.company ?? ""),
+            title: String(job.title ?? ""),
+            url: String(job.url ?? ""),
+            location: String(job.location ?? ""),
+            workMode: (job.work_mode as JobApplication["workMode"]) ?? "unknown",
+            employmentType: (job.employment_type as JobApplication["employmentType"]) ?? "full-time",
+            salary: String(job.salary ?? ""),
+            status: row.status,
+            priority: (job.priority as JobApplication["priority"]) ?? "medium",
+            nextStep: String(job.next_step ?? ""),
+            nextStepDate: String(job.next_step_date ?? ""),
+            notes: String(job.notes ?? ""),
+            contactName: String(job.contact_name ?? ""),
+            source: String(job.source ?? "Cloud sync"),
+            tags: Array.isArray(job.tags) ? job.tags.map(String) : [],
+            createdAt: row.created_at,
+            updatedAt: row.updated_at ?? row.created_at,
+          };
+        });
+      if (!cloudJobs.length) return;
+      setJobs((current) => {
+        const existingIds = new Set(current.map((item) => item.id));
+        const additions = cloudJobs.filter((item) => !existingIds.has(item.id));
+        return additions.length ? [...additions, ...current] : current;
+      });
+    });
+  }, []);
+
   // Autosave: every change to the board or the in-progress form is persisted immediately.
   useEffect(() => {
     if (!loaded.current) return;

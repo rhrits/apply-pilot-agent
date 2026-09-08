@@ -140,6 +140,22 @@ function SidePanel() {
     setStatus(result?.ok ? `Attached ${file.fileName} to the upload field.` : result?.error ?? "Could not attach the resume.");
   }
 
+  async function saveJob() {
+    const id = await activeTabId();
+    if (!id) return;
+    setStatus("Saving this job…");
+    const summary = await chrome.tabs.sendMessage(id, { type: "GET_PAGE_SUMMARY" } satisfies ExtensionMessage).catch(() => null);
+    if (!summary || summary.error) { setStatus("Could not read this page. Reload and try again."); return; }
+    const result = await chrome.runtime.sendMessage({ type: "SAVE_JOB", job: summary } satisfies ExtensionMessage);
+    setStatus(result?.duplicate ? "Already saved — view it in your job tracker." : result?.ok ? "Saved to your job tracker." : result?.error ?? "Could not save this job.");
+  }
+
+  async function syncNow() {
+    setStatus("Syncing profile from Supabase…");
+    const result = await chrome.runtime.sendMessage({ type: "REFRESH_PROFILE" } satisfies ExtensionMessage);
+    if (result?.profile) { setProfile(result.profile); setStatus("Profile synced."); } else setStatus(result?.error ?? "Sync failed.");
+  }
+
   async function copy() { if (answer) { await navigator.clipboard.writeText(answer.answer); setStatus("Copied to clipboard"); } }
   async function insert() {
     if (!answer) return;
@@ -158,6 +174,10 @@ function SidePanel() {
       <button onClick={() => scan(false)}>Scan page</button>
       <button onClick={() => scan(true)}>Fill all</button>
       <button onClick={attachResume}>Attach resume</button>
+    </div>
+    <div className="quick-actions">
+      <button onClick={saveJob}>Save job</button>
+      <button onClick={syncNow}>Sync now</button>
     </div>
     <nav className="tabs">
       <button className={tab === "assistant" ? "active" : ""} onClick={() => setTab("assistant")}>Assistant</button>

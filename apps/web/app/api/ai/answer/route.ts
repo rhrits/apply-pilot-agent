@@ -45,6 +45,7 @@ async function authenticatedContext(request: Request) {
     willingToRelocate: text(row.willing_to_relocate),
     workAuthorization: text(row.work_authorization),
     availability: text(row.availability),
+    customFields: Array.isArray(row.custom_fields) ? row.custom_fields as UserProfile["customFields"] : [],
     skills: (skillsResult.data ?? []).map((item) => ({ name: text(item.name), years: item.years == null ? undefined : Number(item.years), proficiency: text(item.proficiency) || undefined })),
     experiences: (experiencesResult.data ?? []).map((item) => ({ company: text(item.company), title: cleanTitle(text(item.job_title)), period: [text(item.start_date), text(item.end_date) || "Present"].filter(Boolean).join(" – "), summary: text(item.description), achievements: Array.isArray(item.achievements) ? item.achievements.map(String) : [] })),
     education: (educationResult.data ?? []).map((item) => ({ institution: text(item.institution), degree: text(item.degree), field: text(item.field), period: [item.start_year, item.end_year].filter(Boolean).join(" – ") })),

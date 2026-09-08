@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
-import type { UserProfile } from "@applypilot/shared";
+import type { PageSummary, UserProfile } from "@applypilot/shared";
 import { extensionConfig, isExtensionConfigured } from "./config";
 
 const chromeStorage = {
@@ -77,6 +77,7 @@ export async function fetchAuthenticatedProfile(): Promise<UserProfile | null> {
     willingToRelocate: asString(row.willing_to_relocate),
     workAuthorization: asString(row.work_authorization),
     availability: asString(row.availability),
+    customFields: Array.isArray(row.custom_fields) ? row.custom_fields as UserProfile["customFields"] : [],
     skills: (skillsResult.data ?? []).map((item) => ({ name: asString(item.name), years: item.years !== null && item.years !== undefined && !Number.isNaN(Number(item.years)) ? Number(item.years) : undefined, proficiency: asString(item.proficiency) || undefined })),
     experiences: (experiencesResult.data ?? []).map((item) => ({ company: asString(item.company), title: asString(item.job_title), period: [asString(item.start_date), asString(item.end_date) || "Present"].filter(Boolean).join(" – "), summary: asString(item.description), achievements: Array.isArray(item.achievements) ? item.achievements.map(String) : [] })),
     education: (educationResult.data ?? []).map((item) => ({ institution: asString(item.institution), degree: asString(item.degree), field: asString(item.field), period: [item.start_year, item.end_year].filter(Boolean).join(" – ") })),
@@ -111,3 +112,21 @@ export async function fetchResumeFile(): Promise<{ fileName: string; mimeType: s
   const mimeType = (resume.mime_type as string) || "application/pdf";
   return { fileName: (resume.name as string) || "resume.pdf", mimeType, dataUrl: `data:${mimeType};base64,${btoa(binary)}` };
 }
+
+/** Saves the current page as a tracked job opportunity (jobs + applications rows) for the signed-in user. */
+export async function saveJobToSupabase(job: PageSummary): Promise<{ ok: boolean; error?: string; duplicate?: boolean }> {
+  const supabase = getExtensionSupabase();
+  if (!supabase) return { ok: false, error: "Extension Supabase configuration is missing." };
+  const user = await getExtensionUser();
+  if (!user) return { ok: false, error: "Sign in to save this job." };
+
+  const { data: existing } = await supabase.from("jobs").select("id").eq("user_id", user.id).eq("url", job.url).maybeSingle();
+  if (existing) return { ok: true, duplicate: true };
+
+  const { data: savedJob, error: jobError } = await supabase.from("jobs").insert({ user_id: user.id, company: job.company, title: job.title, url: job.url, source: job.hostname, job_description: job.description }).select("id").single();
+  if (jobError || !savedJob) return { ok: false, error: jobError?.message ?? "Could not save the job." };
+  const { error: applicationError } = await supabase.from("applications").insert({ user_id: user.id, job_id: savedJob.id, status: "saved" });
+  if (applicationError) return { ok: false, error: applicationError.message };
+  return { ok: true };
+}
+

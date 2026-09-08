@@ -34,6 +34,18 @@ describe("answer engine", () => {
     expect(answerQuestion("How many years of experience do you have with Python?", profile).answer).toBe("2");
   });
 
+  it("matches a skill the user recorded even without a fixed keyword list", () => {
+    const result = answerQuestion("How comfortable are you with TypeScript?", profile);
+    expect(result.answer).toBe("3");
+  });
+
+  it("matches a user-defined custom field by keyword similarity", () => {
+    const withCustom: UserProfile = { ...profile, customFields: [{ id: "1", label: "Do you have a driving license?", value: "Yes" }] };
+    const result = answerQuestion("Do you currently hold a valid driving license?", withCustom);
+    expect(result.source).toBe("profile");
+    expect(result.answer).toBe("Yes");
+  });
+
   it("escalates open-ended questions to the model instead of inventing an answer", () => {
     expect(answerQuestion("Why do you want to work at Hiver?", profile).source).toBe("needs_ai");
   });

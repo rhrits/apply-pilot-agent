@@ -45,6 +45,8 @@ export interface UserProfile {
   willingToRelocate?: string;
   workAuthorization?: string;
   availability?: string;
+  /** User-defined question/answer pairs for fields the fixed schema does not cover. */
+  customFields?: Array<{ id: string; label: string; value: string }>;
   skills?: Array<{ name: string; years?: number; proficiency?: string }>;
   experiences?: Array<{ company: string; title: string; period?: string; summary?: string; achievements?: string[] }>;
   education?: Array<{ institution: string; degree?: string; field?: string; period?: string }>;
@@ -90,6 +92,7 @@ export interface ActiveFieldPayload {
 
 export interface ExtensionSettings {
   autoSuggest: boolean;
+  liveAI: boolean;
 }
 
 export interface AnswerMemoryItem {
@@ -119,9 +122,20 @@ export type ExtensionMessage =
   | { type: "FILL_ALL" }
   | { type: "GET_RESUME_FILE" }
   | { type: "ATTACH_RESUME"; fileName: string; mimeType: string; dataUrl: string }
+  | { type: "GET_PAGE_SUMMARY" }
+  | { type: "SAVE_JOB"; job: PageSummary }
+  | { type: "SUGGEST_ANSWER"; question: string; page: ActiveFieldPayload["page"] }
   | { type: "OPEN_SIDE_PANEL" }
   | { type: "INSERT_IN_ACTIVE_FIELD"; value: string }
   | { type: "COPY_TEXT"; value: string };
+
+export interface PageSummary {
+  title: string;
+  url: string;
+  hostname: string;
+  company: string;
+  description: string;
+}
 
 export interface ScannedField {
   index: number;
