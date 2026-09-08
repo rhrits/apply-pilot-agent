@@ -5,6 +5,7 @@
   "description": "A resilient AI job-application copilot with universal page detection and copy/insert fallbacks.",
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
+    "build": "npm run build:web",
     "dev:web": "npm --workspace apps/web run dev",
     "build:web": "npm --workspace apps/web run build",
     "build:extension": "npm --workspace apps/extension run build",
