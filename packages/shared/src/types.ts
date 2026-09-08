@@ -66,6 +66,7 @@ export type ApplicationStatus = "saved" | "applying" | "applied" | "assessment" 
 
 export interface JobApplication {
   id: string;
+  remoteId?: string;
   company: string;
   title: string;
   url?: string;
@@ -118,6 +119,7 @@ export type ExtensionMessage =
   | { type: "UPDATE_SETTINGS"; settings: Partial<ExtensionSettings> }
   | { type: "FIND_ANSWER_MEMORY"; question: string }
   | { type: "SAVE_ANSWER_MEMORY"; item: Omit<AnswerMemoryItem, "id" | "updatedAt"> }
+  | { type: "SAVE_UNKNOWN_QUESTION"; question: string; page: PageSummary }
   | { type: "SCAN_PAGE" }
   | { type: "FILL_ALL" }
   | { type: "GET_RESUME_FILE" }

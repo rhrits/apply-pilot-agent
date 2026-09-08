@@ -38,7 +38,7 @@ function renderOverlay(element: Element, state: OverlayState) {
 
   const hasAnswer = state.kind === "answer" || state.kind === "suggestion";
   const badge = state.kind === "suggestion" ? `<span class="badge">${state.source === "memory" ? "Remembered" : "AI suggestion"}</span>` : "";
-  card.innerHTML = `<div class="title">✦ ApplyPilot${badge}</div><div class="q"></div>${state.kind === "loading" ? `<div class="loading"><span class="spinner"></span>Finding the best answer…</div>` : hasAnswer ? `<div class="answer"></div>` : ""}<div class="actions">${state.kind === "loading" ? "" : hasAnswer ? `<button class="primary">Insert</button><button class="secondary">Copy</button>${state.kind === "suggestion" ? `<button class="tertiary">Save</button>` : ""}` : `<button class="primary">Open assistant</button><button class="secondary">Copy question</button>`}</div>`;
+  card.innerHTML = `<div class="title">✦ ApplyPilot${badge}</div><div class="q"></div>${state.kind === "loading" ? `<div class="loading"><span class="spinner"></span>Finding the best answer…</div>` : hasAnswer ? `<div class="answer"></div>` : ""}<div class="actions">${state.kind === "loading" ? "" : hasAnswer ? `<button class="primary">Insert</button><button class="secondary">Copy</button>${state.kind === "suggestion" ? `<button class="tertiary">Save</button>` : ""}` : `<button class="primary">Open assistant</button><button class="secondary">Copy question</button><button class="tertiary">Save question</button>`}</div>`;
   (card.querySelector(".q") as HTMLElement).textContent = state.question || "Focused field";
   if (hasAnswer) (card.querySelector(".answer") as HTMLElement).textContent = state.text;
 
@@ -54,6 +54,15 @@ function renderOverlay(element: Element, state: OverlayState) {
   if (state.kind === "suggestion") {
     card.querySelector(".tertiary")?.addEventListener("click", async () => {
       await chrome.runtime.sendMessage({ type: "SAVE_ANSWER_MEMORY", item: { question: state.question, answer: state.text, source: state.source === "memory" ? "user" : "ai" } } satisfies ExtensionMessage);
+      const button = card.querySelector(".tertiary") as HTMLButtonElement | null;
+      if (button) { button.textContent = "Saved"; button.disabled = true; }
+    });
+  }
+  if (state.kind === "none") {
+    card.querySelector(".tertiary")?.addEventListener("click", async () => {
+      const result = await chrome.runtime.sendMessage({ type: "GET_ACTIVE_FIELD" } satisfies ExtensionMessage);
+      const page = result?.activeField?.page ?? { url: location.href, title: document.title, hostname: location.hostname };
+      await chrome.runtime.sendMessage({ type: "SAVE_UNKNOWN_QUESTION", question: state.question, page } satisfies ExtensionMessage);
       const button = card.querySelector(".tertiary") as HTMLButtonElement | null;
       if (button) { button.textContent = "Saved"; button.disabled = true; }
     });

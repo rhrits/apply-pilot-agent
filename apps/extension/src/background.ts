@@ -2,6 +2,7 @@ import type { ActiveFieldPayload, ExtensionMessage, ExtensionSettings } from "@a
 import { extensionConfig, isExtensionConfigured } from "./lib/config";
 import { clearExtensionSession, fetchAuthenticatedProfile, fetchResumeFile, getExtensionSupabase, getExtensionUser, saveJobToSupabase } from "./lib/supabase";
 import { findLocalMemory, saveAnswerMemory } from "./lib/memory";
+import { saveUnknownQuestion } from "./lib/unknown-questions";
 
 chrome.runtime.onInstalled.addListener(async () => {
   const current = await chrome.storage.local.get("settings");
@@ -112,6 +113,11 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         sendResponse(response.ok ? { answer: payload.answer ?? "", source: payload.source, notice: payload.notice } : { answer: "", error: payload.error ?? "Request failed" });
       } catch (error) { sendResponse({ answer: "", error: String(error) }); }
     })();
+    return true;
+  }
+
+  if (message.type === "SAVE_UNKNOWN_QUESTION") {
+    saveUnknownQuestion(message.question, message.page).then((item) => sendResponse({ ok: Boolean(item), item })).catch((error) => sendResponse({ ok: false, error: String(error) }));
     return true;
   }
 
