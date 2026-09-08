@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 import "./features.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://ap.coderscookies.com"),
   title: {
-    default: "ApplyPilot — Auto Job Apply Agent",
+    default: "ApplyPilot | AI Job Application Assistant",
     template: "%s | ApplyPilot",
   },
-  description: "ApplyPilot is an auto job apply agent that builds a verified profile, drafts grounded application answers, and helps you move through job applications faster without inventing your experience.",
+  description: "ApplyPilot is an open source AI job application assistant that builds one verified profile, suggests grounded answers, and helps you complete repetitive forms faster without inventing your experience.",
   applicationName: "ApplyPilot",
   authors: [{ name: "Hritik" }],
   creator: "Hritik",
@@ -19,14 +20,14 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "https://ap.coderscookies.com",
     siteName: "ApplyPilot",
-    title: "ApplyPilot — Auto Job Apply Agent",
-    description: "Build a verified profile, get grounded application answers, and move through repetitive job applications with you in control.",
-    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "ApplyPilot auto job apply agent" }],
+    title: "ApplyPilot | AI Job Application Assistant",
+    description: "Build one verified profile, answer repetitive application questions, and stay in control of every submission.",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "ApplyPilot open source AI job application assistant" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "ApplyPilot — Auto Job Apply Agent",
-    description: "A job application agent grounded in your real experience.",
+    title: "ApplyPilot | AI Job Application Assistant",
+    description: "An open source job application assistant grounded in your real experience.",
     images: ["/opengraph-image"],
   },
   robots: { index: true, follow: true },
@@ -34,5 +35,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}</body></html>;
+  return <html lang="en"><body>{children}<Script type="module" strategy="afterInteractive" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"f345f612cc04f9186e7264662ee1efb"}' /></body></html>;
 }

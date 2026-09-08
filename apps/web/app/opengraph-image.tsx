@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
-export const alt = "ApplyPilot — Auto Job Apply Agent";
+export const alt = "ApplyPilot open source AI job application assistant";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -43,19 +43,19 @@ export default function OpenGraphImage() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 22, maxWidth: 930 }}>
           <div style={{ display: "flex", color: "#5546d9", fontSize: 22, fontWeight: 700, letterSpacing: 2 }}>
-            AUTO JOB APPLY AGENT
+            OPEN SOURCE AI JOB APPLICATION ASSISTANT
           </div>
           <div style={{ display: "flex", flexDirection: "column", fontSize: 68, lineHeight: 1.05, fontWeight: 800, letterSpacing: -3 }}>
-            <span>Your experience.</span>
-            <span style={{ color: "#5546d9" }}>Not AI&apos;s imagination.</span>
+            <span>Apply faster.</span>
+            <span style={{ color: "#5546d9" }}>Stay in control.</span>
           </div>
           <div style={{ display: "flex", color: "#6f6d86", fontSize: 25, lineHeight: 1.35 }}>
-            Build a verified profile, answer applications faster, and stay in control of every draft.
+            Build one verified profile and get grounded help with repetitive application forms.
           </div>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", color: "#77768b", fontSize: 20 }}>
-          <span>Grounded answers · Review before insert</span>
+          <span>Open source · Grounded answers · Review first</span>
           <span>Built by Hritik</span>
         </div>
       </div>
