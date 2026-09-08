@@ -17,7 +17,7 @@ async function authStatus() {
 
 async function readyStatus(): Promise<ExtensionAuthStatus> {
   const status = await authStatus();
-  if (status.accessState !== "ready") throw new Error(status.accessState === "profile_required" ? "Complete your profile before using the extension." : "Sign in from the extension popup first.");
+  if (status.accessState !== "ready") throw new Error(status.accessState === "profile_required" ? "Complete your profile before using the extension." : status.accessState === "access_required" ? "Redeem an ApplyPilot access code before using the extension." : "Sign in from the extension popup first.");
   return status;
 }
 

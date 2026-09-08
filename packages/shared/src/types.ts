@@ -81,7 +81,7 @@ export interface UserProfile {
   projects?: ProfileProject[];
 }
 
-export type ExtensionAccessState = "unconfigured" | "unauthenticated" | "profile_required" | "ready";
+export type ExtensionAccessState = "unconfigured" | "unauthenticated" | "profile_required" | "access_required" | "ready";
 
 export interface ExtensionAuthStatus {
   configured: boolean;
@@ -92,6 +92,7 @@ export interface ExtensionAuthStatus {
   profile: UserProfile | null;
   onboardingUrl?: string;
   profileUrl?: string;
+  accessUrl?: string;
   error?: string;
 }
 

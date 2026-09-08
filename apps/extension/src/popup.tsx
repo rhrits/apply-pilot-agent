@@ -28,6 +28,13 @@ function Popup() {
       window.close();
       return;
     }
+    if (result.accessState === "access_required") {
+      setAuth({ ...result, authenticated: false });
+      setMessage("Access approval is required before the extension can be used. Opening access…");
+      await chrome.tabs.create({ url: result.accessUrl ?? `${extensionConfig.webAppUrl}/access` });
+      window.close();
+      return;
+    }
     setAuth(result);
     setMessage(result.accessState === "ready" ? `Profile data synced for ${result.email}` : result.configured ? "Sign in to sync your profile" : "Extension configuration is missing");
   }

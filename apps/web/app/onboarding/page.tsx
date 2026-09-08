@@ -50,7 +50,7 @@ function resumeSources(profile: Partial<UserProfile>): ProfileSources {
 }
 
 export default function OnboardingPage() {
-  return <AuthGate requireOnboarding={false}><OnboardingWizard /></AuthGate>;
+  return <AuthGate requireOnboarding={false} requireAccess={false}><OnboardingWizard /></AuthGate>;
 }
 
 function OnboardingWizard() {

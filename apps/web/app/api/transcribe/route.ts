@@ -16,7 +16,9 @@ async function hasReadyUser(request: Request) {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return false;
   const { data: profile } = await supabase.from("profiles").select("onboarding_completed_at").eq("id", userData.user.id).maybeSingle();
-  return Boolean(profile?.onboarding_completed_at);
+  if (!profile?.onboarding_completed_at) return false;
+  const { data: accessStatus } = await supabase.rpc("get_my_access_status");
+  return accessStatus?.hasAccess === true;
 }
 
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -30,7 +32,7 @@ const MAX_BYTES = 20 * 1024 * 1024;
  * faster-whisper or whisper.cpp server works without code changes.
  */
 export async function POST(request: Request) {
-  if (!(await hasReadyUser(request))) return NextResponse.json({ error: "Complete sign-in and profile setup before using dictation." }, { status: 401, headers });
+  if (!(await hasReadyUser(request))) return NextResponse.json({ error: "Complete sign-in, profile setup, and access approval before using dictation." }, { status: 403, headers });
   const form = await request.formData().catch(() => null);
   const file = form?.get("audio");
   if (!(file instanceof File)) return NextResponse.json({ error: "Attach an audio recording." }, { status: 400, headers });

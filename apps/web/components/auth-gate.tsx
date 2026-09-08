@@ -8,7 +8,7 @@ import { getSupabaseBrowserClient } from "../lib/supabase";
  * Requires an authenticated Supabase session. Signed-in users who have not finished
  * onboarding are sent there first, so the workspace is never shown half-empty.
  */
-export function AuthGate({ children, requireOnboarding = true }: { children: React.ReactNode; requireOnboarding?: boolean }) {
+export function AuthGate({ children, requireOnboarding = true, requireAccess = true }: { children: React.ReactNode; requireOnboarding?: boolean; requireAccess?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const [state, setState] = useState<"loading" | "authenticated" | "unconfigured">("loading");
@@ -16,15 +16,22 @@ export function AuthGate({ children, requireOnboarding = true }: { children: Rea
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) { setState("unconfigured"); return; }
-    supabase.auth.getUser().then(async ({ data }) => {
+    supabase.auth.getSession().then(async ({ data: sessionData }) => {
+      const session = sessionData.session;
+      const data = sessionData.session ? { user: sessionData.session.user } : { user: null };
       if (!data.user) { router.replace(`/login?next=${encodeURIComponent(pathname)}`); return; }
       if (requireOnboarding && pathname !== "/onboarding") {
         const { data: profile } = await supabase.from("profiles").select("onboarding_completed_at").eq("id", data.user.id).maybeSingle();
         if (!profile?.onboarding_completed_at) { router.replace("/onboarding"); return; }
       }
+      if (requireAccess) {
+        const response = await fetch("/api/access/status", { headers: { Authorization: `Bearer ${session?.access_token ?? ""}` } });
+        const access = await response.json().catch(() => null) as { hasAccess?: boolean } | null;
+        if (!response.ok || !access?.hasAccess) { router.replace("/access"); return; }
+      }
       setState("authenticated");
     }).catch(() => router.replace(`/login?next=${encodeURIComponent(pathname)}`));
-  }, [pathname, requireOnboarding, router]);
+  }, [pathname, requireAccess, requireOnboarding, router]);
 
   if (state === "unconfigured") return <main className="auth-missing"><div className="auth-missing-card"><span className="logo-mark">✦</span><h1>Connect ApplyPilot</h1><p>Supabase environment variables are missing. Add them to the web deployment before using the authenticated workspace.</p></div></main>;
   if (state !== "authenticated") return <main className="auth-loading"><span className="loading-orbit" /><p>Checking your secure workspace…</p></main>;

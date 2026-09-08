@@ -109,7 +109,7 @@ export async function fetchAuthenticatedProfile(): Promise<UserProfile | null> {
 
 export async function getExtensionAuthStatus(): Promise<ExtensionAuthStatus> {
   const configured = isExtensionConfigured();
-  const urls = { onboardingUrl: `${extensionConfig.webAppUrl}/login?next=/onboarding`, profileUrl: `${extensionConfig.webAppUrl}/profile` };
+  const urls = { onboardingUrl: `${extensionConfig.webAppUrl}/login?next=/onboarding`, profileUrl: `${extensionConfig.webAppUrl}/profile`, accessUrl: `${extensionConfig.webAppUrl}/access` };
   if (!configured) return { configured: false, authenticated: false, accessState: "unconfigured", userId: null, email: null, profile: null, ...urls };
 
   const user = await getExtensionUser();
@@ -125,6 +125,13 @@ export async function getExtensionAuthStatus(): Promise<ExtensionAuthStatus> {
   if (!profileRow?.onboarding_completed_at) {
     await chrome.storage.local.remove(["profile", "profileSyncedAt"]);
     return { configured: true, authenticated: true, accessState: "profile_required", userId: user.id, email: user.email ?? null, profile: null, ...urls };
+  }
+
+  const { data: accessStatus, error: accessError } = await supabase!.rpc("get_my_access_status");
+  if (accessError) throw new Error(accessError.message);
+  if (accessStatus?.hasAccess !== true) {
+    await chrome.storage.local.remove(["profile", "profileSyncedAt"]);
+    return { configured: true, authenticated: true, accessState: "access_required", userId: user.id, email: user.email ?? null, profile: null, ...urls };
   }
 
   const cached = await chrome.storage.local.get(["profile", "profileOwnerId"]);

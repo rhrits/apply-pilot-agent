@@ -27,6 +27,8 @@ async function authenticatedContext(request: Request) {
   ]);
 
   if (!profileResult.data?.onboarding_completed_at) return null;
+  const { data: accessStatus } = await supabase.rpc("get_my_access_status");
+  if (accessStatus?.hasAccess !== true) return null;
 
   const row = (profileResult.data ?? {}) as Record<string, unknown>;
   const text = (input: unknown) => (typeof input === "string" ? input : "");
@@ -74,7 +76,7 @@ export async function POST(request: Request) {
   if (!question) return NextResponse.json({ error: "question is required" }, { status: 400, headers });
 
   const context = await authenticatedContext(request);
-  if (!context) return NextResponse.json({ error: "Sign in to ApplyPilot before generating answers." }, { status: 401, headers });
+  if (!context) return NextResponse.json({ error: "Complete access approval before generating answers." }, { status: 403, headers });
 
   // Layer 1 — deterministic profile lookup. Factual questions never spend an AI
   // request and can never be fabricated.
