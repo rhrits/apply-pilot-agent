@@ -1,0 +1,57 @@
+name: ATS compatibility report
+description: A field was not detected, not filled, or filled incorrectly on a job site
+title: "[ATS] "
+labels: ["ats-compatibility"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        These reports are the most valuable contribution to ApplyPilot.
+        **Please anonymize everything** — never paste your real personal data.
+
+  - type: input
+    id: site
+    attributes:
+      label: Site or ATS
+      placeholder: Greenhouse / Lever / Workday / Ashby / company careers page
+    validations:
+      required: true
+
+  - type: dropdown
+    id: problem
+    attributes:
+      label: What went wrong
+      options:
+        - Field was not detected at all
+        - Field was detected but the question was wrong
+        - Correct answer was found but insertion failed
+        - Wrong answer was filled in
+        - Resume attachment failed
+        - Save job captured wrong details
+    validations:
+      required: true
+
+  - type: textarea
+    id: snippet
+    attributes:
+      label: Anonymized HTML snippet
+      description: The smallest piece of markup that reproduces the problem. Replace any personal values with placeholders.
+      render: html
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual
+      placeholder: |
+        Expected: detected as "notice_period" and filled with my saved value
+        Actual: not detected; overlay showed "Open assistant"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Browser and extension version
+      placeholder: Chrome 149, ApplyPilot 0.2.0
