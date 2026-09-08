@@ -2,7 +2,7 @@
   "name": "applypilot",
   "private": true,
   "version": "0.1.0",
-  "description": "A resilient AI job-application copilot with universal page detection and copy/insert fallbacks.",
+  "description": "Open-source AI job-application copilot with resume-grounded answers, Chrome autofill, copy/insert fallbacks, and a privacy-conscious job tracker.",
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "build": "npm run build:web",

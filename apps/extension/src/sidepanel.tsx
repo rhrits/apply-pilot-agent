@@ -166,7 +166,7 @@ function SidePanel() {
   }
 
   return <main className="panel">
-    <header><div className="brand-mark">✦</div><div><h1>ApplyPilot</h1><p>Page assistant</p></div><span className="ready">{authenticated ? "SYNCED" : "SIGN IN"}</span></header>
+    <header><img className="brand-mark" src="/icons/48.png" width={36} height={36} alt="" /><div><h1>ApplyPilot</h1><p>Page assistant</p></div><span className="ready">{authenticated ? "SYNCED" : "SIGN IN"}</span></header>
     {!authenticated && <section className="auth-banner">Sign in from the extension popup to connect your Supabase profile.</section>}
     {authenticated && <section className="account-banner">Signed in as {accountEmail}</section>}
     <section className="page-card"><small>{active?.page.hostname ?? "Current page"}</small><strong>{active?.page.title ?? "Focus a form field to start"}</strong></section>

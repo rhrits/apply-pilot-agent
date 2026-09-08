@@ -16,6 +16,41 @@ and copy or paste when autofill cannot be trusted.
 
 ---
 
+ApplyPilot is an open-source **AI job-application assistant** for people who are
+tired of entering the same information into every application form. It combines
+a verified personal profile, resume and project context, a Chrome MV3 browser
+extension, and a job tracker in one privacy-conscious workspace.
+
+It is designed for real-world application sites, including forms that the
+extension cannot fully control. ApplyPilot detects the question, finds a
+supported answer, and lets you review, copy, or insert it. When autofill is not
+possible, the Side Panel and manual question mode remain available as reliable
+fallbacks.
+
+## What ApplyPilot does
+
+- **Builds a reusable profile** from a resume, GitHub profile, portfolio links,
+  projects, experience, skills, education, and user-written answers.
+- **Detects application questions** from labels, ARIA attributes, placeholders,
+  field names, nearby text, and dynamically rendered page content.
+- **Uses deterministic answers first** for identity and profile fields, keeping
+  common answers fast, consistent, and independent of an AI provider.
+- **Generates grounded answers** for open-ended questions using only the
+  relevant, user-approved context from the profile and answer library.
+- **Supports copy, insert, and review workflows** so users stay in control of
+  every answer and no application is submitted automatically.
+- **Tracks applications** across saved, applying, applied, interview, offer,
+  rejected, and withdrawn states.
+
+## Why it is open source
+
+Job applications contain sensitive information. Keeping the implementation
+visible makes the data boundaries, database policies, AI prompts, and extension
+permissions easier to inspect and improve. Contributions should preserve the
+project's core guarantees: do not invent candidate experience, do not expose
+secrets, respect website terms, and never submit an application without explicit
+user confirmation.
+
 ## Why this exists
 
 Most autofill tools fail in one of two ways: they break on any site they have not
@@ -155,6 +190,29 @@ These are real boundaries, not bugs:
 - **PDF text extraction is imperfect.** Multi-column resumes sometimes glue words
   together, which is why the review step exists.
 - **No autonomous submission.** By design.
+
+## Project status
+
+ApplyPilot is an active early-stage project. The current repository includes the
+web workspace, authenticated Chrome extension, resume/profile onboarding, local
+and Supabase-backed job tracking, deterministic field answering, and server-side
+Mistral integration. The compatibility layer is intentionally incremental:
+generic DOM detection comes first, and site-specific adapters are added only
+when a real form pattern needs one.
+
+The next areas of work are broader ATS fixtures, stronger controlled-input and
+iframe coverage, authenticated sync improvements, answer citations, and
+production-quality observability. See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)
+for the implementation roadmap.
+
+## Analytics and privacy
+
+The current open-source build does not require a third-party analytics SDK. If
+analytics is added later, it should be opt-in and limited to product events such
+as feature usage, errors, and compatibility outcomes. Resume text, page content,
+application answers, contact details, and other personal information must never
+be sent to analytics services. See [SECURITY.md](SECURITY.md) for the project's
+security boundaries.
 
 ## Development
 

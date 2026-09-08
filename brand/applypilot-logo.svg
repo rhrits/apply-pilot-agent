@@ -1,14 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
   <title id="title">ApplyPilot</title>
-  <desc id="desc">A violet compass star inside a rounded square.</desc>
+  <desc id="desc">A violet squircle with a compass sparkle and an insertion cursor, representing precise, verified autofill.</desc>
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#8b7cff"/>
-      <stop offset="1" stop-color="#5546d9"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9b8dff"/>
+      <stop offset=".55" stop-color="#6f5eea"/>
+      <stop offset="1" stop-color="#4a3bd1"/>
     </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#2c1f8a" flood-opacity=".35"/>
+    </filter>
   </defs>
-  <rect width="512" height="512" rx="128" fill="url(#g)"/>
-  <circle cx="256" cy="256" r="146" fill="none" stroke="#fff" stroke-opacity=".32" stroke-width="4"/>
-  <path d="M256 100l29 127 127 29-127 29-29 127-29-127-127-29 127-29z" fill="#fff"/>
-  <circle cx="256" cy="256" r="26" fill="#5546d9"/>
+
+  <rect x="16" y="16" width="480" height="480" rx="120" fill="url(#bg)"/>
+  <path d="M40 136C40 72 88 32 160 32h192c72 0 120 40 120 104v24H40z" fill="url(#glow)"/>
+  <circle cx="256" cy="256" r="160" fill="none" stroke="#ffffff" stroke-opacity=".22" stroke-width="10"/>
+
+  <g filter="url(#soft)">
+    <path d="M256 120c10 52 22.4 81.6 48 106.8 25.2 24.8 56.8 37.2 100 45.2-52 8-83.2 20.4-108 45.2-25.6 25.2-38 52.8-40 97.8-2-45-14.4-72.6-40-97.8-24.8-24.8-56-37.2-108-45.2 52-8 83.2-20.4 108-45.2 25.6-25.2 38-52.8 40-97.8z" fill="#ffffff"/>
+  </g>
 </svg>
