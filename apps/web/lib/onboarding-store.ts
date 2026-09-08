@@ -79,6 +79,9 @@ export async function loadDraft(): Promise<{
   profile: Partial<UserProfile> | null;
   narrative: unknown;
   answers: unknown;
+  resumeText: string;
+  resumeProfile: Partial<UserProfile> | null;
+  sources: Record<string, string>;
   signals: RawSignal[];
 } | null> {
   const supabase = getSupabaseBrowserClient();
@@ -86,15 +89,25 @@ export async function loadDraft(): Promise<{
   if (!supabase || !userId) return null;
 
   const [profileResult, signalsResult] = await Promise.all([
-    supabase.from("profiles").select("draft_profile,narrative,application_answers").eq("id", userId).maybeSingle(),
+    supabase.from("profiles").select("draft_profile,narrative,application_answers,resume_text,resume_profile,profile_sources").eq("id", userId).maybeSingle(),
     supabase.from("profile_signals").select("source,origin,content,data,created_at").eq("user_id", userId).order("created_at"),
   ]);
 
-  const row = profileResult.data as { draft_profile?: Partial<UserProfile>; narrative?: unknown; application_answers?: unknown } | null;
+  const row = profileResult.data as {
+    draft_profile?: Partial<UserProfile>;
+    narrative?: unknown;
+    application_answers?: unknown;
+    resume_text?: string | null;
+    resume_profile?: Partial<UserProfile> | null;
+    profile_sources?: Record<string, string> | null;
+  } | null;
   return {
     profile: row?.draft_profile && Object.keys(row.draft_profile).length ? row.draft_profile : null,
     narrative: row?.narrative ?? null,
     answers: row?.application_answers ?? null,
+    resumeText: row?.resume_text ?? "",
+    resumeProfile: row?.resume_profile && Object.keys(row.resume_profile).length ? row.resume_profile : null,
+    sources: row?.profile_sources ?? {},
     signals: (signalsResult.data ?? []).map((item, index) => ({
       id: `${item.source}-${index}`,
       source: item.source as RawSignal["source"],
@@ -107,7 +120,13 @@ export async function loadDraft(): Promise<{
 }
 
 /** Writes the verified profile and all structured child records. */
-export async function commitProfile(profile: UserProfile, options: { markdown: string; sources?: Record<string, string>; completeOnboarding?: boolean }): Promise<PersistResult> {
+export async function commitProfile(profile: UserProfile, options: {
+  markdown: string;
+  sources?: Record<string, string>;
+  resumeText?: string;
+  resumeProfile?: Partial<UserProfile>;
+  completeOnboarding?: boolean;
+}): Promise<PersistResult> {
   const supabase = getSupabaseBrowserClient();
   const userId = await currentUserId();
   if (!supabase || !userId) return { ok: false, error: "Not signed in" };
@@ -122,6 +141,8 @@ export async function commitProfile(profile: UserProfile, options: { markdown: s
     willing_to_relocate: profile.willingToRelocate || null, work_authorization: profile.workAuthorization || null,
     availability: profile.availability || null, custom_fields: profile.customFields ?? [],
     profile_markdown: options.markdown, profile_sources: options.sources ?? {},
+    ...(options.resumeText !== undefined ? { resume_text: options.resumeText } : {}),
+    ...(options.resumeProfile !== undefined ? { resume_profile: options.resumeProfile } : {}),
     ...(options.completeOnboarding ? { onboarding_completed_at: new Date().toISOString() } : {}),
   });
   if (error) return { ok: false, error: error.message };
@@ -156,6 +177,9 @@ export async function commitProfile(profile: UserProfile, options: { markdown: s
     impact: item.impact || null, technologies: item.technologies ?? [],
   }))));
 
-  await Promise.all(inserts);
+  const results = await Promise.all(inserts);
+  const childResult = results.find((result) => (result as { error?: { message?: string } } | null)?.error);
+  const childError = childResult ? (childResult as { error?: { message?: string } }).error : undefined;
+  if (childError) return { ok: false, error: childError.message ?? "Could not save structured profile data" };
   return { ok: true };
 }

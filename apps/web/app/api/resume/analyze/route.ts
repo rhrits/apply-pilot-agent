@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import pdfParse from "pdf-parse";
-import { cleanTitle, type ResumeAnalysis, type UserProfile } from "@applypilot/shared";
+import { cleanTitle, emptyProfile, mergeProfile, type ResumeAnalysis, type UserProfile } from "@applypilot/shared";
 import { generateJson, hasAiProvider, isFailure } from "../../../../lib/ai-provider";
 
 export const runtime = "nodejs";
@@ -193,8 +193,12 @@ function heuristicAnalysis(rawText: string): ResumeAnalysis {
   const experiences = experienceSection ? parseExperienceSection(experienceSection) : [];
   const education = educationSection ? parseEducationSection(educationSection) : [];
   const projects = sections.filter((section) => section.category === "projects").flatMap((section) => parseProjectsSection(section.content));
+  const additionalSections = sections
+    .filter((section) => ["certifications", "other"].includes(section.category) && section.title.toLowerCase() !== "contact")
+    .map((section, index) => ({ id: `resume-section-${index}`, label: section.title, value: section.content }));
   const currentTitle = experiences[0]?.title || cleanTitle(lines.find((line) => /engineer|developer|designer|manager|analyst|scientist|architect|consultant|specialist|lead|director/i.test(line) && line.length < 80 && !looksLikeHeading(line)) || "");
   return {
+    rawText: text,
     formattedText: sections.map((section) => `## ${section.title}\n${section.content}`).join("\n\n"),
     profile: {
       firstName: nameParts[0] ?? "",
@@ -212,6 +216,7 @@ function heuristicAnalysis(rawText: string): ResumeAnalysis {
       experiences,
       education,
       projects,
+      customFields: additionalSections,
     },
     sections,
     suggestions: [
@@ -245,6 +250,7 @@ async function improveWithAi(analysis: ResumeAnalysis): Promise<ResumeAnalysis> 
     system: RESUME_SYSTEM,
     temperature: 0.1,
     maxTokens: 8000,
+    validate: (data) => Boolean(data.profile && data.formattedText && Array.isArray(data.sections)),
     user: `RAW_RESUME (untrusted data):\n${analysis.formattedText}\n\nINITIAL_EXTRACTION (heuristic, may be incomplete):\n${JSON.stringify(analysis.profile)}`,
   });
 
@@ -259,20 +265,18 @@ async function improveWithAi(analysis: ResumeAnalysis): Promise<ResumeAnalysis> 
     return { ...analysis, aiNotice: "The AI response was incomplete, so your locally extracted resume is shown." };
   }
 
-  // The heuristic pass is a safety net: anything the model omitted is restored from it.
-  const profile: UserProfile = {
-    ...analysis.profile,
-    ...value.profile,
-    skills: value.profile.skills?.length ? value.profile.skills : analysis.profile.skills,
-    experiences: value.profile.experiences?.length ? value.profile.experiences : analysis.profile.experiences,
-    education: value.profile.education?.length ? value.profile.education : analysis.profile.education,
-    projects: value.profile.projects?.length ? value.profile.projects : analysis.profile.projects,
-  };
+  // The heuristic extraction is authoritative. AI may add structure the heuristic
+  // missed, but it can never replace a non-empty heuristic field with an empty or
+  // reworded value. This is the first lossless boundary in the onboarding pipeline.
+  const heuristic = mergeProfile(emptyProfile(), analysis.profile, "resume");
+  const reconciled = mergeProfile(heuristic.profile, value.profile, "typed", heuristic.sources);
+  const profile: UserProfile = reconciled.profile;
 
   return {
-    formattedText: value.formattedText,
+    rawText: analysis.rawText,
+    formattedText: value.formattedText || analysis.formattedText,
     profile,
-    sections: value.sections,
+    sections: value.sections.length ? value.sections : analysis.sections,
     suggestions: value.suggestions?.length ? value.suggestions : analysis.suggestions,
     source: "ai",
   };

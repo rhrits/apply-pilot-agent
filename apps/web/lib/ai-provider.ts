@@ -175,10 +175,29 @@ export async function generate(options: GenerateOptions): Promise<GenerateRespon
 }
 
 /** Convenience wrapper that generates and parses JSON in one step. */
-export async function generateJson<T>(options: Omit<GenerateOptions, "json">): Promise<{ data: T; provider: ProviderName } | GenerateFailure> {
-  const result = await generate({ ...options, json: true });
+export async function generateJson<T>(options: Omit<GenerateOptions, "json"> & {
+  /** Optional schema guard; a malformed shape also triggers provider failover. */
+  validate?: (data: T) => boolean;
+}): Promise<{ data: T; provider: ProviderName } | GenerateFailure> {
+  const { validate, ...generationOptions } = options;
+  const result = await generate({ ...generationOptions, json: true });
   if (isFailure(result)) return result;
+
   const data = parseJsonLoose<T>(result.text);
-  if (!data) return { error: "The AI response could not be parsed as JSON.", throttled: false };
-  return { data, provider: result.provider };
+  if (data && (!validate || validate(data))) return { data, provider: result.provider };
+
+  // A 200 response with malformed JSON or the wrong schema is still a failed
+  // structured-AI request. The normal `generate()` failover only sees HTTP
+  // failures, so explicitly retry Mistral when Gemini produced unusable JSON.
+  if (result.provider === "gemini") {
+    const fallback = await generate({ ...generationOptions, prefer: ["mistral"], json: true });
+    if (!isFailure(fallback)) {
+      const fallbackData = parseJsonLoose<T>(fallback.text);
+      if (fallbackData && (!validate || validate(fallbackData))) {
+        return { data: fallbackData, provider: fallback.provider };
+      }
+    }
+  }
+
+  return { error: "The AI response could not be parsed or did not match the required schema.", throttled: false };
 }

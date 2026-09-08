@@ -31,6 +31,9 @@ async function requireUser(request: Request) {
 }
 
 function text(value: unknown): string { return typeof value === "string" ? value.trim() : ""; }
+function label(value: string): string {
+  return value.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").replace(/^./, (character) => character.toUpperCase());
+}
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
@@ -45,17 +48,40 @@ function parseJson<T>(content: string): T | null {
  * Splits captured signals into the authoritative resume block and everything else.
  * The distinction is what makes the prompt resume-first rather than "average of sources".
  */
-function partitionSignals(signals: RawSignal[]) {
+function partitionSignals(signals: RawSignal[], explicitResumeProfile: Record<string, unknown>, explicitResumeText: string) {
   const usable = signals.filter((signal) => signal.content?.trim() && !signal.error);
   const resume = usable.filter((signal) => signal.source === "resume");
   const supplements = usable.filter((signal) => signal.source !== "resume");
   return {
-    resumeText: resume.map((signal) => sanitizePageContext(signal.content, 9000)).join("\n\n").slice(0, 18_000),
-    resumeProfile: resume.map((signal) => asRecord(signal.data).profile).map(asRecord).find((item) => Object.keys(item).length > 0) ?? {},
+    resumeText: sanitizePageContext(explicitResumeText || resume.map((signal) => sanitizePageContext(signal.content, 9000)).join("\n\n"), 24_000),
+    resumeProfile: Object.keys(explicitResumeProfile).length > 0
+      ? explicitResumeProfile
+      : resume.map((signal) => asRecord(signal.data).profile).map(asRecord).find((item) => Object.keys(item).length > 0) ?? {},
     supplementText: supplements
       .map((signal) => `[${signal.source}: ${signal.origin}]\n${sanitizePageContext(signal.content, 1500)}`)
       .join("\n\n").slice(0, 12_000),
     supplementProfiles: supplements.map((signal) => ({ source: signal.source, profile: asRecord(asRecord(signal.data).profile) })),
+  };
+}
+
+function categorizeProfile(profile: UserProfile): Record<string, unknown> {
+  return {
+    identity: {
+      firstName: profile.firstName, lastName: profile.lastName, email: profile.email,
+      phone: profile.phone, location: profile.location,
+    },
+    links: { linkedin: profile.linkedin, github: profile.github, portfolio: profile.portfolio },
+    professionalSummary: { currentTitle: profile.currentTitle, summary: profile.summary, totalExperience: profile.totalExperience },
+    skills: profile.skills ?? [],
+    experience: profile.experiences ?? [],
+    education: profile.education ?? [],
+    projects: profile.projects ?? [],
+    applicationDetails: {
+      noticePeriod: profile.noticePeriod, currentSalary: profile.currentSalary,
+      expectedSalary: profile.expectedSalary, willingToRelocate: profile.willingToRelocate,
+      workAuthorization: profile.workAuthorization, availability: profile.availability,
+    },
+    additional: profile.customFields ?? [],
   };
 }
 
@@ -76,7 +102,7 @@ EXTRACTION RULES:
 - Write "summary" in first person, factual, under 80 words.
 
 OUTPUT — return ONLY valid JSON in exactly this shape:
-{"profile":{"firstName":"","lastName":"","email":"","phone":"","location":"","linkedin":"","github":"","portfolio":"","currentTitle":"","summary":"","noticePeriod":"","currentSalary":"","expectedSalary":"","totalExperience":"","willingToRelocate":"","workAuthorization":"","availability":"","skills":[{"name":"","years":null,"proficiency":""}],"experiences":[{"company":"","title":"","period":"","summary":"","achievements":[""]}],"education":[{"institution":"","degree":"","field":"","period":""}],"projects":[{"name":"","description":"","technologies":[""],"impact":""}],"customFields":[{"id":"","label":"","value":""}]},"gaps":["short list of important details the candidate still needs to provide"]}`;
+{"profile":{"firstName":"","lastName":"","email":"","phone":"","location":"","linkedin":"","github":"","portfolio":"","currentTitle":"","summary":"","noticePeriod":"","currentSalary":"","expectedSalary":"","totalExperience":"","willingToRelocate":"","workAuthorization":"","availability":"","skills":[{"name":"","years":null,"proficiency":""}],"experiences":[{"company":"","title":"","period":"","summary":"","achievements":[""]}],"education":[{"institution":"","degree":"","field":"","period":""}],"projects":[{"name":"","description":"","technologies":[""],"impact":""}],"customFields":[{"id":"","label":"","value":""}]},"categories":{"identity":[],"links":[],"professionalSummary":[],"skills":[],"experience":[],"education":[],"projects":[],"applicationDetails":[],"additional":[]},"gaps":["short list of important details the candidate still needs to provide"]}`;
 
 const ANSWERS_SYSTEM = `You write reusable job-application answers for ONE candidate, using their verified profile.
 
@@ -165,9 +191,12 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}));
   const signals: RawSignal[] = Array.isArray(body.signals) ? body.signals : [];
+  const explicitResumeProfile = asRecord(body.resumeProfile);
+  const explicitResumeText = text(body.resumeText);
+  const resumeSections = Array.isArray(body.resumeSections) ? body.resumeSections : [];
   const narrative = asRecord(body.narrative);
   const answers = asRecord(body.answers);
-  const { resumeText, resumeProfile, supplementText, supplementProfiles } = partitionSignals(signals);
+  const { resumeText, resumeProfile, supplementText, supplementProfiles } = partitionSignals(signals, explicitResumeProfile, explicitResumeText);
 
   const narrativeText = sanitizePageContext(narrative, 3000);
   const answersText = sanitizePageContext(answers, 3000);
@@ -186,6 +215,14 @@ export async function POST(request: Request) {
     expectedSalary: text(answers.expectedCtc), totalExperience: text(answers.totalExperience),
     willingToRelocate: text(answers.willingToRelocate), workAuthorization: text(answers.workAuthorization),
     location: text(answers.preferredLocation), summary: text(narrative.about),
+    customFields: [
+      ["about", narrative.about], ["experience notes", narrative.experience], ["expectations", narrative.expectations],
+      ...Object.entries(answers),
+    ].filter(([, value]) => text(value)).map(([key, value], index) => ({
+      id: `onboarding-${index}-${key}`,
+      label: label(String(key)),
+      value: text(value),
+    })),
   };
   baseline = mergeProfile(baseline.profile, answerDerived, "answers", baseline.sources);
 
@@ -195,6 +232,10 @@ export async function POST(request: Request) {
       profile,
       sources,
       profileMarkdown: buildProfileMarkdown(profile),
+      categories: categorizeProfile(profile),
+      resumeProfile,
+      resumeText,
+      resumeSections,
       completeness: percent,
       gaps: missing,
       generatedAnswers,
@@ -218,6 +259,7 @@ export async function POST(request: Request) {
 
   const profileResult = await generateJson<{ profile: Record<string, unknown>; gaps?: string[] }>({
     system: PROFILE_SYSTEM, user: userPayload, maxTokens: 8000, temperature: 0.15,
+    validate: (data) => Boolean(data.profile && typeof data.profile === "object"),
   });
   if (isFailure(profileResult)) {
     return degrade(profileResult.throttled
@@ -226,11 +268,14 @@ export async function POST(request: Request) {
   }
   if (!profileResult.data?.profile) return degrade("Assembled from your materials without AI polish.");
 
-  // The model's output is treated as one more contribution, not as the final word:
-  // re-merging under "manual" keeps its wording while the resume baseline still guards
-  // against a model that dropped or rewrote a resume-stated fact.
-  const modelProfile = mergeProfile(emptyProfile(), toProfileShape(profileResult.data.profile), "manual").profile;
-  const reconciled = mergeProfile(modelProfile, baseline.profile, "resume", { });
+  // AI is an additive categorization layer. It can fill a gap or add a missing
+  // project, but it cannot overwrite any value already grounded in the resume.
+  const reconciled = mergeProfile(
+    baseline.profile,
+    toProfileShape(profileResult.data.profile),
+    "typed",
+    baseline.sources,
+  );
   const profile = reconciled.profile;
 
   let generatedAnswers: GeneratedAnswer[] = [];
@@ -242,6 +287,7 @@ export async function POST(request: Request) {
     ].join("\n");
     const answersResult = await generateJson<{ answers: Array<{ question: string; answer: string; category: GeneratedAnswer["category"] }> }>({
       system: ANSWERS_SYSTEM, user: answersPayload, maxTokens: 8000, temperature: 0.3,
+      validate: (data) => Array.isArray(data.answers),
     });
     if (!isFailure(answersResult)) {
       generatedAnswers = (answersResult.data?.answers ?? [])
@@ -258,5 +304,5 @@ export async function POST(request: Request) {
     if (!generatedAnswers.length) generatedAnswers = fallbackAnswers(profile, narrative, answers, signals);
   }
 
-  return respond(profile, baseline.sources, generatedAnswers, true);
+  return respond(profile, reconciled.sources, generatedAnswers, true);
 }

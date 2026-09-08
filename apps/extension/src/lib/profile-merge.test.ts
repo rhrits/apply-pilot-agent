@@ -34,6 +34,41 @@ describe("resume-first merging", () => {
     expect(profile.skills?.map((skill) => skill.name)).toEqual(["TypeScript", "Go"]);
   });
 
+  it("keeps complete resume records when an AI contribution is partial", () => {
+    const resume = mergeProfile(emptyProfile(), {
+      experiences: [{
+        company: "Acme",
+        title: "Backend Engineer",
+        period: "2021 – Present",
+        summary: "Built the payments platform.",
+        achievements: ["Reduced checkout failures by 32%"],
+      }],
+      projects: [{ name: "ApplyPilot", description: "A job copilot", technologies: ["TypeScript", "React"] }],
+    }, "resume");
+
+    const afterAi = mergeProfile(resume.profile, {
+      experiences: [{ company: "Acme", title: "Backend Engineer" }],
+      projects: [{ name: "ApplyPilot", description: "" }],
+    }, "typed", resume.sources);
+
+    expect(afterAi.profile.experiences?.[0].period).toBe("2021 – Present");
+    expect(afterAi.profile.experiences?.[0].achievements).toEqual(["Reduced checkout failures by 32%"]);
+    expect(afterAi.profile.projects?.[0].technologies).toEqual(["TypeScript", "React"]);
+  });
+
+  it("restores resume records when a partial model profile is reconciled first", () => {
+    const model = mergeProfile(emptyProfile(), {
+      experiences: [{ company: "Acme", title: "Backend Engineer" }],
+    }, "typed").profile;
+    const resume = mergeProfile(emptyProfile(), {
+      experiences: [{ company: "Acme", title: "Backend Engineer", period: "2021 – Present", achievements: ["Shipped billing"] }],
+    }, "resume").profile;
+
+    const reconciled = mergeProfile(model, resume, "resume");
+    expect(reconciled.profile.experiences?.[0].period).toBe("2021 – Present");
+    expect(reconciled.profile.experiences?.[0].achievements).toEqual(["Shipped billing"]);
+  });
+
   it("builds markdown with generated headings", () => {
     const markdown = buildProfileMarkdown({
       ...emptyProfile(),

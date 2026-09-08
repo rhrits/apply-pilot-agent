@@ -27,6 +27,15 @@ const STEPS = ["Resume", "Enrich", "Your story", "Details", "Build", "Review"] a
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
+function resumeSources(profile: Partial<UserProfile>): ProfileSources {
+  const result: ProfileSources = {};
+  for (const key of Object.keys(profile) as Array<keyof UserProfile>) {
+    const value = profile[key];
+    if ((typeof value === "string" && value.trim()) || (Array.isArray(value) && value.length)) result[key] = "resume";
+  }
+  return result;
+}
+
 export default function OnboardingPage() {
   return <AuthGate requireOnboarding={false}><OnboardingWizard /></AuthGate>;
 }
@@ -49,12 +58,15 @@ function OnboardingWizard() {
 
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [resumeTextInput, setResumeTextInput] = useState("");
+  const [resumeText, setResumeText] = useState("");
+  const [resumeProfile, setResumeProfile] = useState<Partial<UserProfile>>({});
+  const [resumeSections, setResumeSections] = useState<Array<{ title: string; content: string; category: string }>>([]);
   const [githubInput, setGithubInput] = useState("");
   const [linkInput, setLinkInput] = useState("");
   const [pastedInput, setPastedInput] = useState("");
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasResume = signals.some((signal) => signal.source === "resume");
+  const hasResume = signals.some((signal) => signal.source === "resume") || Boolean(resumeText.trim()) || Object.keys(resumeProfile).length > 0;
   const completeness = useMemo(() => profileCompleteness(profile), [profile]);
 
   // Restore any autosaved session so a refresh or device switch never loses captured work.
@@ -64,7 +76,26 @@ function OnboardingWizard() {
         if (draft.profile) setProfile({ ...emptyProfile(), ...draft.profile });
         if (draft.narrative && typeof draft.narrative === "object") setNarrative({ ...EMPTY_NARRATIVE, ...draft.narrative as NarrativeInput });
         if (draft.answers && typeof draft.answers === "object") setAnswers(draft.answers as Partial<ApplicationAnswers>);
+        if (draft.resumeText) setResumeText(draft.resumeText);
+        if (draft.resumeProfile) setResumeProfile(draft.resumeProfile);
         if (draft.signals.length) setSignals(draft.signals);
+        const savedResume = draft.signals.find((signal) => signal.source === "resume");
+        const restoredResumeProfile = draft.resumeProfile ?? (
+          savedResume?.data?.profile && typeof savedResume.data.profile === "object"
+            ? savedResume.data.profile as Partial<UserProfile>
+            : {}
+        );
+        if (Object.keys(restoredResumeProfile).length) setSources({
+          ...resumeSources(restoredResumeProfile),
+          ...(draft.sources as ProfileSources ?? {}),
+        });
+        if (savedResume) {
+          if (!draft.resumeText) setResumeText(savedResume.content);
+          if (!draft.resumeProfile) {
+            const extracted = savedResume.data?.profile;
+            if (extracted && typeof extracted === "object") setResumeProfile(extracted as Partial<UserProfile>);
+          }
+        }
       }
       setHydrated(true);
     }).catch(() => setHydrated(true));
@@ -76,25 +107,32 @@ function OnboardingWizard() {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     setSaveState("saving");
     saveTimer.current = setTimeout(async () => {
-      const result = await saveDraft({ profile, narrative, answers, sources: sources as Record<string, string> });
+      const result = await saveDraft({ profile, narrative, answers, resumeText, resumeProfile, sources: sources as Record<string, string> });
       setSaveState(result.ok ? "saved" : "error");
     }, 700);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [answers, hydrated, narrative, profile, sources]);
 
-  const applySignal = useCallback(async (signal: Omit<RawSignal, "id" | "collectedAt">, extracted: Partial<UserProfile>) => {
+  const applySignal = useCallback(async (
+    signal: Omit<RawSignal, "id" | "collectedAt">,
+    extracted: Partial<UserProfile>,
+    persistence?: { resumeText?: string; resumeProfile?: Partial<UserProfile> },
+  ) => {
     const record: RawSignal = { ...signal, id: crypto.randomUUID(), collectedAt: new Date().toISOString() };
     setSignals((current) => [...current.filter((item) => !(item.source === record.source && item.origin === record.origin)), record]);
     // Merge under the signal's own source so precedence rules decide what may be overwritten.
     const merged = mergeProfile(profile, extracted, record.source, sources);
     setProfile(merged.profile);
     setSources(merged.sources);
-    await saveSignal(record);
-    await saveDraft({
+    const signalResult = await saveSignal(record);
+    const draftResult = await saveDraft({
       profile: merged.profile,
       sources: merged.sources as Record<string, string>,
-      ...(record.source === "resume" ? { resumeText: record.content, resumeProfile: extracted } : {}),
+      ...(record.source === "resume" ? { resumeText: persistence?.resumeText ?? record.content, resumeProfile: persistence?.resumeProfile ?? extracted } : {}),
     });
+    if (!signalResult.ok || !draftResult.ok) {
+      throw new Error(`Resume extracted locally, but could not save it: ${signalResult.error ?? draftResult.error ?? "database write failed"}`);
+    }
     return merged.profile;
   }, [profile, sources]);
 
@@ -110,9 +148,16 @@ function OnboardingWizard() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not read that resume.");
 
+      const extractedProfile = result.profile ?? {};
+      const extractedText = result.rawText ?? result.formattedText ?? "";
+      setResumeProfile(extractedProfile);
+      setResumeText(extractedText);
+      setResumeSections(Array.isArray(result.sections) ? result.sections : []);
+
       const merged = await applySignal(
-        { source: "resume", origin: resumeFile?.name ?? "Pasted resume", content: result.formattedText ?? "", data: { profile: result.profile } },
-        result.profile ?? {},
+        { source: "resume", origin: resumeFile?.name ?? "Pasted resume", content: extractedText, data: { profile: extractedProfile, sections: result.sections ?? [] } },
+        extractedProfile,
+        { resumeText: extractedText, resumeProfile: extractedProfile },
       );
       setResumeFile(null); setResumeTextInput("");
       const found = [
@@ -191,15 +236,39 @@ function OnboardingWizard() {
       const response = await fetch("/api/profile/synthesize", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ signals, narrative, answers, generateAnswers: true }),
+        body: JSON.stringify({
+          signals,
+          resumeText,
+          resumeProfile,
+          resumeSections,
+          narrative,
+          answers,
+          generateAnswers: true,
+        }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Profile build failed.");
-      setProfile({ ...emptyProfile(), ...result.profile });
+      // The server also protects this boundary, but keep a client-side guard so a
+      // stale/partial response can never erase the extracted resume in the review UI.
+      const protectedResume = mergeProfile(emptyProfile(), resumeProfile, "resume");
+      const reconciled = mergeProfile(
+        protectedResume.profile,
+        { ...emptyProfile(), ...(result.profile ?? {}) },
+        "typed",
+        { ...protectedResume.sources, ...(result.sources ?? {}) },
+      );
+      setProfile(reconciled.profile);
       setMarkdown(result.profileMarkdown ?? "");
       setGaps(result.gaps ?? []);
       setGenerated(result.generatedAnswers ?? []);
-      await saveDraft({ profile: result.profile, markdown: result.profileMarkdown, sources: result.sources });
+      setSources(reconciled.sources);
+      await saveDraft({
+        profile: reconciled.profile,
+        markdown: result.profileMarkdown,
+        resumeText,
+        resumeProfile,
+        sources: reconciled.sources as Record<string, string>,
+      });
       setStepIndex(5);
       setNotice(result.aiUsed
         ? `Profile built from ${signals.length} source(s) with ${result.generatedAnswers?.length ?? 0} reusable answers.`
@@ -216,7 +285,13 @@ function OnboardingWizard() {
   async function finish() {
     setBusy("save"); setNotice("");
     const document = markdown || buildProfileMarkdown(profile);
-    const result = await commitProfile(profile, { markdown: document, sources: sources as Record<string, string>, completeOnboarding: true });
+    const result = await commitProfile(profile, {
+      markdown: document,
+      sources: sources as Record<string, string>,
+      resumeText,
+      resumeProfile,
+      completeOnboarding: true,
+    });
     if (!result.ok) { setNotice(`Could not save: ${result.error}`); setBusy(""); return; }
 
     const supabase = getSupabaseBrowserClient();
@@ -261,6 +336,12 @@ function OnboardingWizard() {
           <span><i>{profile.skills?.length ?? 0}</i>skills</span>
           <span><i>{profile.projects?.length ?? 0}</i>projects</span>
           <span><i>{profile.education?.length ?? 0}</i>education</span>
+        </div>
+        <div className="resume-preview">
+          <strong>{[resumeProfile.firstName, resumeProfile.lastName].filter(Boolean).join(" ") || "Candidate details"}</strong>
+          <span>{[resumeProfile.currentTitle, resumeProfile.email, resumeProfile.phone, resumeProfile.location].filter(Boolean).join(" · ") || "Contact details will appear here"}</span>
+          {resumeProfile.summary && <p>{resumeProfile.summary}</p>}
+          {(resumeProfile.experiences ?? []).slice(0, 3).map((item, index) => <div className="resume-preview-item" key={`${item.company}-${item.title}-${index}`}><b>{item.title || "Role"}</b><span>{[item.company, item.period].filter(Boolean).join(" · ")}</span></div>)}
         </div>
       </div>}
 

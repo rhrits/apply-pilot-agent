@@ -54,6 +54,8 @@ export interface UserProfile {
 }
 
 export interface ResumeAnalysis {
+  /** Original extracted text, retained so onboarding can persist the source verbatim. */
+  rawText?: string;
   formattedText: string;
   profile: UserProfile;
   sections: Array<{ title: string; content: string; category: "summary" | "experience" | "skills" | "education" | "projects" | "certifications" | "other" }>;

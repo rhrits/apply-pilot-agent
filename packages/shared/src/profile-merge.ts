@@ -50,14 +50,49 @@ function canOverwrite(existingSource: SignalSource | "manual" | undefined, incom
   return SOURCE_PRIORITY[incoming] < SOURCE_PRIORITY[existingSource];
 }
 
-function dedupeByKey<T>(items: T[], key: (item: T) => string): T[] {
-  const seen = new Set<string>();
-  return items.filter((item) => {
-    const id = key(item).toLowerCase().trim();
-    if (!id || seen.has(id)) return false;
-    seen.add(id);
-    return true;
-  });
+function hasContent(value: unknown): boolean {
+  if (typeof value === "string") return value.trim().length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  return value !== undefined && value !== null;
+}
+
+function mergeRecord<T extends Record<string, unknown>>(base: T, incoming: T, incomingWins: boolean): T {
+  const result = { ...base } as T;
+  for (const [key, candidate] of Object.entries(incoming)) {
+    if (!hasContent(candidate)) continue;
+    const current = result[key];
+    if (incomingWins || !hasContent(current)) (result as Record<string, unknown>)[key] = candidate;
+  }
+  return result;
+}
+
+/**
+ * Unions structured lists without allowing a lower-priority duplicate to hide a
+ * richer record. This matters when an AI response contains the same role as the
+ * resume but omits its bullets, dates, or technologies.
+ */
+function mergeCollection<T extends Record<string, unknown>>(
+  base: T[],
+  incoming: T[],
+  key: (item: T) => string,
+  incomingWins: boolean,
+): T[] {
+  const result = base.map((item) => ({ ...item }));
+  const positions = new Map<string, number>();
+  result.forEach((item, index) => positions.set(key(item).toLowerCase().trim(), index));
+
+  for (const item of incoming) {
+    const identity = key(item).toLowerCase().trim();
+    if (!identity) continue;
+    const existingIndex = positions.get(identity);
+    if (existingIndex === undefined) {
+      positions.set(identity, result.length);
+      result.push({ ...item });
+    } else {
+      result[existingIndex] = mergeRecord(result[existingIndex], item, incomingWins);
+    }
+  }
+  return result;
 }
 
 /**
@@ -80,27 +115,28 @@ export function mergeProfile(
     // An empty field is always fillable; a populated one needs a higher-priority source.
     if (existing && !canOverwrite(nextSources[field], source)) continue;
     (profile[field] as string) = candidate;
-    nextSources[field] = existing && nextSources[field] ? nextSources[field] : source;
-    if (!existing) nextSources[field] = source;
+    nextSources[field] = source;
   }
 
-  profile.skills = dedupeByKey([...(profile.skills ?? []), ...(incoming.skills ?? [])], (skill) => skill.name);
-  profile.experiences = dedupeByKey(
-    [...(profile.experiences ?? []), ...(incoming.experiences ?? [])],
+  const incomingWins = (field: keyof UserProfile) => !nextSources[field] || canOverwrite(nextSources[field], source);
+  profile.skills = mergeCollection(profile.skills ?? [], incoming.skills ?? [], (skill) => skill.name, incomingWins("skills"));
+  profile.experiences = mergeCollection(
+    profile.experiences ?? [], incoming.experiences ?? [],
     (item) => `${item.company}|${item.title}`,
+    incomingWins("experiences"),
   );
-  profile.education = dedupeByKey(
-    [...(profile.education ?? []), ...(incoming.education ?? [])],
+  profile.education = mergeCollection(
+    profile.education ?? [], incoming.education ?? [],
     (item) => `${item.institution}|${item.degree ?? ""}`,
+    incomingWins("education"),
   );
-  profile.projects = dedupeByKey([...(profile.projects ?? []), ...(incoming.projects ?? [])], (item) => item.name);
-  profile.customFields = dedupeByKey(
-    [...(profile.customFields ?? []), ...(incoming.customFields ?? [])],
-    (item) => item.label,
-  );
+  profile.projects = mergeCollection(profile.projects ?? [], incoming.projects ?? [], (item) => item.name, incomingWins("projects"));
+  profile.customFields = mergeCollection(profile.customFields ?? [], incoming.customFields ?? [], (item) => item.label, incomingWins("customFields"));
 
-  for (const field of ["skills", "experiences", "education", "projects"] as const) {
-    if ((incoming[field]?.length ?? 0) > 0 && !nextSources[field]) nextSources[field] = source;
+  for (const field of ["skills", "experiences", "education", "projects", "customFields"] as const) {
+    if ((incoming[field]?.length ?? 0) > 0 && (!nextSources[field] || canOverwrite(nextSources[field], source))) {
+      nextSources[field] = source;
+    }
   }
 
   return { profile, sources: nextSources };
