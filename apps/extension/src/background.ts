@@ -1,6 +1,6 @@
 import type { ActiveFieldPayload, ExtensionMessage, ExtensionSettings } from "@applypilot/shared";
 import { extensionConfig, isExtensionConfigured } from "./lib/config";
-import { clearExtensionSession, fetchAuthenticatedProfile, fetchResumeFile, getExtensionSupabase, getExtensionUser, saveJobToSupabase } from "./lib/supabase";
+import { clearExtensionSession, fetchAuthenticatedProfile, fetchResumeFile, fetchTracker, getExtensionSupabase, getExtensionUser, saveJobToSupabase } from "./lib/supabase";
 import { findLocalMemory, saveAnswerMemory } from "./lib/memory";
 import { saveUnknownQuestion } from "./lib/unknown-questions";
 
@@ -126,6 +126,35 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
     return true;
   }
 
+  if (message.type === "GET_TRACKER") {
+    fetchTracker().then(sendResponse).catch((error) => sendResponse({ error: String(error) }));
+    return true;
+  }
+
+  if (message.type === "TRANSCRIBE_AUDIO") {
+    // Transcription runs on the web app's server so no provider key ships in the extension.
+    (async () => {
+      try {
+        const supabase = getExtensionSupabase();
+        const { data } = (await supabase?.auth.getSession()) ?? { data: { session: null } };
+        const accessToken = data.session?.access_token;
+        if (!accessToken) { sendResponse({ error: "Sign in to use dictation." }); return; }
+
+        const blob = await (await fetch(message.dataUrl)).blob();
+        const form = new FormData();
+        form.append("audio", blob, "recording.webm");
+        const response = await fetch(`${extensionConfig.webAppUrl}/api/transcribe`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}` },
+          body: form,
+        });
+        const payload = await response.json();
+        sendResponse(response.ok ? { text: payload.text ?? "" } : { error: payload.error ?? "Transcription failed." });
+      } catch (error) { sendResponse({ error: String(error) }); }
+    })();
+    return true;
+  }
+
   if (message.type === "OPEN_SIDE_PANEL") {
     const targetTabId = tabId ?? messageTabId(sender);
     if (targetTabId !== undefined) {
@@ -145,4 +174,33 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
 function messageTabId(sender: chrome.runtime.MessageSender): number | undefined {
   return sender.tab?.id;
 }
+
+/**
+ * Live profile sync.
+ *
+ * The web app and the extension share one Supabase user, so a profile edited on the
+ * web should reach the extension without the user pressing "Refresh". A periodic
+ * alarm keeps the cached profile fresh, and any auth change refreshes it immediately.
+ */
+const SYNC_ALARM = "applypilot-profile-sync";
+
+chrome.alarms.create(SYNC_ALARM, { periodInMinutes: 15 });
+
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name !== SYNC_ALARM) return;
+  const user = await getExtensionUser().catch(() => null);
+  if (!user) return;
+  const profile = await fetchAuthenticatedProfile().catch(() => null);
+  if (profile) await chrome.storage.local.set({ profile, profileSyncedAt: new Date().toISOString() });
+});
+
+// Refresh as soon as the side panel or popup opens, so the panel never shows stale data.
+chrome.runtime.onConnect.addListener(async (port) => {
+  if (port.name !== "applypilot-panel") return;
+  const profile = await fetchAuthenticatedProfile().catch(() => null);
+  if (profile) {
+    await chrome.storage.local.set({ profile, profileSyncedAt: new Date().toISOString() });
+    port.postMessage({ type: "PROFILE_SYNCED", profile });
+  }
+});
 

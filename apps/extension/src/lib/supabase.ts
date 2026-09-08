@@ -130,3 +130,52 @@ export async function saveJobToSupabase(job: PageSummary): Promise<{ ok: boolean
   return { ok: true };
 }
 
+export interface TrackedJob {
+  id: string;
+  company: string;
+  title: string;
+  url: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface TrackerSnapshot {
+  jobs: TrackedJob[];
+  counts: Record<string, number>;
+  total: number;
+  answerCount: number;
+}
+
+/** Reads the job tracker so the side panel can show status without opening the web app. */
+export async function fetchTracker(): Promise<TrackerSnapshot | { error: string }> {
+  const supabase = getExtensionSupabase();
+  if (!supabase) return { error: "Extension Supabase configuration is missing." };
+  const user = await getExtensionUser();
+  if (!user) return { error: "Sign in to view your tracker." };
+
+  const [applicationsResult, answersResult] = await Promise.all([
+    supabase.from("applications").select("id,status,created_at,jobs(id,company,title,url)").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50),
+    supabase.from("answer_library").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+  ]);
+
+  const rows = (applicationsResult.data ?? []) as Array<Record<string, unknown>>;
+  const counts: Record<string, number> = {};
+  const jobs: TrackedJob[] = rows.map((row) => {
+    // Supabase types the embedded relation as an array even for a to-one join.
+    const relation = row.jobs as Record<string, unknown> | Array<Record<string, unknown>> | null;
+    const job = Array.isArray(relation) ? relation[0] : relation;
+    const status = String(row.status ?? "saved");
+    counts[status] = (counts[status] ?? 0) + 1;
+    return {
+      id: String(row.id ?? ""),
+      company: String(job?.company ?? "Unknown company"),
+      title: String(job?.title ?? "Untitled role"),
+      url: String(job?.url ?? ""),
+      status,
+      createdAt: String(row.created_at ?? ""),
+    };
+  });
+
+  return { jobs, counts, total: jobs.length, answerCount: answersResult.count ?? 0 };
+}
+

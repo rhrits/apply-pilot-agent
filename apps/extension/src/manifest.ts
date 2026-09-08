@@ -6,7 +6,7 @@ const manifest: ManifestV3Export = {
   version: "0.2.0",
   description: "A resilient job-application copilot that detects, answers, fills, and always lets you copy.",
   icons: { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
-  permissions: ["storage", "activeTab", "sidePanel"],
+  permissions: ["storage", "activeTab", "sidePanel", "alarms"],
   host_permissions: ["<all_urls>"],
   background: { service_worker: "src/background.ts", type: "module" },
   action: { default_title: "Open ApplyPilot", default_popup: "src/popup.html", default_icon: { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" } },

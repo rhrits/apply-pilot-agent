@@ -11,6 +11,7 @@ import {
   type RawSignal,
   type UserProfile,
 } from "@applypilot/shared";
+import { generateJson, hasAiProvider, isFailure } from "../../../../lib/ai-provider";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -56,27 +57,6 @@ function partitionSignals(signals: RawSignal[]) {
       .join("\n\n").slice(0, 12_000),
     supplementProfiles: supplements.map((signal) => ({ source: signal.source, profile: asRecord(asRecord(signal.data).profile) })),
   };
-}
-
-async function callMistral(apiKey: string, systemPrompt: string, userPayload: string, maxTokens: number) {
-  let response: Response;
-  try {
-    response = await fetch("https://api.mistral.ai/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: process.env.MISTRAL_MODEL || "mistral-small-latest",
-        temperature: 0.15,
-        max_tokens: maxTokens,
-        response_format: { type: "json_object" },
-        messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPayload }],
-      }),
-    });
-  } catch { return { error: "unreachable" }; }
-  if (!response.ok) return { error: `http_${response.status}` };
-  const payload = await response.json().catch(() => null);
-  const content = payload?.choices?.[0]?.message?.content;
-  return typeof content === "string" ? { content } : { error: "unexpected_response" };
 }
 
 const PROFILE_SYSTEM = `You are ApplyPilot's profile architect. You assemble ONE job-application profile for ONE candidate from their own materials.
@@ -209,8 +189,7 @@ export async function POST(request: Request) {
   };
   baseline = mergeProfile(baseline.profile, answerDerived, "answers", baseline.sources);
 
-  const apiKey = process.env.MISTRAL_API_KEY;
-  const respond = (profile: UserProfile, sources: ProfileSources, generatedAnswers: GeneratedAnswer[], aiUsed: boolean) => {
+  const respond = (profile: UserProfile, sources: ProfileSources, generatedAnswers: GeneratedAnswer[], aiUsed: boolean, notice?: string) => {
     const { percent, missing } = profileCompleteness(profile);
     return NextResponse.json({
       profile,
@@ -220,10 +199,14 @@ export async function POST(request: Request) {
       gaps: missing,
       generatedAnswers,
       aiUsed,
+      notice,
     }, { headers });
   };
 
-  if (!apiKey) return respond(baseline.profile, baseline.sources, fallbackAnswers(baseline.profile, narrative, answers, signals), false);
+  const degrade = (notice?: string) =>
+    respond(baseline.profile, baseline.sources, fallbackAnswers(baseline.profile, narrative, answers, signals), false, notice);
+
+  if (!hasAiProvider()) return degrade("Assembled from your materials. No AI provider is configured, so nothing was rewritten.");
 
   const userPayload = [
     "RESUME_PROFILE (authoritative, already extracted):", JSON.stringify(resumeProfile),
@@ -233,16 +216,20 @@ export async function POST(request: Request) {
     "\nANSWERS (the candidate's own words):", answersText || "(none provided)",
   ].join("\n");
 
-  const profileResult = await callMistral(apiKey, PROFILE_SYSTEM, userPayload, 4000);
-  if ("error" in profileResult) return respond(baseline.profile, baseline.sources, fallbackAnswers(baseline.profile, narrative, answers, signals), false);
-
-  const parsed = parseJson<{ profile: Record<string, unknown>; gaps?: string[] }>(profileResult.content);
-  if (!parsed?.profile) return respond(baseline.profile, baseline.sources, fallbackAnswers(baseline.profile, narrative, answers, signals), false);
+  const profileResult = await generateJson<{ profile: Record<string, unknown>; gaps?: string[] }>({
+    system: PROFILE_SYSTEM, user: userPayload, maxTokens: 8000, temperature: 0.15,
+  });
+  if (isFailure(profileResult)) {
+    return degrade(profileResult.throttled
+      ? "Assembled from your materials. The AI provider was busy, so nothing was rewritten — you can rebuild later for a polished version."
+      : "Assembled from your materials without AI polish.");
+  }
+  if (!profileResult.data?.profile) return degrade("Assembled from your materials without AI polish.");
 
   // The model's output is treated as one more contribution, not as the final word:
   // re-merging under "manual" keeps its wording while the resume baseline still guards
   // against a model that dropped or rewrote a resume-stated fact.
-  const modelProfile = mergeProfile(emptyProfile(), toProfileShape(parsed.profile), "manual").profile;
+  const modelProfile = mergeProfile(emptyProfile(), toProfileShape(profileResult.data.profile), "manual").profile;
   const reconciled = mergeProfile(modelProfile, baseline.profile, "resume", { });
   const profile = reconciled.profile;
 
@@ -253,10 +240,11 @@ export async function POST(request: Request) {
       "\nNARRATIVE (the candidate's own words):", narrativeText,
       "\nANSWERS (the candidate's own words):", answersText,
     ].join("\n");
-    const answersResult = await callMistral(apiKey, ANSWERS_SYSTEM, answersPayload, 6000);
-    if (!("error" in answersResult)) {
-      const parsedAnswers = parseJson<{ answers: Array<{ question: string; answer: string; category: GeneratedAnswer["category"] }> }>(answersResult.content);
-      generatedAnswers = (parsedAnswers?.answers ?? [])
+    const answersResult = await generateJson<{ answers: Array<{ question: string; answer: string; category: GeneratedAnswer["category"] }> }>({
+      system: ANSWERS_SYSTEM, user: answersPayload, maxTokens: 8000, temperature: 0.3,
+    });
+    if (!isFailure(answersResult)) {
+      generatedAnswers = (answersResult.data?.answers ?? [])
         .filter((item) => item.question?.trim() && item.answer?.trim())
         .map((item, index) => ({
           id: `answer-${index}-${Date.now()}`,

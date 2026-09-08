@@ -2,21 +2,26 @@ import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { ActiveFieldPayload, AnswerResponse, ExtensionMessage, ScannedField, UserProfile } from "@applypilot/shared";
 import { extensionConfig } from "./lib/config";
+import type { TrackerSnapshot } from "./lib/supabase";
+import { CopyButton, DictationControl, ExternalIcon, InsertIcon, SaveIcon, SyncIcon } from "./components/ui";
 import "./sidepanel.css";
 import "./sidepanel-auth.css";
 import "./sidepanel-tabs.css";
 
 const API_URL = extensionConfig.aiApiUrl;
+type Tab = "assistant" | "profile" | "fields" | "tracker";
+
+const STATUS_LABELS: Record<string, string> = {
+  saved: "Saved", applying: "Applying", applied: "Applied", assessment: "Assessment",
+  interview: "Interview", offer: "Offer", rejected: "Rejected", withdrawn: "Withdrawn",
+};
 
 function CopyRow({ label, value }: { label: string; value: string }) {
-  const [copied, setCopied] = useState(false);
   if (!value) return null;
-  async function copy() {
-    await navigator.clipboard.writeText(value);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1200);
-  }
-  return <div className="copy-row"><div className="copy-row-text"><small>{label}</small><span>{value}</span></div><button onClick={copy}>{copied ? "✓" : "Copy"}</button></div>;
+  return <div className="copy-row">
+    <div className="copy-row-text"><small>{label}</small><span>{value}</span></div>
+    <CopyButton value={value} label={`Copy ${label}`} />
+  </div>;
 }
 
 function ProfileTab({ profile }: { profile: UserProfile | null }) {
@@ -55,11 +60,40 @@ function ProfileTab({ profile }: { profile: UserProfile | null }) {
     {(profile.education ?? []).map((item, index) => <CopyRow key={index} label={item.institution || "Education"} value={[item.degree, item.institution, item.period].filter(Boolean).join(", ")} />)}
     <h2>Projects</h2>
     {(profile.projects ?? []).map((item, index) => <CopyRow key={index} label={item.name} value={[item.name, item.description].filter(Boolean).join(" — ")} />)}
+    {(profile.customFields ?? []).length > 0 && <>
+      <h2>Custom answers</h2>
+      {(profile.customFields ?? []).map((field) => <CopyRow key={field.id} label={field.label} value={field.value} />)}
+    </>}
+  </div>;
+}
+
+function TrackerTab({ tracker, onRefresh }: { tracker: TrackerSnapshot | null; onRefresh: () => void }) {
+  if (!tracker) return <p className="empty">Sign in to see your tracked applications.</p>;
+  const active = (tracker.counts.applying ?? 0) + (tracker.counts.applied ?? 0) + (tracker.counts.interview ?? 0) + (tracker.counts.assessment ?? 0);
+  return <div className="tab-body">
+    <div className="stat-grid">
+      <div className="stat"><strong>{tracker.total}</strong><span>Tracked</span></div>
+      <div className="stat"><strong>{active}</strong><span>Active</span></div>
+      <div className="stat"><strong>{tracker.counts.interview ?? 0}</strong><span>Interview</span></div>
+      <div className="stat"><strong>{tracker.counts.offer ?? 0}</strong><span>Offers</span></div>
+    </div>
+    <div className="stat-note"><span>{tracker.answerCount} saved answers ready for instant autofill</span><button className="link-button" onClick={onRefresh}><SyncIcon size={12} />Refresh</button></div>
+    <h2>Recent applications</h2>
+    {tracker.jobs.length === 0 && <p className="empty">Nothing tracked yet. Use “Save job” on any posting.</p>}
+    {tracker.jobs.map((job) => <div className="job-row" key={job.id}>
+      <div className="job-row-text">
+        <strong>{job.title}</strong>
+        <small>{job.company}</small>
+      </div>
+      <span className={`job-status ${job.status}`}>{STATUS_LABELS[job.status] ?? job.status}</span>
+      {job.url && <a className="icon-button" href={job.url} target="_blank" rel="noopener noreferrer" title="Open posting" aria-label="Open posting"><ExternalIcon /></a>}
+    </div>)}
+    <a className="wide-link" href={`${extensionConfig.webAppUrl}/tracker`} target="_blank" rel="noopener noreferrer">Open full tracker<ExternalIcon /></a>
   </div>;
 }
 
 function SidePanel() {
-  const [tab, setTab] = useState<"assistant" | "profile" | "fields">("assistant");
+  const [tab, setTab] = useState<Tab>("assistant");
   const [active, setActive] = useState<ActiveFieldPayload | null>(null);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<AnswerResponse | null>(null);
@@ -69,18 +103,33 @@ function SidePanel() {
   const [accountEmail, setAccountEmail] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [fields, setFields] = useState<ScannedField[]>([]);
+  const [tracker, setTracker] = useState<TrackerSnapshot | null>(null);
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: "AUTH_STATUS" } satisfies ExtensionMessage).then((result) => {
       setAuthenticated(Boolean(result?.authenticated));
       setAccountEmail(result?.email ?? null);
       setProfile(result?.profile ?? null);
+      if (result?.authenticated) void loadTracker();
     }).catch(() => undefined);
+
     chrome.runtime.sendMessage({ type: "GET_ACTIVE_FIELD" } satisfies ExtensionMessage).then((result) => {
       const payload = result?.activeField as ActiveFieldPayload | undefined;
       if (payload) { setActive(payload); setQuestion(payload.field.question); }
     }).catch(() => undefined);
+
+    // Opening this port asks the worker for a fresh profile, so the panel is never stale.
+    const port = chrome.runtime.connect({ name: "applypilot-panel" });
+    port.onMessage.addListener((message: { type: string; profile?: UserProfile }) => {
+      if (message.type === "PROFILE_SYNCED" && message.profile) setProfile(message.profile);
+    });
+    return () => port.disconnect();
   }, []);
+
+  async function loadTracker() {
+    const result = await chrome.runtime.sendMessage({ type: "GET_TRACKER" } satisfies ExtensionMessage).catch(() => null);
+    if (result && !result.error) setTracker(result as TrackerSnapshot);
+  }
 
   async function activeTabId() {
     const [tabInfo] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -92,6 +141,8 @@ function SidePanel() {
     if (!prompt) return;
     setLoading(true); setStatus("");
     try {
+      // Local memory first, then the server (which checks the saved answer library
+      // before it ever calls a model). Most questions never reach the AI provider.
       const remembered = await chrome.runtime.sendMessage({ type: "FIND_ANSWER_MEMORY", question: prompt } satisfies ExtensionMessage);
       if (remembered?.item) {
         setAnswer({ answer: remembered.item.answer, source: "memory", confidence: 0.92, notice: "Matched from your saved answer memory." });
@@ -112,7 +163,7 @@ function SidePanel() {
   async function saveMemory() {
     if (!answer || !question.trim()) return;
     const result = await chrome.runtime.sendMessage({ type: "SAVE_ANSWER_MEMORY", item: { question: question.trim(), answer: answer.answer, source: answer.source === "ai" ? "ai" : "user" } } satisfies ExtensionMessage);
-    setStatus(result?.item ? "Saved to answer memory. Similar questions will reuse it." : result?.error ?? "Could not save answer memory.");
+    setStatus(result?.item ? "Saved. This question now answers instantly, with no AI call." : result?.error ?? "Could not save answer memory.");
   }
 
   async function scan(fill: boolean) {
@@ -148,15 +199,16 @@ function SidePanel() {
     if (!summary || summary.error) { setStatus("Could not read this page. Reload and try again."); return; }
     const result = await chrome.runtime.sendMessage({ type: "SAVE_JOB", job: summary } satisfies ExtensionMessage);
     setStatus(result?.duplicate ? "Already saved — view it in your job tracker." : result?.ok ? "Saved to your job tracker." : result?.error ?? "Could not save this job.");
+    if (result?.ok) void loadTracker();
   }
 
   async function syncNow() {
-    setStatus("Syncing profile from Supabase…");
+    setStatus("Syncing from your workspace…");
     const result = await chrome.runtime.sendMessage({ type: "REFRESH_PROFILE" } satisfies ExtensionMessage);
-    if (result?.profile) { setProfile(result.profile); setStatus("Profile synced."); } else setStatus(result?.error ?? "Sync failed.");
+    if (result?.profile) { setProfile(result.profile); await loadTracker(); setStatus("Profile and tracker synced."); }
+    else setStatus(result?.error ?? "Sync failed.");
   }
 
-  async function copy() { if (answer) { await navigator.clipboard.writeText(answer.answer); setStatus("Copied to clipboard"); } }
   async function insert() {
     if (!answer) return;
     const result = await chrome.runtime.sendMessage({ type: "GET_ACTIVE_FIELD" } satisfies ExtensionMessage);
@@ -166,32 +218,67 @@ function SidePanel() {
   }
 
   return <main className="panel">
-    <header><img className="brand-mark" src="/icons/48.png" width={36} height={36} alt="" /><div><h1>ApplyPilot</h1><p>Page assistant</p></div><span className="ready">{authenticated ? "SYNCED" : "SIGN IN"}</span></header>
-    {!authenticated && <section className="auth-banner">Sign in from the extension popup to connect your Supabase profile.</section>}
-    {authenticated && <section className="account-banner">Signed in as {accountEmail}</section>}
-    <section className="page-card"><small>{active?.page.hostname ?? "Current page"}</small><strong>{active?.page.title ?? "Focus a form field to start"}</strong></section>
+    <header>
+      <img className="brand-mark" src="/icons/48.png" width={36} height={36} alt="" />
+      <div><h1>ApplyPilot</h1><p>Page assistant</p></div>
+      <span className={`ready ${authenticated ? "" : "off"}`}>{authenticated ? "SYNCED" : "SIGN IN"}</span>
+    </header>
+
+    {!authenticated && <section className="auth-banner">Sign in from the extension popup to connect your profile.</section>}
+    {authenticated && <section className="account-banner">{accountEmail}</section>}
+
+    <section className="page-card">
+      <small>{active?.page.hostname ?? "Current page"}</small>
+      <strong>{active?.page.title ?? "Focus a form field to start"}</strong>
+    </section>
+
     <div className="quick-actions">
       <button onClick={() => scan(false)}>Scan page</button>
       <button onClick={() => scan(true)}>Fill all</button>
       <button onClick={attachResume}>Attach resume</button>
-    </div>
-    <div className="quick-actions">
       <button onClick={saveJob}>Save job</button>
-      <button onClick={syncNow}>Sync now</button>
+      <button onClick={syncNow}><SyncIcon size={12} />Sync</button>
     </div>
+
     <nav className="tabs">
       <button className={tab === "assistant" ? "active" : ""} onClick={() => setTab("assistant")}>Assistant</button>
       <button className={tab === "profile" ? "active" : ""} onClick={() => setTab("profile")}>My data</button>
       <button className={tab === "fields" ? "active" : ""} onClick={() => setTab("fields")}>Fields{fields.length ? ` (${fields.length})` : ""}</button>
+      <button className={tab === "tracker" ? "active" : ""} onClick={() => { setTab("tracker"); void loadTracker(); }}>Tracker{tracker?.total ? ` (${tracker.total})` : ""}</button>
     </nav>
+
     {tab === "assistant" && <>
-      <label className="label">Question or field prompt</label>
-      <textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Paste a question, or focus a field on the page…" rows={4} />
+      <div className="label-row">
+        <label className="label" htmlFor="question">Question or field prompt</label>
+        <DictationControl onText={(text) => setQuestion((current) => `${current} ${text}`.trim())} />
+      </div>
+      <textarea id="question" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Paste a question, focus a field on the page, or dictate…" rows={4} />
       <button className="generate" onClick={generate} disabled={loading}>{loading ? "Generating…" : "Generate answer"}</button>
-      {answer && <section className="answer-card"><div className="answer-meta"><span>Suggested answer</span><span>{answer.source}</span></div><p>{answer.answer}</p><div className="actions"><button onClick={copy}>Copy</button><button onClick={insert}>Insert</button><button onClick={saveMemory}>Save memory</button></div></section>}
+      {answer && <section className="answer-card">
+        <div className="answer-meta"><span>Suggested answer</span><span className={`source-tag ${answer.source}`}>{answer.source}</span></div>
+        <p>{answer.answer}</p>
+        <div className="actions">
+          <CopyButton value={answer.answer} label="Copy answer" />
+          <button onClick={insert}><InsertIcon />Insert</button>
+          <button onClick={saveMemory}><SaveIcon />Save</button>
+        </div>
+      </section>}
     </>}
+
     {tab === "profile" && <ProfileTab profile={profile} />}
-    {tab === "fields" && <div className="tab-body">{fields.length === 0 ? <p className="empty">Run “Scan page” to list every detected field.</p> : fields.map((field) => <div className="field-row" key={field.index}><div className="field-row-text"><strong>{field.label || field.question || "Field"}</strong><small>{field.kind}{field.filled ? " · filled" : field.value ? " · ready" : " · no value"}</small></div>{field.value && <button onClick={() => navigator.clipboard.writeText(field.value)}>Copy</button>}</div>)}</div>}
+
+    {tab === "fields" && <div className="tab-body">
+      {fields.length === 0 ? <p className="empty">Run “Scan page” to list every detected field.</p> : fields.map((field) => <div className="field-row" key={field.index}>
+        <div className="field-row-text">
+          <strong>{field.label || field.question || "Field"}</strong>
+          <small>{field.kind}{field.filled ? " · filled" : field.value ? " · ready" : " · no value"}</small>
+        </div>
+        {field.value && <CopyButton value={field.value} label="Copy value" />}
+      </div>)}
+    </div>}
+
+    {tab === "tracker" && <TrackerTab tracker={tracker} onRefresh={loadTracker} />}
+
     {status && <p className="status">{status}</p>}
     <footer>Autofill is confidence-aware. Review sensitive answers before submitting.</footer>
   </main>;

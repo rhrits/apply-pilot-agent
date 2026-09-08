@@ -126,6 +126,8 @@ export type ExtensionMessage =
   | { type: "ATTACH_RESUME"; fileName: string; mimeType: string; dataUrl: string }
   | { type: "GET_PAGE_SUMMARY" }
   | { type: "SAVE_JOB"; job: PageSummary }
+  | { type: "GET_TRACKER" }
+  | { type: "TRANSCRIBE_AUDIO"; dataUrl: string; mimeType: string }
   | { type: "SUGGEST_ANSWER"; question: string; page: ActiveFieldPayload["page"] }
   | { type: "OPEN_SIDE_PANEL" }
   | { type: "INSERT_IN_ACTIVE_FIELD"; value: string }
