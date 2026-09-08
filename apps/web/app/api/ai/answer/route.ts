@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { answerQuestion, cleanTitle, sanitizePageContext, type UserProfile } from "@applypilot/shared";
+import { answerQuestion, cleanTitle, groupProjects, sanitizePageContext, type UserProfile } from "@applypilot/shared";
 import { generate, hasAiProvider, isFailure } from "../../../../lib/ai-provider";
 
 export const runtime = "nodejs";
@@ -124,8 +124,11 @@ export async function POST(request: Request) {
     summary: context.profile.summary,
     totalExperience: context.profile.totalExperience,
     skills: (context.profile.skills ?? []).map((skill) => skill.name),
-    experiences: (context.profile.experiences ?? []).slice(0, 6).map((role) => ({ company: role.company, title: role.title, period: role.period, achievements: (role.achievements ?? []).slice(0, 4) })),
-    projects: (context.profile.projects ?? []).slice(0, 6).map((project) => ({ name: project.name, description: project.description, technologies: project.technologies, impact: project.impact })),
+    experiences: (context.profile.experiences ?? []).slice(0, 6).map((role) => ({ company: role.company, title: role.title, period: role.period, achievements: (role.achievements ?? []).slice(0, 4), skills: role.skills ?? [] })),
+    // Resume projects lead: they are the work the candidate chose to show employers.
+    projects: [...groupProjects(context.profile).primary, ...groupProjects(context.profile).secondary]
+      .slice(0, 6)
+      .map((project) => ({ name: project.name, description: project.description, technologies: project.technologies, impact: project.impact, source: project.source ?? "resume" })),
     education: context.profile.education,
     customAnswers: (context.profile.customFields ?? []).map((field) => ({ question: field.label, answer: field.value })),
     relatedSavedAnswers: (library ?? [])

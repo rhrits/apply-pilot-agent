@@ -19,11 +19,11 @@ function clean(value: string) {
   return value.replace(/\u0000/g, "").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-const HEADING_PATTERN = /^(summary|professional summary|profile|about( me)?|objective|experience|work experience|professional experience|employment( history)?|career history|education|academic background|skills|technical skills|core competencies|areas of expertise|tools( (and|&) technologies)?|projects|personal projects|certifications?|licenses?( (and|&) certifications)?|awards?( (and|&) honors)?|achievements|honors|volunteer( experience)?|publications|languages)\s*:?$/i;
+const HEADING_PATTERN = /^(summary|professional summary|profile|about( me)?|objective|experience|work experience|professional experience|employment( history)?|career history|education|academic background|skills|technical skills|core competencies|areas of expertise|technologies|tech stack|tools( (and|&) technologies)?|projects|personal projects|side projects|key projects|selected projects|academic projects|open source|certifications?|licenses?( (and|&) certifications)?|awards?( (and|&) honors)?|achievements|honors|volunteer( experience)?|publications|languages)\s*:?$/i;
 
 // A shorter, exact-match unit list used to validate each side of compound headings like
 // "Education & Certifications" or "Skills and Tools" that HEADING_PATTERN alone would miss.
-const HEADING_UNIT = /^(summary|profile|objective|experience|professional experience|employment|education|academic background|skills|technical skills|core competencies|areas of expertise|tools|projects|personal projects|certifications?|licenses?|awards?|honors?|achievements|volunteer( experience)?|publications|languages)$/i;
+const HEADING_UNIT = /^(summary|profile|objective|experience|professional experience|employment|education|academic background|skills|technical skills|core competencies|areas of expertise|technologies|tech stack|tools|projects|personal projects|side projects|key projects|open source|certifications?|licenses?|awards?|honors?|achievements|volunteer( experience)?|publications|languages)$/i;
 
 function looksLikeHeading(line: string) {
   const value = line.trim();
@@ -74,10 +74,11 @@ function findLocation(text: string) {
 function category(title: string): "summary" | "experience" | "skills" | "education" | "projects" | "certifications" | "other" {
   const value = title.toLowerCase();
   if (value.includes("summary") || value === "profile" || value.includes("about") || value.includes("objective")) return "summary";
+  // Projects is checked before experience so "Project Experience" is never read as employment.
+  if (value.includes("project") || value.includes("open source")) return "projects";
   if (value.includes("experience") || value.includes("employment") || value.includes("career history")) return "experience";
-  if (value.includes("skill") || value.includes("competenc") || value.includes("expertise") || value.includes("tools")) return "skills";
+  if (value.includes("skill") || value.includes("competenc") || value.includes("expertise") || value.includes("tool") || value.includes("technolog") || value.includes("tech stack")) return "skills";
   if (value.includes("education") || value.includes("academic")) return "education";
-  if (value.includes("project")) return "projects";
   if (value.includes("certif") || value.includes("award") || value.includes("honor") || value.includes("licens")) return "certifications";
   return "other";
 }
@@ -157,11 +158,66 @@ function parseEducationSection(content: string) {
   }).map((entry, index, all) => all.length === 1 && !entry.institution ? { ...entry, institution: entry.degree, degree: "" } : entry);
 }
 
+const TECH_LABEL = /^(tech(nologies)?|tech stack|stack|built with|tools|skills)\s*(used)?\s*[:\-–—]\s*/i;
+
+function splitList(value: string): string[] {
+  return value
+    .split(/[|,•·;]|\s{2,}|\s+\/\s+/)
+    .map((item) => item.replace(BULLET_PREFIX, "").replace(/\.$/, "").trim())
+    .filter((item) => item.length > 1 && item.length < 45);
+}
+
+/**
+ * Parses a projects section into discrete projects rather than one project per line.
+ * A new project starts at a non-bullet line once the previous block already has body
+ * content, which is how project sections are laid out in practice.
+ */
 function parseProjectsSection(content: string) {
-  return content.split(/\n+/).map((line) => line.replace(BULLET_PREFIX, "").trim()).filter(Boolean).map((line) => {
-    const separatorMatch = line.match(/^(.+?)\s*[-:–—]\s*(.+)$/);
-    return separatorMatch ? { name: separatorMatch[1].trim(), description: separatorMatch[2].trim() } : { name: line, description: "" };
-  });
+  const lines = content.split("\n").map((line) => line.trim()).filter(Boolean);
+  const blocks: string[][] = [];
+  let current: string[] = [];
+  for (const line of lines) {
+    const startsNewProject = !BULLET_PREFIX.test(line) && !TECH_LABEL.test(line) && current.length > 0;
+    if (startsNewProject) { blocks.push(current); current = [line]; }
+    else current.push(line);
+  }
+  if (current.length) blocks.push(current);
+
+  return blocks.map((blockLines) => {
+    const header = blockLines[0].replace(BULLET_PREFIX, "").trim();
+    const rest = blockLines.slice(1).map((line) => line.replace(BULLET_PREFIX, "").trim());
+
+    const url = findLink(header + "\n" + rest.join("\n"), /.+/);
+    const period = extractPeriod(header);
+    const withoutMeta = header.replace(/\((?:[^)]*\d{4}[^)]*)\)/, "").replace(/https?:\/\/\S+/g, "").trim();
+
+    // "Name — description" / "Name: description" / "Name (React, Node)".
+    const parenTech = withoutMeta.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+    let name = withoutMeta;
+    let description = "";
+    let technologies: string[] = [];
+
+    if (parenTech && !/\d{4}/.test(parenTech[2])) { name = parenTech[1].trim(); technologies = splitList(parenTech[2]); }
+    else {
+      const separator = withoutMeta.match(/^(.{2,60}?)\s*[:–—]\s+(.+)$/) ?? withoutMeta.match(/^(.{2,60}?)\s+-\s+(.+)$/);
+      if (separator) { name = separator[1].trim(); description = separator[2].trim(); }
+    }
+
+    const descriptionParts = description ? [description] : [];
+    for (const line of rest) {
+      if (TECH_LABEL.test(line)) { technologies = [...technologies, ...splitList(line.replace(TECH_LABEL, ""))]; continue; }
+      if (line) descriptionParts.push(line);
+    }
+
+    return {
+      name: cleanTitle(name).replace(/[:\-–—]$/, "").trim(),
+      description: descriptionParts.join(" ").trim(),
+      technologies: [...new Set(technologies)],
+      period,
+      url,
+      source: "resume" as const,
+    };
+  }).filter((project) => project.name);
 }
 
 function estimateTotalExperience(experiences: Array<{ period?: string }>) {
@@ -171,6 +227,41 @@ function estimateTotalExperience(experiences: Array<{ period?: string }>) {
   const end = experiences.some((experience) => /present|current/i.test(experience.period ?? "")) ? new Date().getFullYear() : Math.max(...years);
   const total = Math.max(1, end - start);
   return `${total} years`;
+}
+
+/**
+ * Collects skills from every skills-like section. Lines are often written as
+ * "Languages: TypeScript, Go" or as bullets, so the category label is stripped and
+ * kept alongside the skill instead of being imported as a skill of its own.
+ */
+function parseSkillSections(sections: Array<{ title: string; content: string; category: string }>) {
+  const skills: Array<{ name: string; category?: string }> = [];
+  const seen = new Set<string>();
+
+  for (const section of sections.filter((item) => item.category === "skills")) {
+    for (const rawLine of section.content.split("\n")) {
+      const line = rawLine.replace(BULLET_PREFIX, "").trim();
+      if (!line) continue;
+      const labelled = line.match(/^([A-Za-z][A-Za-z /&+#.-]{2,40}?)\s*[:\-–—]\s+(.+)$/);
+      const groupName = labelled ? labelled[1].trim() : section.title;
+      for (const name of splitList(labelled ? labelled[2] : line)) {
+        const key = name.toLowerCase();
+        if (seen.has(key) || /^\d+$/.test(name)) continue;
+        seen.add(key);
+        skills.push({ name, category: /skill|technolog|tool|competenc|expertise/i.test(groupName) ? undefined : groupName });
+      }
+    }
+  }
+  return skills.slice(0, 80);
+}
+
+/** Finds which of the candidate's own skills a block of role text actually mentions. */
+function skillsMentionedIn(text: string, skills: Array<{ name: string }>) {
+  const haystack = text.toLowerCase();
+  return skills
+    .map((skill) => skill.name)
+    .filter((name) => name.length > 1 && haystack.includes(name.toLowerCase()))
+    .slice(0, 12);
 }
 
 function heuristicAnalysis(rawText: string): ResumeAnalysis {
@@ -185,14 +276,25 @@ function heuristicAnalysis(rawText: string): ResumeAnalysis {
   const firstLine = lines.find((line) => !/@|resume|curriculum vitae/i.test(line) && !looksLikeHeading(line)) ?? "";
   const nameParts = firstLine.split(/\s+/).slice(0, 4);
   const sections = sectionize(text).map((section) => ({ ...section, category: category(section.title) }));
-  const skillsSection = sections.find((section) => section.category === "skills")?.content ?? "";
-  const skillNames = skillsSection.split(/[|,•·]|\s{2,}/).map((skill) => skill.replace(/^[-*]\s*/, "").trim()).filter((skill) => skill.length > 1 && skill.length < 45).slice(0, 30);
+  const parsedSkills = parseSkillSections(sections);
   const summary = sections.find((section) => section.category === "summary")?.content ?? "";
-  const experienceSection = sections.find((section) => section.category === "experience")?.content ?? "";
+  const experienceSection = sections.filter((section) => section.category === "experience").map((section) => section.content).join("\n\n");
   const educationSection = sections.find((section) => section.category === "education")?.content ?? "";
-  const experiences = experienceSection ? parseExperienceSection(experienceSection) : [];
+  const parsedExperiences = experienceSection ? parseExperienceSection(experienceSection) : [];
   const education = educationSection ? parseEducationSection(educationSection) : [];
   const projects = sections.filter((section) => section.category === "projects").flatMap((section) => parseProjectsSection(section.content));
+
+  // Skills named inside a role are attached to that role so answers can cite the
+  // exact stack per employer instead of one flat list.
+  const experiences = parsedExperiences.map((role) => ({
+    ...role,
+    skills: skillsMentionedIn([role.summary, ...(role.achievements ?? [])].join(" "), parsedSkills),
+  }));
+
+  // Technologies named only inside a project description still count as skills.
+  const projectSkills = projects.flatMap((project) => project.technologies ?? []);
+  const skillNames = [...parsedSkills, ...projectSkills.map((name) => ({ name }))]
+    .filter((skill, index, all) => all.findIndex((item) => item.name.toLowerCase() === skill.name.toLowerCase()) === index);
   const additionalSections = sections
     .filter((section) => ["certifications", "other"].includes(section.category) && section.title.toLowerCase() !== "contact")
     .map((section, index) => ({ id: `resume-section-${index}`, label: section.title, value: section.content }));
@@ -212,7 +314,7 @@ function heuristicAnalysis(rawText: string): ResumeAnalysis {
       currentTitle,
       summary,
       totalExperience: estimateTotalExperience(experiences),
-      skills: skillNames.map((name) => ({ name })),
+      skills: skillNames,
       experiences,
       education,
       projects,
@@ -240,8 +342,20 @@ RULES:
 7. formattedText must be clean ATS-friendly Markdown of the same resume, with '## ' section headings and '- ' bullets. Do not add facts.
 8. suggestions must be 3 to 5 short, actionable improvements for the candidate.
 
+EXPERIENCE vs PROJECTS — do not confuse these:
+- "experiences" is PAID EMPLOYMENT only: an employer, a job title, and dates. Internships count.
+- "projects" is everything the candidate built that is NOT an employer: personal, academic, side, freelance one-offs, and open source.
+- A project listed inside a job's bullets stays as a bullet of that job. Never promote it into "projects".
+- A section titled "Project Experience" or similar is PROJECTS, not employment.
+- Never output the same item in both arrays.
+
+COMPLETENESS:
+- "skills" must include every technology named anywhere in the resume: skills sections, role bullets, and project stacks. Deduplicate case-insensitively; keep the resume's own spelling.
+- For each role, "skills" lists only the technologies that role's own text mentions.
+- For each project, "technologies" lists its stack, and "source" is always "resume".
+
 OUTPUT — return ONLY valid JSON in exactly this shape:
-{"formattedText":"","profile":{"firstName":"","lastName":"","email":"","phone":"","location":"","linkedin":"","github":"","portfolio":"","currentTitle":"","summary":"","totalExperience":"","skills":[{"name":"","years":null,"proficiency":""}],"experiences":[{"company":"","title":"","period":"","summary":"","achievements":[""]}],"education":[{"institution":"","degree":"","field":"","period":""}],"projects":[{"name":"","description":"","technologies":[""],"impact":""}]},"sections":[{"title":"","content":"","category":"summary|experience|skills|education|projects|certifications|other"}],"suggestions":[""]}`;
+{"formattedText":"","profile":{"firstName":"","lastName":"","email":"","phone":"","location":"","linkedin":"","github":"","portfolio":"","currentTitle":"","summary":"","totalExperience":"","skills":[{"name":"","years":null,"proficiency":"","category":""}],"experiences":[{"company":"","title":"","period":"","location":"","summary":"","achievements":[""],"skills":[""]}],"education":[{"institution":"","degree":"","field":"","period":""}],"projects":[{"name":"","description":"","technologies":[""],"impact":"","role":"","period":"","url":"","source":"resume"}]},"sections":[{"title":"","content":"","category":"summary|experience|skills|education|projects|certifications|other"}],"suggestions":[""]}`;
 
 async function improveWithAi(analysis: ResumeAnalysis): Promise<ResumeAnalysis> {
   if (!hasAiProvider()) return analysis;
@@ -270,7 +384,7 @@ async function improveWithAi(analysis: ResumeAnalysis): Promise<ResumeAnalysis> 
   // reworded value. This is the first lossless boundary in the onboarding pipeline.
   const heuristic = mergeProfile(emptyProfile(), analysis.profile, "resume");
   const reconciled = mergeProfile(heuristic.profile, value.profile, "typed", heuristic.sources);
-  const profile: UserProfile = reconciled.profile;
+  const profile: UserProfile = normalizeResumeProfile(reconciled.profile);
 
   return {
     rawText: analysis.rawText,
@@ -280,6 +394,25 @@ async function improveWithAi(analysis: ResumeAnalysis): Promise<ResumeAnalysis> 
     suggestions: value.suggestions?.length ? value.suggestions : analysis.suggestions,
     source: "ai",
   };
+}
+
+/**
+ * Guarantees the resume-level invariants regardless of which extractor produced the
+ * data: everything here came from the resume, an employer is never also a project,
+ * and every technology named anywhere is available as a skill.
+ */
+function normalizeResumeProfile(profile: UserProfile): UserProfile {
+  const employers = new Set((profile.experiences ?? []).flatMap((role) => [role.company, role.title]).map((value) => value.toLowerCase().trim()).filter(Boolean));
+
+  const projects = (profile.projects ?? [])
+    .filter((project) => project.name && !employers.has(project.name.toLowerCase().trim()))
+    .map((project) => ({ ...project, source: project.source ?? ("resume" as const) }));
+
+  const skills = [...(profile.skills ?? []), ...projects.flatMap((project) => (project.technologies ?? []).map((name) => ({ name })))]
+    .filter((skill) => skill.name?.trim())
+    .filter((skill, index, all) => all.findIndex((item) => item.name.toLowerCase().trim() === skill.name.toLowerCase().trim()) === index);
+
+  return { ...profile, projects, skills };
 }
 
 export async function POST(request: Request) {
@@ -301,6 +434,7 @@ export async function POST(request: Request) {
   }
 
   if (text.trim().length < 40) return NextResponse.json({ error: "Add more resume text or upload a readable file." }, { status: 400, headers: corsHeaders });
-  const analysis = await improveWithAi(heuristicAnalysis(text));
+  const heuristic = heuristicAnalysis(text);
+  const analysis = await improveWithAi({ ...heuristic, profile: normalizeResumeProfile(heuristic.profile) });
   return NextResponse.json(analysis, { headers: corsHeaders });
 }

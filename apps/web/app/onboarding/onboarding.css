@@ -111,5 +111,19 @@
 .review-item ul{margin:7px 0 0;padding-left:16px;display:grid;gap:4px}
 .review-item li{font-size:11px;line-height:1.5;color:var(--muted)}
 .markdown-preview{padding:20px 22px;border:1px solid var(--line);border-radius:14px;background:#fff;max-height:460px;overflow:auto}
+.resume-banner{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:22px;padding:16px 18px;border:1px solid #d9d4ff;border-radius:14px;background:#f5f3ff}
+.resume-banner strong{display:block;font-size:13px}
+.resume-banner span{font-size:11px;color:var(--muted)}
+.resume-banner-actions{display:flex;gap:10px}
+.resume-preview{margin-top:14px;padding:14px 16px;border-radius:12px;background:#fff;border:1px solid var(--line)}
+.resume-preview>strong{display:block;font:700 14px 'Space Grotesk'}
+.resume-preview>span{display:block;margin-top:3px;font-size:11px;color:var(--muted)}
+.resume-preview>p{margin:9px 0 0;font-size:11px;line-height:1.6;color:var(--muted)}
+.resume-preview-item{display:flex;justify-content:space-between;gap:12px;margin-top:8px;padding-top:8px;border-top:1px solid #f2f1f8;font-size:11px}
+.resume-preview-item span{color:var(--muted)}
+.chip-list.small span{padding:3px 8px;font-size:9px}
+.review-item .impact{margin-top:6px;font-size:11px;color:#07835e}
+.review-item.secondary{border-style:dashed;opacity:.92}
+.empty-state{font-size:11px;color:var(--muted)}
 
 @media(max-width:680px){.answer-grid{grid-template-columns:1fr}.onboarding-panel h1{font-size:24px}.inline-row{flex-direction:column}}

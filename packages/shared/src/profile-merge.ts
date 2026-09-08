@@ -7,7 +7,7 @@
  * profile grounded in the document the candidate actually curated for employers.
  */
 
-import type { UserProfile } from "./types";
+import type { ProfileProject, UserProfile } from "./types";
 import type { SignalSource } from "./onboarding";
 
 /** Lower number wins. A source may only overwrite a value from a higher number. */
@@ -56,11 +56,11 @@ function hasContent(value: unknown): boolean {
   return value !== undefined && value !== null;
 }
 
-function mergeRecord<T extends Record<string, unknown>>(base: T, incoming: T, incomingWins: boolean): T {
+function mergeRecord<T extends object>(base: T, incoming: T, incomingWins: boolean): T {
   const result = { ...base } as T;
   for (const [key, candidate] of Object.entries(incoming)) {
     if (!hasContent(candidate)) continue;
-    const current = result[key];
+    const current = (result as Record<string, unknown>)[key];
     if (incomingWins || !hasContent(current)) (result as Record<string, unknown>)[key] = candidate;
   }
   return result;
@@ -71,7 +71,7 @@ function mergeRecord<T extends Record<string, unknown>>(base: T, incoming: T, in
  * richer record. This matters when an AI response contains the same role as the
  * resume but omits its bullets, dates, or technologies.
  */
-function mergeCollection<T extends Record<string, unknown>>(
+function mergeCollection<T extends object>(
   base: T[],
   incoming: T[],
   key: (item: T) => string,
@@ -178,6 +178,26 @@ export function profileCompleteness(profile: UserProfile): { percent: number; mi
   return { percent, missing };
 }
 
+/**
+ * Splits projects into the primary set the candidate put on their resume and the
+ * supporting set discovered from GitHub or portfolio links. The resume set is what
+ * employers already saw, so it is always presented first and never mixed in.
+ */
+export function groupProjects(profile: UserProfile): { primary: ProfileProject[]; secondary: ProfileProject[] } {
+  const all = profile.projects ?? [];
+  return {
+    primary: all.filter((project) => (project.source ?? "resume") === "resume" || project.source === "manual"),
+    secondary: all.filter((project) => project.source === "github" || project.source === "portfolio"),
+  };
+}
+
+const PROJECT_SOURCE_LABEL: Record<string, string> = {
+  resume: "Resume",
+  github: "GitHub",
+  portfolio: "Portfolio",
+  manual: "Added by you",
+};
+
 /** Renders the verified profile as Markdown with generated section headings. */
 export function buildProfileMarkdown(profile: UserProfile): string {
   const lines: string[] = [];
@@ -206,19 +226,34 @@ export function buildProfileMarkdown(profile: UserProfile): string {
     lines.push("", "## Experience");
     for (const item of profile.experiences) {
       lines.push("", `### ${item.title || "Role"}${item.company ? ` — ${item.company}` : ""}`);
-      if (item.period) lines.push(`*${item.period}*`);
+      const meta = [item.period, item.location].map(value).filter(Boolean).join(" · ");
+      if (meta) lines.push(`*${meta}*`);
       if (item.achievements?.length) for (const achievement of item.achievements) lines.push(`- ${achievement}`);
       else if (item.summary) lines.push(item.summary);
+      if (item.skills?.length) lines.push(`**Skills used:** ${item.skills.join(" · ")}`);
     }
   }
 
-  if (profile.projects?.length) {
+  const { primary, secondary } = groupProjects(profile);
+  const renderProject = (item: ProfileProject) => {
+    lines.push("", `### ${item.name}`);
+    const meta = [item.role, item.period, item.technologies?.join(" · ")].map(value).filter(Boolean).join(" · ");
+    if (meta) lines.push(`*${meta}*`);
+    if (item.description) lines.push(item.description);
+    if (item.impact) lines.push(`**Impact:** ${item.impact}`);
+    if (item.url) lines.push(`[${item.url}](${item.url})`);
+  };
+
+  if (primary.length) {
     lines.push("", "## Projects");
-    for (const item of profile.projects) {
-      lines.push("", `### ${item.name}`);
-      if (item.technologies?.length) lines.push(`*${item.technologies.join(" · ")}*`);
-      if (item.description) lines.push(item.description);
-      if (item.impact) lines.push(`**Impact:** ${item.impact}`);
+    for (const item of primary) renderProject(item);
+  }
+
+  if (secondary.length) {
+    lines.push("", "## Additional projects and open source");
+    for (const item of secondary) {
+      renderProject(item);
+      lines.push(`*Source: ${PROJECT_SOURCE_LABEL[item.source ?? "manual"]}*`);
     }
   }
 

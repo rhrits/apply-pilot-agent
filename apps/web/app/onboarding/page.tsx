@@ -7,6 +7,7 @@ import {
   EMPTY_NARRATIVE,
   buildProfileMarkdown,
   emptyProfile,
+  groupProjects,
   mergeProfile,
   profileCompleteness,
   type ApplicationAnswers,
@@ -80,9 +81,18 @@ function OnboardingWizard() {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasResume = signals.some((signal) => signal.source === "resume") || Boolean(resumeText.trim()) || Object.keys(resumeProfile).length > 0;
   const completeness = useMemo(() => profileCompleteness(profile), [profile]);
+  const { primary: primaryProjects, secondary: secondaryProjects } = useMemo(() => groupProjects(profile), [profile]);
+  const [alreadyOnboarded, setAlreadyOnboarded] = useState(false);
 
   // Restore any autosaved session so a refresh or device switch never loses captured work.
   useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    supabase?.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      const { data: row } = await supabase.from("profiles").select("onboarding_completed_at").eq("id", data.user.id).maybeSingle();
+      setAlreadyOnboarded(Boolean(row?.onboarding_completed_at));
+    });
+
     loadDraft().then((draft) => {
       if (draft) {
         if (draft.profile) setProfile({ ...emptyProfile(), ...draft.profile });
@@ -197,7 +207,13 @@ function OnboardingWizard() {
         { source: "github", origin: `github.com/${result.username}`, content: summary, data: { ...result, profile: {
           github: `https://github.com/${result.username}`,
           skills: (result.topLanguages ?? []).map((name: string) => ({ name })),
-          projects: (result.repositories ?? []).slice(0, 10).map((repo: { name: string; description?: string; language?: string }) => ({ name: repo.name, description: repo.description ?? "", technologies: repo.language ? [repo.language] : [] })),
+          projects: (result.repositories ?? []).slice(0, 10).map((repo: { name: string; description?: string; language?: string; url?: string }) => ({
+            name: repo.name,
+            description: repo.description ?? "",
+            technologies: repo.language ? [repo.language] : [],
+            url: repo.url ?? "",
+            source: "github" as const,
+          })),
         } } },
         {},
       );
@@ -215,7 +231,10 @@ function OnboardingWizard() {
       const result = await readApiResponse(response);
       if (!response.ok) throw new Error(result.error || "Could not read that link.");
       await applySignal(
-        { source: "project", origin: result.url, content: [result.title, result.description, result.text].filter(Boolean).join("\n"), data: { ...result, profile: { portfolio: result.url } } },
+        { source: "project", origin: result.url, content: [result.title, result.description, result.text].filter(Boolean).join("\n"), data: { ...result, profile: {
+          portfolio: result.url,
+          projects: result.title ? [{ name: result.title, description: result.description ?? "", url: result.url, technologies: result.technologies ?? [], source: "portfolio" as const }] : [],
+        } } },
         {},
       );
       setLinkInput(""); setNotice(`Read "${result.title}" and saved it as supporting detail.`);
@@ -320,7 +339,17 @@ function OnboardingWizard() {
 
   const progress = Math.round(((stepIndex + 1) / STEPS.length) * 100);
   const saveLabel = saveState === "saving" ? "Saving…" : saveState === "saved" ? "All changes saved" : saveState === "error" ? "Save failed — retrying" : "";
-
+{alreadyOnboarded && <div className="resume-banner">
+        <div>
+          <strong>You already have a profile</strong>
+          <span>Skip ahead and keep using it, or rebuild it from a new resume. Rebuilding never deletes anything until you save.</span>
+        </div>
+        <div className="resume-banner-actions">
+          <button className="ghost-button" onClick={() => setAlreadyOnboarded(false)}>Rebuild profile</button>
+          <button className="primary-button" onClick={() => router.push("/profile")}>Skip to my profile</button>
+        </div>
+      </div>}
+      
   return <main className="onboarding">
     <header className="onboarding-head">
       <div className="brand"><img src="/icons/48.png" width={28} height={28} alt="" />ApplyPilot</div>
@@ -455,10 +484,18 @@ function OnboardingWizard() {
       <div className="chip-list">{(profile.skills ?? []).map((skill, index) => <span key={index}>{skill.name}{skill.years ? ` · ${skill.years}y` : ""}</span>)}</div>
 
       <h2>Experience <span className="count">{profile.experiences?.length ?? 0}</span></h2>
-      {(profile.experiences ?? []).map((item, index) => <div className="review-item" key={index}><strong>{item.title || "Role"}</strong><span>{[item.company, item.period].filter(Boolean).join(" · ")}</span>{item.achievements?.length ? <ul>{item.achievements.map((achievement, position) => <li key={position}>{achievement}</li>)}</ul> : <p>{item.summary}</p>}</div>)}
+      {(profile.experiences ?? []).map((item, index) => <div className="review-item" key={index}><strong>{item.title || "Role"}</strong><span>{[item.company, item.period, item.location].filter(Boolean).join(" · ")}</span>{item.achievements?.length ? <ul>{item.achievements.map((achievement, position) => <li key={position}>{achievement}</li>)}</ul> : <p>{item.summary}</p>}{item.skills?.length ? <div className="chip-list small">{item.skills.map((skill) => <span key={skill}>{skill}</span>)}</div> : null}</div>)}
 
-      <h2>Projects <span className="count">{profile.projects?.length ?? 0}</span></h2>
-      {(profile.projects ?? []).map((item, index) => <div className="review-item" key={index}><strong>{item.name}</strong><span>{item.technologies?.join(" · ")}</span><p>{item.description}</p></div>)}
+      <h2>Projects from your resume <span className="count">{primaryProjects.length}</span></h2>
+      <p className="lede">These are your primary projects. Anything imported from GitHub or a link is kept separately below.</p>
+      {primaryProjects.map((item, index) => <div className="review-item" key={`primary-${index}`}><strong>{item.name}</strong><span>{[item.role, item.period].filter(Boolean).join(" · ")}</span><p>{item.description}</p>{item.technologies?.length ? <div className="chip-list small">{item.technologies.map((tech) => <span key={tech}>{tech}</span>)}</div> : null}{item.impact && <p className="impact">{item.impact}</p>}</div>)}
+      {!primaryProjects.length && <p className="empty-state">No projects were found in your resume yet.</p>}
+
+      {secondaryProjects.length > 0 && <>
+        <h2>Supporting projects <span className="count">{secondaryProjects.length}</span></h2>
+        <p className="lede">Imported from GitHub and your links. Used as extra evidence, never in place of your resume.</p>
+        {secondaryProjects.map((item, index) => <div className="review-item secondary" key={`secondary-${index}`}><strong>{item.name}<em className="source-chip">{item.source}</em></strong><span>{item.technologies?.join(" · ")}</span><p>{item.description}</p></div>)}
+      </>}
 
       <h2>Education <span className="count">{profile.education?.length ?? 0}</span></h2>
       {(profile.education ?? []).map((item, index) => <div className="review-item" key={index}><strong>{item.institution}</strong><span>{[item.degree, item.field, item.period].filter(Boolean).join(" · ")}</span></div>)}

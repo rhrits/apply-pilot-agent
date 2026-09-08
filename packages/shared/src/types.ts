@@ -27,6 +27,34 @@ export interface DetectedField {
   confidence: number;
 }
 
+/**
+ * Where a project came from. Resume projects are primary: they were curated by the
+ * candidate for employers. Everything else is supporting evidence shown separately.
+ */
+export type ProjectSource = "resume" | "github" | "portfolio" | "manual";
+
+export interface ProfileProject {
+  name: string;
+  description?: string;
+  technologies?: string[];
+  impact?: string;
+  role?: string;
+  period?: string;
+  url?: string;
+  source?: ProjectSource;
+}
+
+export interface ProfileExperience {
+  company: string;
+  title: string;
+  period?: string;
+  location?: string;
+  summary?: string;
+  achievements?: string[];
+  /** Tools and technologies this role used, so answers can cite them per employer. */
+  skills?: string[];
+}
+
 export interface UserProfile {
   firstName: string;
   lastName: string;
@@ -47,10 +75,10 @@ export interface UserProfile {
   availability?: string;
   /** User-defined question/answer pairs for fields the fixed schema does not cover. */
   customFields?: Array<{ id: string; label: string; value: string }>;
-  skills?: Array<{ name: string; years?: number; proficiency?: string }>;
-  experiences?: Array<{ company: string; title: string; period?: string; summary?: string; achievements?: string[] }>;
+  skills?: Array<{ name: string; years?: number; proficiency?: string; category?: string }>;
+  experiences?: ProfileExperience[];
   education?: Array<{ institution: string; degree?: string; field?: string; period?: string }>;
-  projects?: Array<{ name: string; description?: string; technologies?: string[]; impact?: string }>;
+  projects?: ProfileProject[];
 }
 
 export interface ResumeAnalysis {
@@ -84,8 +112,17 @@ export interface JobApplication {
   contactName?: string;
   source?: string;
   tags?: string[];
+  /** Per-application checklist so follow-ups are never tracked in a separate tool. */
+  tasks?: TrackerTask[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TrackerTask {
+  id: string;
+  title: string;
+  done: boolean;
+  dueDate?: string;
 }
 
 export interface ActiveFieldPayload {

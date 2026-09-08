@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildProfileMarkdown, mergeAllSources, mergeProfile, emptyProfile, profileCompleteness } from "@applypilot/shared";
+import { buildProfileMarkdown, groupProjects, mergeAllSources, mergeProfile, emptyProfile, profileCompleteness } from "@applypilot/shared";
 
 describe("resume-first merging", () => {
   it("never lets a lower-priority source overwrite a resume fact", () => {
@@ -67,6 +67,49 @@ describe("resume-first merging", () => {
     const reconciled = mergeProfile(model, resume, "resume");
     expect(reconciled.profile.experiences?.[0].period).toBe("2021 – Present");
     expect(reconciled.profile.experiences?.[0].achievements).toEqual(["Shipped billing"]);
+  });
+
+  it("keeps resume projects primary and GitHub repositories secondary", () => {
+    const resume = mergeProfile(emptyProfile(), {
+      projects: [{ name: "Billing Platform", description: "Rebuilt checkout", technologies: ["Go"], source: "resume" }],
+    }, "resume");
+    const merged = mergeProfile(resume.profile, {
+      projects: [{ name: "dotfiles", description: "My shell config", technologies: ["Shell"], source: "github" }],
+    }, "github", resume.sources);
+
+    const { primary, secondary } = groupProjects(merged.profile);
+    expect(primary.map((project) => project.name)).toEqual(["Billing Platform"]);
+    expect(secondary.map((project) => project.name)).toEqual(["dotfiles"]);
+  });
+
+  it("does not let a GitHub repository rewrite a resume project of the same name", () => {
+    const resume = mergeProfile(emptyProfile(), {
+      projects: [{ name: "ApplyPilot", description: "Job application copilot", technologies: ["TypeScript"], source: "resume" }],
+    }, "resume");
+    const merged = mergeProfile(resume.profile, {
+      projects: [{ name: "applypilot", description: "readme stub", technologies: ["Shell"], source: "github" }],
+    }, "github", resume.sources);
+
+    const { primary, secondary } = groupProjects(merged.profile);
+    expect(secondary).toHaveLength(0);
+    expect(primary[0].description).toBe("Job application copilot");
+    expect(primary[0].source).toBe("resume");
+  });
+
+  it("keeps per-role skills and renders both project groups in the document", () => {
+    const markdown = buildProfileMarkdown({
+      ...emptyProfile(),
+      firstName: "Asha",
+      experiences: [{ company: "Acme", title: "Engineer", period: "2021 – Present", achievements: ["Shipped billing"], skills: ["Go", "Postgres"] }],
+      projects: [
+        { name: "Billing Platform", description: "Rebuilt checkout", source: "resume" },
+        { name: "dotfiles", description: "Shell config", source: "github" },
+      ],
+    });
+    expect(markdown).toContain("**Skills used:** Go · Postgres");
+    expect(markdown).toContain("## Projects");
+    expect(markdown).toContain("## Additional projects and open source");
+    expect(markdown.indexOf("Billing Platform")).toBeLessThan(markdown.indexOf("dotfiles"));
   });
 
   it("builds markdown with generated headings", () => {

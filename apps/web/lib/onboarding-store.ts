@@ -164,7 +164,7 @@ export async function commitProfile(profile: UserProfile, options: {
 
   if (experiences.length) inserts.push(supabase.from("experiences").insert(experiences.map((item) => ({
     user_id: userId, company: item.company || "To review", job_title: item.title || "To review",
-    description: item.summary || null, achievements: item.achievements ?? [], technologies: [],
+    description: item.summary || null, achievements: item.achievements ?? [], technologies: item.skills ?? [],
   }))));
   if (skills.length) inserts.push(supabase.from("skills").insert(skills.map((item) => ({
     user_id: userId, name: item.name, years: item.years ?? null, proficiency: item.proficiency ?? null,
@@ -175,6 +175,7 @@ export async function commitProfile(profile: UserProfile, options: {
   if (projects.length) inserts.push(supabase.from("projects").insert(projects.map((item) => ({
     user_id: userId, name: item.name, description: item.description || null,
     impact: item.impact || null, technologies: item.technologies ?? [],
+    url: item.url || null, source: item.source ?? "resume",
   }))));
 
   const results = await Promise.all(inserts);

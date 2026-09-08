@@ -5,9 +5,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildProfileMarkdown,
   emptyProfile,
+  groupProjects,
   mergeProfile,
   profileCompleteness,
   type ProfileSources,
+  type ProjectSource,
   type ResumeAnalysis,
   type UserProfile,
 } from "@applypilot/shared";
@@ -44,6 +46,7 @@ function ProfileWorkspace() {
 
   const loaded = useRef(false);
   const completeness = useMemo(() => profileCompleteness(profile), [profile]);
+  const { primary: resumeProjects, secondary: supportingProjects } = useMemo(() => groupProjects(profile), [profile]);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -56,9 +59,9 @@ function ProfileWorkspace() {
       const [profileResult, skillsResult, experiencesResult, educationResult, projectsResult] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
         supabase.from("skills").select("name,years,proficiency").eq("user_id", user.id).order("name"),
-        supabase.from("experiences").select("company,job_title,description,achievements,start_date,end_date").eq("user_id", user.id),
+        supabase.from("experiences").select("company,job_title,description,achievements,technologies,start_date,end_date").eq("user_id", user.id),
         supabase.from("education").select("institution,degree,field,start_year,end_year").eq("user_id", user.id),
-        supabase.from("projects").select("name,description,impact,technologies").eq("user_id", user.id),
+        supabase.from("projects").select("name,description,impact,technologies,url,source").eq("user_id", user.id),
       ]);
 
       const row = (profileResult.data ?? {}) as Record<string, unknown>;
@@ -79,6 +82,7 @@ function ProfileWorkspace() {
           company: value(item.company), title: value(item.job_title),
           period: [value(item.start_date), value(item.end_date) || "Present"].filter(Boolean).join(" – "),
           summary: value(item.description), achievements: Array.isArray(item.achievements) ? item.achievements.map(String) : [],
+          skills: Array.isArray(item.technologies) ? item.technologies.map(String) : [],
         })),
         education: (educationResult.data ?? []).map((item) => ({
           institution: value(item.institution), degree: value(item.degree), field: value(item.field),
@@ -87,6 +91,7 @@ function ProfileWorkspace() {
         projects: (projectsResult.data ?? []).map((item) => ({
           name: value(item.name), description: value(item.description), impact: value(item.impact),
           technologies: Array.isArray(item.technologies) ? item.technologies.map(String) : [],
+          url: value(item.url), source: (value(item.source) || "resume") as ProjectSource,
         })),
       };
 
@@ -267,20 +272,37 @@ function ProfileWorkspace() {
         <section className="card">
           <div className="section-head"><h3>Experience <span className="count">{profile.experiences?.length ?? 0}</span></h3></div>
           {(profile.experiences ?? []).map((item, index) => <div className="detail-item" key={index}>
-            <strong>{item.title || "Role"}</strong><span>{[item.company, item.period].filter(Boolean).join(" · ")}</span>
+            <strong>{item.title || "Role"}</strong><span>{[item.company, item.period, item.location].filter(Boolean).join(" · ")}</span>
             {item.achievements?.length ? <ul>{item.achievements.map((achievement, position) => <li key={position}>{achievement}</li>)}</ul> : item.summary ? <p>{item.summary}</p> : null}
+            {item.skills?.length ? <div className="chip-list small">{item.skills.map((skill) => <span key={skill}>{skill}</span>)}</div> : null}
           </div>)}
           {!profile.experiences?.length && <p className="empty-state">Import your resume to populate your roles.</p>}
         </section>
 
         <section className="card">
-          <div className="section-head"><h3>Projects <span className="count">{profile.projects?.length ?? 0}</span></h3></div>
-          {(profile.projects ?? []).map((item, index) => <div className="detail-item" key={index}>
-            <strong>{item.name}</strong><span>{item.technologies?.join(" · ")}</span>
+          <div className="section-head">
+            <h3>Projects <span className="count">{resumeProjects.length}</span></h3>
+            <span className="card-hint">From your resume — shown first everywhere</span>
+          </div>
+          {resumeProjects.map((item, index) => <div className="detail-item" key={`resume-project-${index}`}>
+            <strong>{item.name}</strong><span>{[item.role, item.period].filter(Boolean).join(" · ")}</span>
             {item.description && <p>{item.description}</p>}
+            {item.technologies?.length ? <div className="chip-list small">{item.technologies.map((tech) => <span key={tech}>{tech}</span>)}</div> : null}
             {item.impact && <p className="impact">{item.impact}</p>}
           </div>)}
-          {!profile.projects?.length && <p className="empty-state">Projects from your resume appear here first.</p>}
+          {!resumeProjects.length && <p className="empty-state">Projects from your resume appear here first.</p>}
+
+          {supportingProjects.length > 0 && <>
+            <div className="section-head secondary-head">
+              <h3>Supporting projects <span className="count">{supportingProjects.length}</span></h3>
+              <span className="card-hint">From GitHub and your links</span>
+            </div>
+            {supportingProjects.map((item, index) => <div className="detail-item secondary" key={`supporting-project-${index}`}>
+              <strong>{item.name}<em className="source-chip">{item.source}</em></strong>
+              <span>{item.technologies?.join(" · ")}</span>
+              {item.description && <p>{item.description}</p>}
+            </div>)}
+          </>}
         </section>
       </div>
 
@@ -352,9 +374,9 @@ function ProfileWorkspace() {
       </section>}
 
       <section className="card">
-        <div className="section-head"><h3>Add more sources</h3></div>
-        <p className="card-hint">GitHub, portfolios, and pasted profiles are handled in onboarding, where each new source is saved as it is captured.</p>
-        <Link className="save-button wide" href="/onboarding">Open the onboarding wizard</Link>
+        <div className="section-head"><h3>Rebuild your profile</h3></div>
+        <p className="card-hint">Runs the full wizard again: extract a resume, add GitHub and links, then rebuild every section. Nothing changes until you save at the end.</p>
+        <Link className="save-button wide" href="/onboarding">Rebuild from the wizard</Link>
       </section>
     </div>}
 
