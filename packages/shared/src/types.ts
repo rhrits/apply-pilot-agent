@@ -99,4 +99,5 @@ export interface AnswerResponse {
   answer: string;
   source: "profile" | "ai" | "demo";
   confidence: number;
+  notice?: string;
 }

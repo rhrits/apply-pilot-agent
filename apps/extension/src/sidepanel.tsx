@@ -36,7 +36,9 @@ function SidePanel() {
       if (!tokenResult?.accessToken) throw new Error("Sign in to use your synced profile");
       const response = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenResult.accessToken}` }, body: JSON.stringify({ question: prompt, page: active?.page }) });
       if (!response.ok) throw new Error("API unavailable");
-      setAnswer(await response.json() as AnswerResponse);
+      const result = await response.json() as AnswerResponse;
+      setAnswer(result);
+      if (result.notice) setStatus(result.notice);
     } catch (error) { setAnswer(null); setStatus(error instanceof Error ? error.message : "Sign in required before generating an answer."); }
     finally { setLoading(false); }
   }
