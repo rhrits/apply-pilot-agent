@@ -163,6 +163,15 @@ function parseProjectsSection(content: string) {
   });
 }
 
+function estimateTotalExperience(experiences: Array<{ period?: string }>) {
+  const years = experiences.flatMap((experience) => experience.period?.match(/\b(19|20)\d{2}\b/g) ?? []).map(Number).filter(Number.isFinite);
+  if (!years.length) return "";
+  const start = Math.min(...years);
+  const end = experiences.some((experience) => /present|current/i.test(experience.period ?? "")) ? new Date().getFullYear() : Math.max(...years);
+  const total = Math.max(1, end - start);
+  return `${total} years`;
+}
+
 function heuristicAnalysis(rawText: string): ResumeAnalysis {
   const text = clean(rawText);
   const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
@@ -197,6 +206,7 @@ function heuristicAnalysis(rawText: string): ResumeAnalysis {
       portfolio,
       currentTitle,
       summary,
+      totalExperience: estimateTotalExperience(experiences),
       skills: skillNames.map((name) => ({ name })),
       experiences,
       education,
