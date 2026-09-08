@@ -1,9 +1,11 @@
-import type { ActiveFieldPayload, ExtensionMessage } from "@applypilot/shared";
+import type { ActiveFieldPayload, ExtensionMessage, ExtensionSettings } from "@applypilot/shared";
 import { isExtensionConfigured } from "./lib/config";
 import { clearExtensionSession, fetchAuthenticatedProfile, fetchResumeFile, getExtensionSupabase, getExtensionUser } from "./lib/supabase";
+import { findLocalMemory, saveAnswerMemory } from "./lib/memory";
 
 chrome.runtime.onInstalled.addListener(async () => {
-  await chrome.storage.local.set({ extensionInstalledAt: new Date().toISOString() });
+  const current = await chrome.storage.local.get("settings");
+  await chrome.storage.local.set({ extensionInstalledAt: new Date().toISOString(), settings: { autoSuggest: current.settings?.autoSuggest !== false } });
 });
 
 async function authStatus() {
@@ -71,6 +73,30 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
 
   if (message.type === "GET_RESUME_FILE") {
     fetchResumeFile().then(sendResponse).catch((error) => sendResponse({ error: String(error) }));
+    return true;
+  }
+
+  if (message.type === "GET_SETTINGS") {
+    chrome.storage.local.get("settings").then((result) => sendResponse({ autoSuggest: result.settings?.autoSuggest !== false } satisfies ExtensionSettings));
+    return true;
+  }
+
+  if (message.type === "UPDATE_SETTINGS") {
+    chrome.storage.local.get("settings").then(async (result) => {
+      const settings = { autoSuggest: result.settings?.autoSuggest !== false, ...message.settings } satisfies ExtensionSettings;
+      await chrome.storage.local.set({ settings });
+      sendResponse(settings);
+    });
+    return true;
+  }
+
+  if (message.type === "FIND_ANSWER_MEMORY") {
+    findLocalMemory(message.question).then((item) => sendResponse({ item })).catch((error) => sendResponse({ item: null, error: String(error) }));
+    return true;
+  }
+
+  if (message.type === "SAVE_ANSWER_MEMORY") {
+    saveAnswerMemory(message.item).then((item) => sendResponse({ item })).catch((error) => sendResponse({ item: null, error: String(error) }));
     return true;
   }
 

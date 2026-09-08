@@ -50,6 +50,8 @@ async function analyze(element: Element) {
   activeElement = element;
   const payload = { field, page: { url: location.href, title: document.title, hostname: location.hostname } };
   chrome.runtime.sendMessage({ type: "ACTIVE_FIELD", payload } satisfies ExtensionMessage).catch(() => undefined);
+  const settings = await chrome.runtime.sendMessage({ type: "GET_SETTINGS" } satisfies ExtensionMessage).catch(() => ({ autoSuggest: true }));
+  if (settings?.autoSuggest === false) return;
   const profile = await getProfile().catch(() => null);
   showOverlay(element, field, profile ? answerForField(field, profile) : null);
 }

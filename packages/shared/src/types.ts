@@ -88,6 +88,19 @@ export interface ActiveFieldPayload {
   page: { url: string; title: string; hostname: string };
 }
 
+export interface ExtensionSettings {
+  autoSuggest: boolean;
+}
+
+export interface AnswerMemoryItem {
+  id: string;
+  question: string;
+  answer: string;
+  intent?: string;
+  source: "user" | "ai" | "profile";
+  updatedAt: string;
+}
+
 export type ExtensionMessage =
   | { type: "ACTIVE_FIELD"; payload: ActiveFieldPayload }
   | { type: "GET_ACTIVE_FIELD" }
@@ -98,6 +111,10 @@ export type ExtensionMessage =
   | { type: "GET_AUTH_TOKEN" }
   | { type: "GET_PROFILE" }
   | { type: "REFRESH_PROFILE" }
+  | { type: "GET_SETTINGS" }
+  | { type: "UPDATE_SETTINGS"; settings: Partial<ExtensionSettings> }
+  | { type: "FIND_ANSWER_MEMORY"; question: string }
+  | { type: "SAVE_ANSWER_MEMORY"; item: Omit<AnswerMemoryItem, "id" | "updatedAt"> }
   | { type: "SCAN_PAGE" }
   | { type: "FILL_ALL" }
   | { type: "GET_RESUME_FILE" }
@@ -118,7 +135,7 @@ export interface ScannedField {
 
 export interface AnswerResponse {
   answer: string;
-  source: "profile" | "ai" | "demo";
+  source: "profile" | "ai" | "demo" | "memory";
   confidence: number;
   notice?: string;
 }

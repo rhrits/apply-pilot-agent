@@ -92,6 +92,12 @@ function SidePanel() {
     if (!prompt) return;
     setLoading(true); setStatus("");
     try {
+      const remembered = await chrome.runtime.sendMessage({ type: "FIND_ANSWER_MEMORY", question: prompt } satisfies ExtensionMessage);
+      if (remembered?.item) {
+        setAnswer({ answer: remembered.item.answer, source: "memory", confidence: 0.92, notice: "Matched from your saved answer memory." });
+        setStatus("Matched a saved answer. Review it before inserting.");
+        return;
+      }
       const tokenResult = await chrome.runtime.sendMessage({ type: "GET_AUTH_TOKEN" } satisfies ExtensionMessage);
       if (!tokenResult?.accessToken) throw new Error("Sign in from the extension popup first");
       const response = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenResult.accessToken}` }, body: JSON.stringify({ question: prompt, page: active?.page }) });
@@ -101,6 +107,12 @@ function SidePanel() {
       if (result.notice) setStatus(result.notice);
     } catch (error) { setAnswer(null); setStatus(error instanceof Error ? error.message : "Could not generate an answer."); }
     finally { setLoading(false); }
+  }
+
+  async function saveMemory() {
+    if (!answer || !question.trim()) return;
+    const result = await chrome.runtime.sendMessage({ type: "SAVE_ANSWER_MEMORY", item: { question: question.trim(), answer: answer.answer, source: answer.source === "ai" ? "ai" : "user" } } satisfies ExtensionMessage);
+    setStatus(result?.item ? "Saved to answer memory. Similar questions will reuse it." : result?.error ?? "Could not save answer memory.");
   }
 
   async function scan(fill: boolean) {
@@ -156,7 +168,7 @@ function SidePanel() {
       <label className="label">Question or field prompt</label>
       <textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Paste a question, or focus a field on the page…" rows={4} />
       <button className="generate" onClick={generate} disabled={loading}>{loading ? "Generating…" : "Generate answer"}</button>
-      {answer && <section className="answer-card"><div className="answer-meta"><span>Suggested answer</span><span>{answer.source}</span></div><p>{answer.answer}</p><div className="actions"><button onClick={copy}>Copy</button><button onClick={insert}>Insert</button></div></section>}
+      {answer && <section className="answer-card"><div className="answer-meta"><span>Suggested answer</span><span>{answer.source}</span></div><p>{answer.answer}</p><div className="actions"><button onClick={copy}>Copy</button><button onClick={insert}>Insert</button><button onClick={saveMemory}>Save memory</button></div></section>}
     </>}
     {tab === "profile" && <ProfileTab profile={profile} />}
     {tab === "fields" && <div className="tab-body">{fields.length === 0 ? <p className="empty">Run “Scan page” to list every detected field.</p> : fields.map((field) => <div className="field-row" key={field.index}><div className="field-row-text"><strong>{field.label || field.question || "Field"}</strong><small>{field.kind}{field.filled ? " · filled" : field.value ? " · ready" : " · no value"}</small></div>{field.value && <button onClick={() => navigator.clipboard.writeText(field.value)}>Copy</button>}</div>)}</div>}

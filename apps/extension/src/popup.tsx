@@ -4,6 +4,7 @@ import type { ExtensionMessage } from "@applypilot/shared";
 import { extensionConfig, isExtensionConfigured } from "./lib/config";
 import "./ui.css";
 import "./popup-auth.css";
+import "./popup-settings.css";
 
 type AuthState = { configured: boolean; authenticated: boolean; email: string | null; profile?: { firstName?: string; lastName?: string } | null };
 
@@ -14,6 +15,7 @@ function Popup() {
   const [step, setStep] = useState<"email" | "code">("email");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("Checking your ApplyPilot session…");
+  const [autoSuggest, setAutoSuggest] = useState(true);
 
   async function loadAuth() {
     const result = await chrome.runtime.sendMessage({ type: "AUTH_STATUS" } satisfies ExtensionMessage) as AuthState;
@@ -21,6 +23,13 @@ function Popup() {
     setMessage(result.authenticated ? `Synced as ${result.email}` : result.configured ? "Sign in to sync your profile" : "Extension configuration is missing");
   }
   useEffect(() => { void loadAuth(); }, []);
+  useEffect(() => { chrome.runtime.sendMessage({ type: "GET_SETTINGS" } satisfies ExtensionMessage).then((settings) => setAutoSuggest(settings?.autoSuggest !== false)).catch(() => undefined); }, []);
+
+  async function toggleAutoSuggest() {
+    const next = !autoSuggest;
+    setAutoSuggest(next);
+    await chrome.runtime.sendMessage({ type: "UPDATE_SETTINGS", settings: { autoSuggest: next } } satisfies ExtensionMessage);
+  }
 
   async function requestCode() {
     if (!email.trim()) { setMessage("Enter your email first"); return; }
@@ -46,7 +55,7 @@ function Popup() {
   }
   function openProfile() { chrome.tabs.create({ url: `${extensionConfig.webAppUrl}/profile` }); }
 
-  return <main className="popup-shell"><div className="brand"><span className="brand-mark">✦</span><div><strong>ApplyPilot</strong><small>Authenticated job copilot</small></div></div><div className="status"><span className={`dot ${auth.authenticated ? "" : "idle"}`} />{message}</div>{auth.authenticated ? <><div className="account-card"><strong>{auth.email}</strong><span>Profile synced from Supabase</span></div><button className="button primary" onClick={openPanel}>Open page assistant</button><button className="button secondary" onClick={signOut}>Sign out</button></> : <section className="popup-auth"><h2>Connect your profile</h2><p>Use the same email as the web app. The extension will fetch only your RLS-authorized profile data.</p>{step === "email" ? <><input className="popup-input" value={email} onChange={(event) => setEmail(event.target.value)} type="email" placeholder="you@example.com" /><button className="button primary" onClick={requestCode} disabled={busy}>{busy ? "Sending…" : "Send sign-in email"}</button></> : <><input className="popup-input" value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" maxLength={8} placeholder="Code from email" /><button className="button primary" onClick={verifyCode} disabled={busy}>{busy ? "Verifying…" : "Verify code"}</button><button className="button secondary" onClick={() => setStep("email")}>Change email</button></>}{!auth.configured && <button className="button secondary" onClick={openProfile}>Open web setup</button>}</section>}<p className="privacy-note">Your session stays in extension storage. Profile reads are protected by Supabase Row Level Security.</p></main>;
+  return <main className="popup-shell"><div className="brand"><span className="brand-mark">✦</span><div><strong>ApplyPilot</strong><small>Authenticated job copilot</small></div></div><div className="status"><span className={`dot ${auth.authenticated ? "" : "idle"}`} />{message}</div>{auth.authenticated ? <><div className="account-card"><strong>{auth.email}</strong><span>Profile synced from Supabase</span></div><button className="button primary" onClick={openPanel}>Open page assistant</button><label className="toggle-row"><span><strong>Automatic suggestions</strong><small>Show a suggestion when you focus a field</small></span><input type="checkbox" checked={autoSuggest} onChange={toggleAutoSuggest} /></label><button className="button secondary" onClick={signOut}>Sign out</button></> : <section className="popup-auth"><h2>Connect your profile</h2><p>Use the same email as the web app. The extension will fetch only your RLS-authorized profile data.</p>{step === "email" ? <><input className="popup-input" value={email} onChange={(event) => setEmail(event.target.value)} type="email" placeholder="you@example.com" /><button className="button primary" onClick={requestCode} disabled={busy}>{busy ? "Sending…" : "Send sign-in email"}</button></> : <><input className="popup-input" value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" maxLength={8} placeholder="Code from email" /><button className="button primary" onClick={verifyCode} disabled={busy}>{busy ? "Verifying…" : "Verify code"}</button><button className="button secondary" onClick={() => setStep("email")}>Change email</button></>}{!auth.configured && <button className="button secondary" onClick={openProfile}>Open web setup</button>}</section>}<p className="privacy-note">Your session stays in extension storage. Profile reads are protected by Supabase Row Level Security.</p></main>;
 }
 
 createRoot(document.getElementById("root")!).render(<Popup />);
