@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@applypilot/shared": "*",
     "@supabase/supabase-js": "^2.57.4",
     "next": "^15.5.3",
     "pdf-parse": "^1.1.4",
