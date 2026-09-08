@@ -8,22 +8,24 @@ almost any application question without inventing anything.
 ```text
 Sign in
    ↓
-Capture signals        resume · GitHub · project links · pasted text · typed · voice
+Resume first           extracted, merged, and SAVED immediately on upload
    ↓
-Enrich                 GitHub REST API · link reader · PDF text extraction · transcription
+Enrich (gap-fill)      GitHub · links · pasted profiles — cannot overwrite resume facts
+   ↓
+Your story             typed or dictated narrative, autosaved as you type
    ↓
 Ask what is missing    CTC · notice period · visa · location · leadership · achievements
    ↓
-Synthesize             one structured profile + 30 or more reusable answers
+Agent                  one structured profile + Markdown document + 30 or more answers
    ↓
-Review and edit        nothing is saved until the user confirms
+Review and edit        nothing is final until the user confirms
    ↓
 Save                   Supabase, protected by RLS
    ↓
 Sync                   extension pulls the same profile
 ```
 
-Two ideas make this work:
+Four ideas make this work:
 
 1. **Signals are separate from the profile.** A `RawSignal` is what the user gave us.
    The `UserProfile` is what the user has verified. Re-running extraction never
@@ -31,6 +33,46 @@ Two ideas make this work:
 2. **Missing beats invented.** Every prompt instructs the model to leave a field
    empty rather than guess, and to return `INSUFFICIENT_CONTEXT` when facts do not
    support an answer. Gaps are surfaced to the user instead of being filled in.
+3. **The resume wins.** Precedence is enforced in code, not only in the prompt, so a
+   GitHub bio can never rename the job title a resume stated.
+4. **Nothing is lost.** Captured data is persisted as it is captured, so a refresh or
+   device switch resumes exactly where the candidate left off.
+
+## Source precedence
+
+`packages/shared/src/profile-merge.ts` assigns every source a priority. A source may
+only write a field that is still empty, or one filled by a *lower*-priority source:
+
+```text
+manual < resume < typed < answers < linkedin_export < project < website < github < voice
+```
+
+So the resume can overwrite a GitHub-derived value, but never the reverse. List data
+(skills, roles, projects, education) is unioned and de-duplicated rather than replaced,
+which lets GitHub contribute *extra* projects without displacing resume ones.
+
+`profiles.profile_sources` records which source produced each field, and the UI shows
+that provenance next to the value.
+
+## Instant persistence
+
+`apps/web/lib/onboarding-store.ts` writes to Supabase as data is captured:
+
+| Trigger | Written to |
+|---|---|
+| Resume extracted | `profiles.resume_profile`, `profiles.resume_text`, `profile_signals` |
+| Any source added | `profile_signals`, upserted on source + origin |
+| Any field edited | `profiles.draft_profile`, debounced about 700 ms |
+| Agent completes | `profiles.profile_markdown`, `profiles.profile_sources` |
+| Review confirmed | `profiles` plus `experiences` / `skills` / `education` / `projects` |
+
+## The profile document
+
+`buildProfileMarkdown()` renders the verified profile as Markdown with generated
+headings — Summary, Skills, Experience, Projects, Education, Application details.
+It is stored in `profiles.profile_markdown` and reused whenever an application asks
+for a written background. The profile page renders it with a small React renderer
+rather than injecting HTML, because the content originates from untrusted documents.
 
 ## Signal sources
 
@@ -89,12 +131,18 @@ handling other people's audio, since voice recordings are personal data.
 
 `POST /api/profile/synthesize` requires a Supabase bearer token, then:
 
-1. Filters out failed signals and truncates each to a fixed budget.
+1. Partitions signals into the **authoritative** resume block and gap-filling supplements.
 2. Runs every signal through `sanitizePageContext()` — crawled pages are untrusted
    input and must never act as instructions.
-3. Asks the model for structured JSON: profile plus a `gaps` list.
-4. Asks a second time for 30 or more reusable answers grounded only in that profile.
-5. Returns everything for review. **The endpoint writes nothing to the database.**
+3. Computes a deterministic resume-first baseline with the merge engine before any
+   model call. This doubles as the fallback when the provider is unavailable.
+4. Asks the model for structured JSON, with explicit precedence rules in the system
+   prompt: the resume wins every conflict.
+5. Re-merges the model output against that baseline, so a model that dropped or
+   reworded a resume fact cannot corrupt the profile.
+6. Asks a second time for 30 or more reusable answers grounded only in that profile.
+7. Returns the profile, Markdown document, completeness, gaps, and answers for review.
+   **The endpoint writes nothing to the database.**
 
 The client saves only after the user presses confirm on the review step.
 
@@ -120,7 +168,8 @@ common questions are answered instantly with no AI call and no rate limit.
 ## Data model
 
 ```text
-profiles                 verified profile + onboarding_completed_at + custom_fields
+profiles                 verified profile + resume_profile + profile_markdown
+                         + profile_sources + draft_profile + application_answers
 profile_signals          raw captured material, re-runnable
 experiences / skills /
 education / projects     normalized structured records

@@ -1,190 +1,171 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import type { ResumeAnalysis, UserProfile } from "@applypilot/shared";
-import { getSupabaseBrowserClient, isSupabaseConfigured } from "../../lib/supabase";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  buildProfileMarkdown,
+  emptyProfile,
+  mergeProfile,
+  profileCompleteness,
+  type ProfileSources,
+  type ResumeAnalysis,
+  type UserProfile,
+} from "@applypilot/shared";
+import { getSupabaseBrowserClient } from "../../lib/supabase";
+import { commitProfile } from "../../lib/onboarding-store";
 import { AuthGate } from "../../components/auth-gate";
+import { Markdown } from "../../components/markdown";
 import "./profile.css";
-import "./profile-auth.css";
 
-const demoProfile: UserProfile = {
-  firstName: "Alex", lastName: "Applicant", email: "alex@example.com", phone: "+1 555 010 2026", location: "Remote / New York", linkedin: "https://linkedin.com/in/alex-applicant", github: "https://github.com/alex-applicant", portfolio: "https://alex-applicant.dev", currentTitle: "Full-stack Engineer", summary: "Full-stack engineer building reliable products with TypeScript, React, and Supabase.", skills: [{ name: "TypeScript", years: 3, proficiency: "Advanced" }, { name: "React", years: 3, proficiency: "Advanced" }, { name: "Python", years: 2, proficiency: "Intermediate" }], experiences: [], education: [], projects: [],
-};
+type Tab = "overview" | "document" | "details" | "sources";
+type SaveState = "clean" | "dirty" | "saving" | "saved" | "error";
 
-export default function ProfilePage() { return <AuthGate><ProfileWorkspace /></AuthGate>; }
+export default function ProfilePage() {
+  return <AuthGate><ProfileWorkspace /></AuthGate>;
+}
 
 function ProfileWorkspace() {
-  const [profile, setProfile] = useState<UserProfile>(demoProfile);
-  const [resumeText, setResumeText] = useState("");
-  const [analysis, setAnalysis] = useState<ResumeAnalysis | null>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [profile, setProfile] = useState<UserProfile>(emptyProfile());
+  const [sources, setSources] = useState<ProfileSources>({});
+  const [markdown, setMarkdown] = useState("");
+  const [markdownEdited, setMarkdownEdited] = useState(false);
+  const [tab, setTab] = useState<Tab>("overview");
+  const [saveState, setSaveState] = useState<SaveState>("clean");
   const [notice, setNotice] = useState("");
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [resumeBusy, setResumeBusy] = useState(false);
+  const [analysis, setAnalysis] = useState<ResumeAnalysis | null>(null);
   const [newSkill, setNewSkill] = useState("");
   const [newCustomLabel, setNewCustomLabel] = useState("");
   const [newCustomValue, setNewCustomValue] = useState("");
-  const [authEmail, setAuthEmail] = useState("");
-  const [authCode, setAuthCode] = useState("");
-  const [authStep, setAuthStep] = useState<"idle" | "code-sent">("idle");
-  const [authUser, setAuthUser] = useState<string | null>(null);
-  const [authBusy, setAuthBusy] = useState(false);
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("applypilot-profile");
-      const savedAnalysis = localStorage.getItem("applypilot-resume-analysis");
-      if (saved) setProfile(JSON.parse(saved) as UserProfile);
-      if (savedAnalysis) setAnalysis(JSON.parse(savedAnalysis) as ResumeAnalysis);
-    } catch { /* Use the demo profile when local storage is unavailable. */ }
-  }, []);
+  const loaded = useRef(false);
+  const completeness = useMemo(() => profileCompleteness(profile), [profile]);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
-    if (!supabase) return;
+    if (!supabase) { setLoading(false); return; }
     supabase.auth.getUser().then(async ({ data }) => {
-      setAuthUser(data.user?.email ?? null);
-      if (!data.user) return;
-      const { data: saved } = await supabase.from("profiles").select("*").eq("id", data.user.id).maybeSingle();
-      if (!saved) return;
-      const row = saved as { first_name?: string; last_name?: string; email?: string; phone?: string; location?: string; linkedin_url?: string; github_url?: string; portfolio_url?: string; current_title?: string; summary?: string; notice_period?: string; current_salary?: string; expected_salary?: string; total_experience?: string; willing_to_relocate?: string; work_authorization?: string; availability?: string; custom_fields?: Array<{ id: string; label: string; value: string }> };
-      setProfile((current) => ({ ...current, firstName: row.first_name ?? current.firstName, lastName: row.last_name ?? current.lastName, email: row.email ?? current.email, phone: row.phone ?? current.phone, location: row.location ?? current.location, linkedin: row.linkedin_url ?? current.linkedin, github: row.github_url ?? current.github, portfolio: row.portfolio_url ?? current.portfolio, currentTitle: row.current_title ?? current.currentTitle, summary: row.summary ?? current.summary, noticePeriod: row.notice_period ?? current.noticePeriod, currentSalary: row.current_salary ?? current.currentSalary, expectedSalary: row.expected_salary ?? current.expectedSalary, totalExperience: row.total_experience ?? current.totalExperience, willingToRelocate: row.willing_to_relocate ?? current.willingToRelocate, workAuthorization: row.work_authorization ?? current.workAuthorization, availability: row.availability ?? current.availability, customFields: row.custom_fields?.length ? row.custom_fields : current.customFields }));
+      const user = data.user;
+      if (!user) { setLoading(false); return; }
+      setEmail(user.email ?? "");
+
+      const [profileResult, skillsResult, experiencesResult, educationResult, projectsResult] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+        supabase.from("skills").select("name,years,proficiency").eq("user_id", user.id).order("name"),
+        supabase.from("experiences").select("company,job_title,description,achievements,start_date,end_date").eq("user_id", user.id),
+        supabase.from("education").select("institution,degree,field,start_year,end_year").eq("user_id", user.id),
+        supabase.from("projects").select("name,description,impact,technologies").eq("user_id", user.id),
+      ]);
+
+      const row = (profileResult.data ?? {}) as Record<string, unknown>;
+      const value = (input: unknown) => (typeof input === "string" ? input : "");
+      const next: UserProfile = {
+        ...emptyProfile(),
+        firstName: value(row.first_name), lastName: value(row.last_name),
+        email: value(row.email) || user.email || "", phone: value(row.phone), location: value(row.location),
+        linkedin: value(row.linkedin_url), github: value(row.github_url), portfolio: value(row.portfolio_url),
+        currentTitle: value(row.current_title), summary: value(row.summary),
+        noticePeriod: value(row.notice_period), currentSalary: value(row.current_salary),
+        expectedSalary: value(row.expected_salary), totalExperience: value(row.total_experience),
+        willingToRelocate: value(row.willing_to_relocate), workAuthorization: value(row.work_authorization),
+        availability: value(row.availability),
+        customFields: Array.isArray(row.custom_fields) ? row.custom_fields as UserProfile["customFields"] : [],
+        skills: (skillsResult.data ?? []).map((item) => ({ name: value(item.name), years: item.years == null ? undefined : Number(item.years), proficiency: value(item.proficiency) || undefined })),
+        experiences: (experiencesResult.data ?? []).map((item) => ({
+          company: value(item.company), title: value(item.job_title),
+          period: [value(item.start_date), value(item.end_date) || "Present"].filter(Boolean).join(" – "),
+          summary: value(item.description), achievements: Array.isArray(item.achievements) ? item.achievements.map(String) : [],
+        })),
+        education: (educationResult.data ?? []).map((item) => ({
+          institution: value(item.institution), degree: value(item.degree), field: value(item.field),
+          period: [item.start_year, item.end_year].filter(Boolean).join(" – "),
+        })),
+        projects: (projectsResult.data ?? []).map((item) => ({
+          name: value(item.name), description: value(item.description), impact: value(item.impact),
+          technologies: Array.isArray(item.technologies) ? item.technologies.map(String) : [],
+        })),
+      };
+
+      setProfile(next);
+      setSources((row.profile_sources ?? {}) as ProfileSources);
+      const stored = value(row.profile_markdown);
+      setMarkdown(stored || buildProfileMarkdown(next));
+      setMarkdownEdited(Boolean(stored));
+      setLoading(false);
+      loaded.current = true;
     });
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => setAuthUser(session?.user.email ?? null));
-    return () => data.subscription.unsubscribe();
   }, []);
 
-  const completeness = useMemo(() => {
-    const fields = [profile.firstName, profile.lastName, profile.email, profile.phone, profile.location, profile.currentTitle, profile.summary, profile.linkedin, profile.github, profile.skills?.length ? "yes" : "", profile.experiences?.length ? "yes" : "", analysis ? "yes" : ""];
-    return Math.round((fields.filter(Boolean).length / fields.length) * 100);
-  }, [analysis, profile]);
+  // Keep the generated document in sync until the candidate edits it by hand.
+  useEffect(() => {
+    if (!loaded.current || markdownEdited) return;
+    setMarkdown(buildProfileMarkdown(profile));
+  }, [markdownEdited, profile]);
+
+  const markDirty = useCallback(() => { if (loaded.current) setSaveState("dirty"); }, []);
 
   function updateField(field: keyof UserProfile, value: string) {
     setProfile((current) => ({ ...current, [field]: value }));
-    setNotice("");
+    setSources((current) => ({ ...current, [field]: "manual" }));
+    markDirty();
   }
 
-  function mergeProfile(current: UserProfile, extracted: UserProfile): UserProfile {
-    const pick = (existing?: string, incoming?: string) => (incoming && incoming.trim() ? incoming : existing ?? "");
-    return {
-      ...current,
-      firstName: pick(current.firstName, extracted.firstName),
-      lastName: pick(current.lastName, extracted.lastName),
-      email: pick(current.email, extracted.email),
-      phone: pick(current.phone, extracted.phone),
-      location: pick(current.location, extracted.location),
-      linkedin: pick(current.linkedin, extracted.linkedin),
-      github: pick(current.github, extracted.github),
-      portfolio: pick(current.portfolio, extracted.portfolio),
-      currentTitle: pick(current.currentTitle, extracted.currentTitle),
-      summary: pick(current.summary, extracted.summary),
-      skills: extracted.skills?.length ? extracted.skills : current.skills,
-      experiences: extracted.experiences?.length ? extracted.experiences : current.experiences,
-      education: extracted.education?.length ? extracted.education : current.education,
-      projects: extracted.projects?.length ? extracted.projects : current.projects,
-    };
+  async function save() {
+    setSaveState("saving"); setNotice("");
+    const result = await commitProfile(profile, { markdown, sources: sources as Record<string, string> });
+    if (!result.ok) { setSaveState("error"); setNotice(result.error ?? "Could not save."); return; }
+    setSaveState("saved");
+    setTimeout(() => setSaveState((current) => (current === "saved" ? "clean" : current)), 2500);
   }
 
-  async function analyzeResume() {
-    if (!file && resumeText.trim().length < 40) { setNotice("Paste at least a few paragraphs or choose a PDF/TXT resume first."); return; }
-    setBusy(true); setNotice("");
-    const form = new FormData();
-    if (file) form.append("file", file); else form.append("text", resumeText);
+  // Ctrl/Cmd+S saves without leaving the keyboard.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        if (saveState === "dirty" || saveState === "error") void save();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
+
+  async function importResume() {
+    if (!resumeFile) { setNotice("Choose a resume file first."); return; }
+    setResumeBusy(true); setNotice("");
     try {
+      const form = new FormData();
+      form.append("file", resumeFile);
       const response = await fetch("/api/resume/analyze", { method: "POST", body: form });
       const result = await response.json() as ResumeAnalysis & { error?: string };
-      if (!response.ok) throw new Error(result.error || "Resume analysis failed");
-      setAnalysis(result); setProfile((current) => mergeProfile(current, result.profile)); setResumeText(result.formattedText);
-      const baseNotice = result.source === "ai" ? "AI extraction complete. Fields were filled in below — review every value before saving." : "Profile fields were filled in from the local extraction below — review before saving.";
-      setNotice(result.aiNotice ? `${baseNotice} ${result.aiNotice}` : baseNotice);
-      localStorage.setItem("applypilot-resume-analysis", JSON.stringify(result));
-      await syncResume(result);
-    } catch (error) { setNotice(error instanceof Error ? error.message : "Resume analysis failed."); }
-    finally { setBusy(false); }
-  }
-
-  async function syncResume(result: ResumeAnalysis) {
-    if (!file) return;
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) return;
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) return;
-    const storagePath = `${userData.user.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "-")}`;
-    const upload = await supabase.storage.from("resumes").upload(storagePath, file, { contentType: file.type || "application/pdf", upsert: false });
-    if (upload.error) { setNotice(`Profile extracted, but resume cloud upload failed: ${upload.error.message}`); return; }
-    const { error } = await supabase.from("resumes").insert({ user_id: userData.user.id, name: file.name, storage_path: storagePath, mime_type: file.type, file_size: file.size, parsed_text: result.formattedText, formatted_text: result.formattedText, extracted_profile: result.profile, parsing_status: "needs_review" });
-    if (error) setNotice(`Profile extracted, but resume metadata could not be saved: ${error.message}`);
-    await syncStructuredProfile(result.profile, userData.user.id, supabase);
-  }
-
-  async function syncStructuredProfile(extracted: UserProfile, userId: string, supabase: NonNullable<ReturnType<typeof getSupabaseBrowserClient>>) {
-    await Promise.all([
-      supabase.from("experiences").delete().eq("user_id", userId),
-      supabase.from("skills").delete().eq("user_id", userId),
-      supabase.from("education").delete().eq("user_id", userId),
-      supabase.from("projects").delete().eq("user_id", userId),
-    ]);
-    const experienceRows = (extracted.experiences ?? []).filter((item) => item.company || item.title).map((item) => ({ user_id: userId, company: item.company || "To review", job_title: item.title || "To review", description: item.summary || null, achievements: item.achievements ?? [], technologies: [] }));
-    const skillRows = (extracted.skills ?? []).filter((item) => item.name).map((item) => ({ user_id: userId, name: item.name, years: item.years ?? null, proficiency: item.proficiency ?? null }));
-    const educationRows = (extracted.education ?? []).filter((item) => item.institution || item.degree).map((item) => ({ user_id: userId, institution: item.institution || "To review", degree: item.degree || null, field: item.field || null, start_year: item.period?.match(/\b(19|20)\d{2}\b/)?.[0] ? Number(item.period.match(/\b(19|20)\d{2}\b/)?.[0]) : null, end_year: item.period?.match(/\b(19|20)\d{2}\b/g)?.at(-1) ? Number(item.period.match(/\b(19|20)\d{2}\b/g)?.at(-1)) : null }));
-    const projectRows = (extracted.projects ?? []).filter((item) => item.name).map((item) => ({ user_id: userId, name: item.name, description: item.description || null, impact: item.impact || null, technologies: item.technologies ?? [] }));
-    if (experienceRows.length) await supabase.from("experiences").insert(experienceRows);
-    if (skillRows.length) await supabase.from("skills").insert(skillRows);
-    if (educationRows.length) await supabase.from("education").insert(educationRows);
-    if (projectRows.length) await supabase.from("projects").insert(projectRows);
-  }
-
-  function saveProfile() {
-    localStorage.setItem("applypilot-profile", JSON.stringify(profile));
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) { setNotice("Profile saved in this browser. Add NEXT_PUBLIC_SUPABASE_ANON_KEY to enable cloud sync."); return; }
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) { setNotice("Profile saved locally. Sign in below to sync it to Supabase."); return; }
-      const { error } = await supabase.from("profiles").upsert({ id: data.user.id, first_name: profile.firstName, last_name: profile.lastName, email: profile.email, phone: profile.phone, location: profile.location, linkedin_url: profile.linkedin, github_url: profile.github, portfolio_url: profile.portfolio, current_title: profile.currentTitle, summary: profile.summary, notice_period: profile.noticePeriod ?? null, current_salary: profile.currentSalary ?? null, expected_salary: profile.expectedSalary ?? null, total_experience: profile.totalExperience ?? null, willing_to_relocate: profile.willingToRelocate ?? null, work_authorization: profile.workAuthorization ?? null, availability: profile.availability ?? null, custom_fields: profile.customFields ?? [] });
-      if (analysis) await syncStructuredProfile(profile, data.user.id, supabase);
-      setNotice(error ? `Saved locally; cloud sync failed: ${error.message}` : "Profile saved locally and synced to Supabase.");
-    });
-  }
-
-  async function requestOtp() {
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase || !authEmail.trim()) { setNotice("Add NEXT_PUBLIC_SUPABASE_ANON_KEY and enter your email to enable sign in."); return; }
-    setAuthBusy(true);
-    const { error } = await supabase.auth.signInWithOtp({ email: authEmail.trim(), options: { shouldCreateUser: true, emailRedirectTo: `${window.location.origin}/profile` } });
-    setAuthBusy(false);
-    if (error) { setNotice(error.message); return; }
-    setAuthStep("code-sent");
-    setNotice("Check your email. If Supabase sent a magic link, click it. If your template sends a code, enter the code below.");
-  }
-
-  async function verifyOtp() {
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase || !authCode.trim()) { setNotice("Enter the code from your email."); return; }
-    setAuthBusy(true);
-    const { data, error } = await supabase.auth.verifyOtp({ email: authEmail.trim(), token: authCode.trim(), type: "email" });
-    setAuthBusy(false);
-    if (error) { setNotice(error.message); return; }
-    setAuthUser(data.user?.email ?? authEmail.trim());
-    setAuthStep("idle"); setAuthCode("");
-    setNotice("Signed in. Save your profile to sync it to Supabase.");
-  }
-
-  function changeEmail() {
-    setAuthStep("idle"); setAuthCode(""); setNotice("");
-  }
-
-  async function signOut() {
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) return;
-    await supabase.auth.signOut();
-    setAuthUser(null);
+      if (!response.ok) throw new Error(result.error || "Could not read that resume.");
+      setAnalysis(result);
+      // Resume wins: re-merging under "resume" replaces anything a weaker source had filled.
+      const merged = mergeProfile(profile, result.profile, "resume", sources);
+      setProfile(merged.profile);
+      setSources(merged.sources);
+      setResumeFile(null);
+      setSaveState("dirty");
+      setNotice("Resume extracted. Review the highlighted values, then save.");
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Resume import failed."); }
+    finally { setResumeBusy(false); }
   }
 
   function addSkill() {
-    const value = newSkill.trim();
-    if (!value) return;
-    setProfile((current) => ({ ...current, skills: [...(current.skills ?? []), { name: value }] }));
-    setNewSkill("");
+    const name = newSkill.trim();
+    if (!name) return;
+    if (profile.skills?.some((skill) => skill.name.toLowerCase() === name.toLowerCase())) { setNewSkill(""); return; }
+    setProfile((current) => ({ ...current, skills: [...(current.skills ?? []), { name }] }));
+    setNewSkill(""); markDirty();
+  }
+
+  function removeSkill(name: string) {
+    setProfile((current) => ({ ...current, skills: (current.skills ?? []).filter((skill) => skill.name !== name) }));
+    markDirty();
   }
 
   function addCustomField() {
@@ -192,19 +173,199 @@ function ProfileWorkspace() {
     const value = newCustomValue.trim();
     if (!label || !value) return;
     setProfile((current) => ({ ...current, customFields: [...(current.customFields ?? []), { id: crypto.randomUUID(), label, value }] }));
-    setNewCustomLabel(""); setNewCustomValue("");
+    setNewCustomLabel(""); setNewCustomValue(""); markDirty();
   }
 
   function updateCustomField(id: string, key: "label" | "value", text: string) {
     setProfile((current) => ({ ...current, customFields: (current.customFields ?? []).map((field) => field.id === id ? { ...field, [key]: text } : field) }));
+    markDirty();
   }
 
   function removeCustomField(id: string) {
     setProfile((current) => ({ ...current, customFields: (current.customFields ?? []).filter((field) => field.id !== id) }));
+    markDirty();
   }
 
   const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
-  const initials = ((profile.firstName?.[0] ?? "") + (profile.lastName?.[0] ?? "")).toUpperCase() || (profile.email?.[0] ?? "?").toUpperCase();
+  const initials = ((profile.firstName?.[0] ?? "") + (profile.lastName?.[0] ?? "")).toUpperCase() || (email[0] ?? "?").toUpperCase();
+  const dirty = saveState === "dirty" || saveState === "error";
 
-  return <main className="main profile-page"><div className="topbar"><div><div className="eyebrow">Application profile</div><h1>Your source of truth</h1><p className="page-subtitle">Import once, review carefully, then let the extension reuse your verified facts.</p></div><Link href="/" className="text-link">Back to overview</Link></div><section className="profile-hero"><div className="profile-hero-identity"><div className="profile-avatar">{initials}</div><div><span className="eyebrow">Profile readiness</span><h2>{fullName || "Your source of truth"}</h2><p>{profile.currentTitle || "Add your current title"}{profile.location ? ` · ${profile.location}` : ""}</p></div></div><div className="profile-score"><svg viewBox="0 0 80 80" width="72" height="72"><circle cx="40" cy="40" r="34" fill="none" stroke="#e4e0ff" strokeWidth="7"/><circle cx="40" cy="40" r="34" fill="none" stroke="#5546d9" strokeWidth="7" strokeLinecap="round" strokeDasharray={`${completeness * 2.136} 213.6`} transform="rotate(-90 40 40)"/><text x="40" y="46" textAnchor="middle" fontSize="18" fontWeight="700" fill="#1f2040" fontFamily="Space Grotesk">{completeness}%</text></svg><span>complete</span></div></section><section className={`card auth-card${authUser ? " compact" : ""}`}><div className="auth-card-head"><span className="eyebrow">Private workspace</span><h3>{authUser ? `Signed in as ${authUser}` : "Sign in with email + one-time code"}</h3>{!authUser && <p className="card-help">Supabase Auth keeps your verified profile, resume metadata, and application history private with Row Level Security.</p>}</div>{authUser ? <div className="auth-signed-in"><span className="signed-in">● Cloud sync ready</span><button className="text-link" onClick={signOut}>Sign out</button></div> : authStep === "idle" ? <div className="auth-controls"><input value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="you@example.com" type="email" /><button className="save-button" onClick={requestOtp} disabled={authBusy}>{authBusy ? "Sending…" : "Email me a code"}</button></div> : <div className="auth-controls"><input value={authCode} onChange={(event) => setAuthCode(event.target.value)} placeholder="Code from email" inputMode="numeric" maxLength={8} /><button className="save-button" onClick={verifyOtp} disabled={authBusy}>{authBusy ? "Verifying…" : "Verify code"}</button><button className="text-link" onClick={requestOtp} disabled={authBusy}>Resend</button><button className="text-link" onClick={changeEmail}>Change email</button></div>}{!isSupabaseConfigured() && <details className="auth-guide"><summary>Developer setup: how do I enable email + OTP sign-in?</summary><ol><li>Open your Supabase project dashboard → <strong>Authentication → Sign In / Providers</strong> and confirm <strong>Email</strong> is enabled.</li><li>Go to <strong>Authentication → Email Templates → Magic Link</strong> and the default template sends a clickable link using <code>{"{{ .ConfirmationURL }}"}</code>. This is expected — click the link to sign in.</li><li>For a numeric OTP instead, edit the template to display <code>{"{{ .Token }}"}</code> and remove the confirmation-link-only wording. Then the code input above will work.</li><li>Add <code>/profile</code> to Supabase <strong>Authentication → URL Configuration → Redirect URLs</strong>.</li><li>Add <code>NEXT_PUBLIC_SUPABASE_URL</code> and <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> to <code>apps/web/.env.local</code>, then restart the dev server.</li></ol></details>}</section><div className="profile-layout"><section className="profile-column"><div className="card import-card"><div className="section-head"><div><h3>Build from your resume</h3><p className="card-help">Upload a PDF or paste resume text. ApplyPilot extracts contact details, skills, roles, education, projects, and a cleaner ATS-friendly version.</p></div><span className="step-badge">01</span></div><label className="upload-drop"><input type="file" accept="application/pdf,.txt,.md,text/plain" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /><span className="upload-icon">↑</span><strong>{file ? file.name : "Choose a resume file"}</strong><small>PDF, TXT, or Markdown · up to 8 MB</small></label><div className="or-divider"><span>or paste resume text</span></div><textarea className="resume-input" value={resumeText} onChange={(event) => setResumeText(event.target.value)} placeholder="Paste the complete resume here when upload is not convenient…" rows={9} /><button className="save-button wide" onClick={analyzeResume} disabled={busy}>{busy ? "Extracting and formatting…" : "Extract profile with AI"}</button>{notice && <p className="notice">{notice}</p>}</div>{analysis && <div className="card analysis-card"><div className="section-head"><div><h3>Resume intelligence</h3><p className="card-help">The original text is preserved as a reviewable, categorized version.</p></div><span className="source-pill">{analysis.source === "ai" ? "AI reviewed" : "Local extraction"}</span></div><div className="resume-sections">{analysis.sections.map((section) => <article key={`${section.title}-${section.category}`}><div><span className="section-category">{section.category}</span><strong>{section.title}</strong></div><p>{section.content}</p></article>)}</div><div className="suggestions"><strong>Improve next</strong>{analysis.suggestions.map((suggestion) => <span key={suggestion}>• {suggestion}</span>)}</div></div>}</section><aside className="profile-column"><div className="card"><div className="section-head"><div><h3>Verified profile</h3><p className="card-help">Review extracted values before the extension uses them.</p></div><span className="step-badge">02</span></div><div className="profile-form">{([["firstName", "First name"], ["lastName", "Last name"], ["email", "Email"], ["phone", "Phone"], ["location", "Location"], ["currentTitle", "Current title"], ["linkedin", "LinkedIn URL"], ["github", "GitHub URL"], ["portfolio", "Portfolio URL"]] as Array<[keyof UserProfile, string]>).map(([field, label]) => <label key={field}>{label}<input value={String(profile[field] ?? "")} onChange={(event) => updateField(field, event.target.value)} /></label>)}<label>Professional summary<textarea value={profile.summary ?? ""} onChange={(event) => updateField("summary", event.target.value)} rows={5} /></label></div><div className="section-head" style={{ marginTop: 24 }}><div><h3>Application answers</h3><p className="card-help">These are the questions almost every application asks. Filling them here means the extension answers them instantly without AI.</p></div><span className="step-badge">03</span></div><div className="profile-form">{([["noticePeriod", "Notice period"], ["totalExperience", "Total experience (years)"], ["currentSalary", "Current CTC"], ["expectedSalary", "Expected CTC"], ["willingToRelocate", "Willing to relocate"], ["workAuthorization", "Work authorization"], ["availability", "Earliest start date"]] as Array<[keyof UserProfile, string]>).map(([field, label]) => <label key={field}>{label}<input value={String(profile[field] ?? "")} onChange={(event) => updateField(field, event.target.value)} placeholder={field === "noticePeriod" ? "e.g. 30 days" : field === "willingToRelocate" ? "Yes / No" : ""} /></label>)}</div><button className="save-button wide" onClick={saveProfile}>Save verified profile</button></div><div className="card skill-card"><div className="section-head"><h3>Skills</h3><span className="step-badge">04</span></div><div className="skill-list">{(profile.skills ?? []).map((skill, index) => <span key={`${skill.name}-${index}`}>{skill.name}{skill.years ? ` · ${skill.years}y` : ""}</span>)}</div><div className="skill-add"><input value={newSkill} onChange={(event) => setNewSkill(event.target.value)} onKeyDown={(event) => event.key === "Enter" && addSkill()} placeholder="Add a skill" /><button onClick={addSkill}>Add</button></div></div><div className="card custom-fields-card"><div className="section-head"><h3>Custom fields</h3><span className="step-badge">05</span></div><p className="card-help">Add any question your applications ask that isn't covered above — visa sponsorship, driving license, portfolio access code, anything. The extension matches similar questions automatically, even without an exact match.</p><div className="custom-field-list">{(profile.customFields ?? []).map((field) => <div className="custom-field-row" key={field.id}><input value={field.label} onChange={(event) => updateCustomField(field.id, "label", event.target.value)} placeholder="Question" /><input value={field.value} onChange={(event) => updateCustomField(field.id, "value", event.target.value)} placeholder="Answer" /><button onClick={() => removeCustomField(field.id)}>×</button></div>)}</div><div className="custom-field-add"><input value={newCustomLabel} onChange={(event) => setNewCustomLabel(event.target.value)} placeholder="New question" /><input value={newCustomValue} onChange={(event) => setNewCustomValue(event.target.value)} placeholder="Answer" /><button onClick={addCustomField}>Add field</button></div></div></aside></div><section className="card profile-detail-grid"><div><h3>Extracted experience</h3>{profile.experiences?.length ? profile.experiences.map((experience, index) => <article className="detail-item" key={`${experience.company}-${index}`}><strong>{experience.title || "Role to review"}</strong><span>{experience.company || "Company to review"} · {experience.period || "Dates to review"}</span><p>{experience.summary}</p></article>) : <p className="empty-state">Upload a resume to build role history and measurable achievements here.</p>}</div><div><h3>Education and projects</h3>{profile.education?.map((item, index) => <article className="detail-item" key={`${item.institution}-${index}`}><strong>{item.degree || "Education"}</strong><span>{item.institution} {item.period ? `· ${item.period}` : ""}</span></article>)}{profile.projects?.map((project, index) => <article className="detail-item" key={`${project.name}-${index}`}><strong>{project.name}</strong><span>{project.technologies?.join(" · ")}</span><p>{project.description}</p></article>)}{!profile.education?.length && !profile.projects?.length && <p className="empty-state">Projects and education will appear after extraction.</p>}</div></section></main>;
+  const BASIC_FIELDS: Array<[keyof UserProfile, string, string]> = [
+    ["firstName", "First name", "text"], ["lastName", "Last name", "text"],
+    ["email", "Email", "email"], ["phone", "Phone", "tel"],
+    ["location", "Location", "text"], ["currentTitle", "Current title", "text"],
+    ["linkedin", "LinkedIn", "url"], ["github", "GitHub", "url"], ["portfolio", "Portfolio", "url"],
+  ];
+  const DETAIL_FIELDS: Array<[keyof UserProfile, string]> = [
+    ["totalExperience", "Total experience"], ["noticePeriod", "Notice period"],
+    ["currentSalary", "Current compensation"], ["expectedSalary", "Expected compensation"],
+    ["willingToRelocate", "Willing to relocate"], ["workAuthorization", "Work authorization"],
+    ["availability", "Availability"],
+  ];
+
+  return <main className="main profile-page">
+    <div className="topbar">
+      <div><div className="eyebrow">Application profile</div><h1>Your source of truth</h1></div>
+      <Link href="/" className="text-link">Back to overview</Link>
+    </div>
+
+    <section className="profile-hero">
+      <div className="profile-hero-identity">
+        <div className="profile-avatar">{initials}</div>
+        <div>
+          <h2>{fullName || "Finish your profile"}</h2>
+          <p>{profile.currentTitle || "Add your current title"}{profile.location ? ` · ${profile.location}` : ""}</p>
+          <p className="profile-email">{email}</p>
+        </div>
+      </div>
+      <div className="profile-score">
+        <svg viewBox="0 0 80 80" width="76" height="76">
+          <circle cx="40" cy="40" r="34" fill="none" stroke="#e4e0ff" strokeWidth="7" />
+          <circle cx="40" cy="40" r="34" fill="none" stroke="#5546d9" strokeWidth="7" strokeLinecap="round" strokeDasharray={`${completeness.percent * 2.136} 213.6`} transform="rotate(-90 40 40)" />
+          <text x="40" y="46" textAnchor="middle" fontSize="17" fontWeight="700" fill="#1f2040" fontFamily="Space Grotesk">{completeness.percent}%</text>
+        </svg>
+        <span>complete</span>
+      </div>
+    </section>
+
+    {completeness.missing.length > 0 && <div className="missing-bar">
+      <strong>Still missing</strong>
+      {completeness.missing.map((item) => <span key={item}>{item}</span>)}
+    </div>}
+
+    <nav className="profile-tabs">
+      {([["overview", "Overview"], ["document", "Profile document"], ["details", "Application details"], ["sources", "Resume & sources"]] as Array<[Tab, string]>).map(([key, label]) =>
+        <button key={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>{label}</button>)}
+    </nav>
+
+    {notice && <p className="profile-notice">{notice}</p>}
+
+    {tab === "overview" && <div className="profile-stack">
+      <section className="card">
+        <div className="section-head"><h3>Basics</h3><span className="card-hint">Used to fill identity fields automatically</span></div>
+        <div className="field-grid">{BASIC_FIELDS.map(([field, label, type]) => <label key={field}>
+          <span>{label}{sources[field] && <em className={`source-chip ${sources[field] === "resume" ? "resume" : ""}`}>{sources[field]}</em>}</span>
+          <input type={type} value={String(profile[field] ?? "")} onChange={(event) => updateField(field, event.target.value)} placeholder={label} />
+        </label>)}</div>
+        <label className="full-width"><span>Professional summary</span>
+          <textarea value={profile.summary ?? ""} onChange={(event) => updateField("summary", event.target.value)} rows={4} placeholder="A short, factual summary in your own words." />
+        </label>
+      </section>
+
+      <section className="card">
+        <div className="section-head"><h3>Skills <span className="count">{profile.skills?.length ?? 0}</span></h3></div>
+        <div className="chip-list">{(profile.skills ?? []).map((skill) => <span key={skill.name}>{skill.name}{skill.years ? ` · ${skill.years}y` : ""}<button onClick={() => removeSkill(skill.name)} aria-label={`Remove ${skill.name}`}>×</button></span>)}
+          {!profile.skills?.length && <p className="empty-state">No skills yet. Import a resume or add them below.</p>}
+        </div>
+        <div className="inline-add">
+          <input value={newSkill} onChange={(event) => setNewSkill(event.target.value)} onKeyDown={(event) => event.key === "Enter" && addSkill()} placeholder="Add a skill" />
+          <button className="ghost-button" onClick={addSkill}>Add</button>
+        </div>
+      </section>
+
+      <div className="profile-columns">
+        <section className="card">
+          <div className="section-head"><h3>Experience <span className="count">{profile.experiences?.length ?? 0}</span></h3></div>
+          {(profile.experiences ?? []).map((item, index) => <div className="detail-item" key={index}>
+            <strong>{item.title || "Role"}</strong><span>{[item.company, item.period].filter(Boolean).join(" · ")}</span>
+            {item.achievements?.length ? <ul>{item.achievements.map((achievement, position) => <li key={position}>{achievement}</li>)}</ul> : item.summary ? <p>{item.summary}</p> : null}
+          </div>)}
+          {!profile.experiences?.length && <p className="empty-state">Import your resume to populate your roles.</p>}
+        </section>
+
+        <section className="card">
+          <div className="section-head"><h3>Projects <span className="count">{profile.projects?.length ?? 0}</span></h3></div>
+          {(profile.projects ?? []).map((item, index) => <div className="detail-item" key={index}>
+            <strong>{item.name}</strong><span>{item.technologies?.join(" · ")}</span>
+            {item.description && <p>{item.description}</p>}
+            {item.impact && <p className="impact">{item.impact}</p>}
+          </div>)}
+          {!profile.projects?.length && <p className="empty-state">Projects from your resume appear here first.</p>}
+        </section>
+      </div>
+
+      <section className="card">
+        <div className="section-head"><h3>Education <span className="count">{profile.education?.length ?? 0}</span></h3></div>
+        {(profile.education ?? []).map((item, index) => <div className="detail-item" key={index}>
+          <strong>{item.institution}</strong><span>{[item.degree, item.field, item.period].filter(Boolean).join(" · ")}</span>
+        </div>)}
+        {!profile.education?.length && <p className="empty-state">No education entries yet.</p>}
+      </section>
+    </div>}
+
+    {tab === "document" && <section className="card">
+      <div className="section-head">
+        <h3>Profile document</h3>
+        <div className="head-actions">
+          <button className="text-link" onClick={() => { setMarkdown(buildProfileMarkdown(profile)); setMarkdownEdited(false); markDirty(); }}>Regenerate from profile</button>
+          <button className="text-link" onClick={() => navigator.clipboard.writeText(markdown)}>Copy Markdown</button>
+        </div>
+      </div>
+      <p className="card-hint">Auto-generated with headings from your verified profile. Applications that ask for a written background reuse this.</p>
+      <div className="document-split">
+        <textarea className="markdown-editor" value={markdown} onChange={(event) => { setMarkdown(event.target.value); setMarkdownEdited(true); markDirty(); }} rows={26} spellCheck={false} />
+        <div className="markdown-preview"><Markdown content={markdown} /></div>
+      </div>
+    </section>}
+
+    {tab === "details" && <div className="profile-stack">
+      <section className="card">
+        <div className="section-head"><h3>Application details</h3><span className="card-hint">The questions almost every form asks</span></div>
+        <div className="field-grid">{DETAIL_FIELDS.map(([field, label]) => <label key={field}>
+          <span>{label}{sources[field] && <em className={`source-chip ${sources[field] === "resume" ? "resume" : ""}`}>{sources[field]}</em>}</span>
+          <input value={String(profile[field] ?? "")} onChange={(event) => updateField(field, event.target.value)} placeholder={label} />
+        </label>)}</div>
+      </section>
+
+      <section className="card">
+        <div className="section-head"><h3>Custom answers <span className="count">{profile.customFields?.length ?? 0}</span></h3><span className="card-hint">For questions the standard fields do not cover</span></div>
+        <div className="custom-list">{(profile.customFields ?? []).map((field) => <div className="custom-row" key={field.id}>
+          <input value={field.label} onChange={(event) => updateCustomField(field.id, "label", event.target.value)} placeholder="Question" />
+          <input value={field.value} onChange={(event) => updateCustomField(field.id, "value", event.target.value)} placeholder="Your answer" />
+          <button onClick={() => removeCustomField(field.id)} aria-label="Remove">×</button>
+        </div>)}</div>
+        <div className="inline-add">
+          <input value={newCustomLabel} onChange={(event) => setNewCustomLabel(event.target.value)} placeholder="Question label" />
+          <input value={newCustomValue} onChange={(event) => setNewCustomValue(event.target.value)} placeholder="Your answer" />
+          <button className="ghost-button" onClick={addCustomField}>Add</button>
+        </div>
+      </section>
+    </div>}
+
+    {tab === "sources" && <div className="profile-stack">
+      <section className="card">
+        <div className="section-head"><h3>Re-import your resume</h3></div>
+        <p className="card-hint">Your resume always takes priority. Re-importing refreshes every field it covers and leaves your manual edits elsewhere untouched.</p>
+        <label className="upload-drop">
+          <input type="file" accept="application/pdf,.txt,.md,text/plain" onChange={(event) => setResumeFile(event.target.files?.[0] ?? null)} />
+          <span className="upload-icon">↑</span>
+          <strong>{resumeFile ? resumeFile.name : "Choose a resume file"}</strong>
+          <small>PDF, TXT, or Markdown · up to 8 MB</small>
+        </label>
+        <button className="save-button wide" onClick={importResume} disabled={resumeBusy}>{resumeBusy ? "Extracting…" : "Extract and apply"}</button>
+      </section>
+
+      {analysis && <section className="card">
+        <div className="section-head"><h3>Extraction review</h3><span className={`pill ${analysis.source === "ai" ? "" : "pending"}`}>{analysis.source === "ai" ? "AI formatted" : "Locally extracted"}</span></div>
+        {analysis.aiNotice && <p className="card-hint">{analysis.aiNotice}</p>}
+        <ul className="suggestion-list">{analysis.suggestions.map((suggestion) => <li key={suggestion}>{suggestion}</li>)}</ul>
+      </section>}
+
+      <section className="card">
+        <div className="section-head"><h3>Add more sources</h3></div>
+        <p className="card-hint">GitHub, portfolios, and pasted profiles are handled in onboarding, where each new source is saved as it is captured.</p>
+        <Link className="save-button wide" href="/onboarding">Open the onboarding wizard</Link>
+      </section>
+    </div>}
+
+    <div className={`save-bar ${dirty ? "visible" : ""}`}>
+      <span>{saveState === "error" ? notice || "Save failed." : "You have unsaved changes."}</span>
+      <div>
+        <button className="text-link" onClick={() => window.location.reload()}>Discard</button>
+        <button className="save-button" onClick={save} disabled={saveState === "saving"}>{saveState === "saving" ? "Saving…" : "Save profile"}</button>
+      </div>
+    </div>
+    {saveState === "saved" && <div className="save-toast">Profile saved</div>}
+    {loading && <div className="save-toast">Loading your profile…</div>}
+  </main>;
 }

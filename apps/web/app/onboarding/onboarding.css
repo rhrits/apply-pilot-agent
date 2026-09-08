@@ -72,4 +72,44 @@
 .generated-item summary::-webkit-details-marker{display:none}
 .answer-category{padding:3px 7px;border-radius:5px;background:#f0eeff;color:#5546d9;font-size:8px;font-weight:800;text-transform:uppercase;white-space:nowrap}
 .generated-item textarea{margin-top:10px;resize:vertical}
+
+/* Autosave indicator */
+.autosave{display:flex;align-items:center;gap:7px;margin-top:12px;font-size:10px;font-weight:700;color:var(--muted)}
+.autosave-dot{width:6px;height:6px;border-radius:50%;background:#c9c8d8}
+.autosave.saving .autosave-dot{background:#efa73c}
+.autosave.saved{color:var(--green)}
+.autosave.saved .autosave-dot{background:var(--green)}
+.autosave.error{color:#c0392b}
+.autosave.error .autosave-dot{background:#c0392b}
+
+/* Resume-first emphasis */
+.source-card.primary{border-color:#c7c0ff;background:linear-gradient(160deg,#f7f6ff,#fff);box-shadow:0 8px 24px rgba(85,70,217,.08)}
+.source-card.primary textarea{width:100%;margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:10px;font:12px/1.6 'DM Sans';resize:vertical;outline:0}
+.source-card.primary textarea:focus{border-color:#8d84ef;box-shadow:0 0 0 3px #eeecff}
+.primary-button.wide{width:100%;margin-top:12px}
+
+.extract-summary{margin-top:16px;padding:16px 18px;border:1px solid #d7f0e4;border-radius:14px;background:#f4fcf8}
+.extract-summary strong{font-size:12px}
+.extract-grid{display:flex;flex-wrap:wrap;gap:22px;margin-top:12px}
+.extract-grid span{display:flex;flex-direction:column;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+.extract-grid i{font:700 22px 'Space Grotesk';font-style:normal;color:var(--ink)}
+
+.signal-tag.authoritative{background:#e4f8ef;color:#07835e}
+
+/* Build step summary */
+.build-summary{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:18px}
+.build-row{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:13px 16px;background:#fff}
+.build-row strong{font-size:12px}
+.build-row span{font-size:11px;color:var(--muted)}
+
+/* Review */
+.review-score{display:flex;align-items:baseline;gap:8px;margin-bottom:16px}
+.review-score strong{font:700 30px 'Space Grotesk';color:var(--purple)}
+.review-score span{font-size:11px;color:var(--muted)}
+.source-chip{margin-left:7px;padding:2px 6px;border-radius:5px;background:#f0eeff;color:#5546d9;font-size:8px;font-weight:800;text-transform:uppercase}
+.source-chip.resume{background:#e4f8ef;color:#07835e}
+.review-item ul{margin:7px 0 0;padding-left:16px;display:grid;gap:4px}
+.review-item li{font-size:11px;line-height:1.5;color:var(--muted)}
+.markdown-preview{padding:20px 22px;border:1px solid var(--line);border-radius:14px;background:#fff;max-height:460px;overflow:auto}
+
 @media(max-width:680px){.answer-grid{grid-template-columns:1fr}.onboarding-panel h1{font-size:24px}.inline-row{flex-direction:column}}
