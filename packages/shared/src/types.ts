@@ -38,6 +38,13 @@ export interface UserProfile {
   portfolio: string;
   currentTitle?: string;
   summary?: string;
+  noticePeriod?: string;
+  currentSalary?: string;
+  expectedSalary?: string;
+  totalExperience?: string;
+  willingToRelocate?: string;
+  workAuthorization?: string;
+  availability?: string;
   skills?: Array<{ name: string; years?: number; proficiency?: string }>;
   experiences?: Array<{ company: string; title: string; period?: string; summary?: string; achievements?: string[] }>;
   education?: Array<{ institution: string; degree?: string; field?: string; period?: string }>;
@@ -91,9 +98,23 @@ export type ExtensionMessage =
   | { type: "GET_AUTH_TOKEN" }
   | { type: "GET_PROFILE" }
   | { type: "REFRESH_PROFILE" }
+  | { type: "SCAN_PAGE" }
+  | { type: "FILL_ALL" }
+  | { type: "GET_RESUME_FILE" }
+  | { type: "ATTACH_RESUME"; fileName: string; mimeType: string; dataUrl: string }
   | { type: "OPEN_SIDE_PANEL" }
   | { type: "INSERT_IN_ACTIVE_FIELD"; value: string }
   | { type: "COPY_TEXT"; value: string };
+
+export interface ScannedField {
+  index: number;
+  label: string;
+  question: string;
+  kind: FieldKind;
+  value: string;
+  filled: boolean;
+  needsReview: boolean;
+}
 
 export interface AnswerResponse {
   answer: string;

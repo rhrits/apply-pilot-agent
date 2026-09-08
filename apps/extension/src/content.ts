@@ -72,9 +72,72 @@ const observer = new MutationObserver(() => {
 });
 observer.observe(document.documentElement, { childList: true, subtree: true });
 
+const FORM_SELECTOR = "input, textarea, select, [contenteditable='true']";
+
+function visible(element: Element) {
+  const rect = element.getBoundingClientRect();
+  const style = window.getComputedStyle(element as HTMLElement);
+  return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none";
+}
+
+function collectFields() {
+  return Array.from(document.querySelectorAll(FORM_SELECTOR))
+    .filter(visible)
+    .map((element) => ({ element, field: extractField(element) }))
+    .filter((entry): entry is { element: Element; field: NonNullable<ReturnType<typeof extractField>> } => entry.field !== null);
+}
+
+function currentValue(element: Element) {
+  if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) return element.value;
+  return (element as HTMLElement).textContent ?? "";
+}
+
+async function scanPage(fill: boolean) {
+  const profile = await getProfile().catch(() => null);
+  if (!profile) return { authenticated: false, fields: [] };
+  const entries = collectFields();
+  const fields = entries.map((entry, index) => {
+    const answer = answerForField(entry.field, profile);
+    const alreadyFilled = currentValue(entry.element).trim().length > 0;
+    let filled = false;
+    if (fill && answer && !alreadyFilled && entry.field.confidence >= 0.9) filled = insertValue(entry.element, answer);
+    return { index, label: entry.field.label, question: entry.field.question, kind: entry.field.kind, value: answer ?? "", filled, needsReview: Boolean(answer) && entry.field.confidence < 0.9 };
+  });
+  return { authenticated: true, fields };
+}
+
+function dataUrlToFile(dataUrl: string, fileName: string, mimeType: string) {
+  const base64 = dataUrl.split(",")[1] ?? "";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return new File([bytes], fileName, { type: mimeType || "application/pdf" });
+}
+
+function attachResume(fileName: string, mimeType: string, dataUrl: string) {
+  const inputs = Array.from(document.querySelectorAll<HTMLInputElement>("input[type='file']")).filter(visible);
+  const target = inputs.find((input) => !input.files?.length) ?? inputs[0];
+  if (!target) return { ok: false, error: "No file upload field found on this page." };
+  const transfer = new DataTransfer();
+  transfer.items.add(dataUrlToFile(dataUrl, fileName, mimeType));
+  target.files = transfer.files;
+  target.dispatchEvent(new Event("input", { bubbles: true }));
+  target.dispatchEvent(new Event("change", { bubbles: true }));
+  return { ok: true };
+}
+
 chrome.runtime.onMessage.addListener((message: ExtensionMessage, _sender, sendResponse) => {
   if (message.type === "INSERT_IN_ACTIVE_FIELD" && activeElement) {
     sendResponse({ ok: insertValue(activeElement, message.value) });
+  }
+  if (message.type === "SCAN_PAGE" || message.type === "FILL_ALL") {
+    scanPage(message.type === "FILL_ALL").then(sendResponse).catch((error) => sendResponse({ authenticated: false, fields: [], error: String(error) }));
+    return true;
+  }
+  if (message.type === "ATTACH_RESUME") {
+    try { sendResponse(attachResume(message.fileName, message.mimeType, message.dataUrl)); }
+    catch (error) { sendResponse({ ok: false, error: String(error) }); }
+    return true;
   }
   if (message.type === "COPY_TEXT") {
     navigator.clipboard.writeText(message.value).then(() => sendResponse({ ok: true }));

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import pdfParse from "pdf-parse";
-import type { ResumeAnalysis, UserProfile } from "@applypilot/shared";
+import { cleanTitle, type ResumeAnalysis, type UserProfile } from "@applypilot/shared";
 
 export const runtime = "nodejs";
 
@@ -142,7 +142,7 @@ function parseExperienceSection(content: string) {
     }
 
     const achievements = bulletLines.map((line) => line.replace(BULLET_PREFIX, "").trim()).filter(Boolean);
-    return { company, title, period, summary: achievements.join(" "), achievements };
+    return { company, title: cleanTitle(title), period, summary: achievements.join(" "), achievements };
   });
 }
 
@@ -183,7 +183,7 @@ function heuristicAnalysis(rawText: string): ResumeAnalysis {
   const experiences = experienceSection ? parseExperienceSection(experienceSection) : [];
   const education = educationSection ? parseEducationSection(educationSection) : [];
   const projects = sections.filter((section) => section.category === "projects").flatMap((section) => parseProjectsSection(section.content));
-  const currentTitle = experiences[0]?.title || lines.find((line) => /engineer|developer|designer|manager|analyst|scientist|architect|consultant|specialist|lead|director/i.test(line) && line.length < 80 && !looksLikeHeading(line)) || "";
+  const currentTitle = experiences[0]?.title || cleanTitle(lines.find((line) => /engineer|developer|designer|manager|analyst|scientist|architect|consultant|specialist|lead|director/i.test(line) && line.length < 80 && !looksLikeHeading(line)) || "");
   return {
     formattedText: sections.map((section) => `## ${section.title}\n${section.content}`).join("\n\n"),
     profile: {

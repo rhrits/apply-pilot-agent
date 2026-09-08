@@ -84,3 +84,23 @@ export async function clearExtensionSession() {
   await supabase?.auth.signOut();
   await chrome.storage.local.remove(["profile", "profileSyncedAt"]);
 }
+
+/** Downloads the user's most recent resume and returns it as a data URL for file-input attachment. */
+export async function fetchResumeFile(): Promise<{ fileName: string; mimeType: string; dataUrl: string } | { error: string }> {
+  const supabase = getExtensionSupabase();
+  if (!supabase) return { error: "Extension Supabase configuration is missing." };
+  const user = await getExtensionUser();
+  if (!user) return { error: "Sign in to attach your resume." };
+  const { data: resumes, error } = await supabase.from("resumes").select("name,storage_path,mime_type").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1);
+  if (error) return { error: error.message };
+  const resume = resumes?.[0];
+  if (!resume?.storage_path) return { error: "Upload a resume on the profile page first." };
+  const download = await supabase.storage.from("resumes").download(resume.storage_path as string);
+  if (download.error || !download.data) return { error: download.error?.message ?? "Could not download the resume." };
+  const buffer = await download.data.arrayBuffer();
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  for (let index = 0; index < bytes.length; index += 1) binary += String.fromCharCode(bytes[index]);
+  const mimeType = (resume.mime_type as string) || "application/pdf";
+  return { fileName: (resume.name as string) || "resume.pdf", mimeType, dataUrl: `data:${mimeType};base64,${btoa(binary)}` };
+}

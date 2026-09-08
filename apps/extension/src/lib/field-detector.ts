@@ -1,4 +1,4 @@
-import type { DetectedField, FieldKind } from "@applypilot/shared";
+import { answerQuestion, type DetectedField, type FieldKind, type UserProfile } from "@applypilot/shared";
 
 const TEXT_TYPES = new Set(["text", "email", "tel", "url", "number", "search", ""]);
 
@@ -75,7 +75,7 @@ export function extractField(element: Element): DetectedField | null {
   };
 }
 
-export function answerForField(field: DetectedField, profile: import("@applypilot/shared").UserProfile): string | null {
+export function answerForField(field: DetectedField, profile: UserProfile): string | null {
   const answers: Partial<Record<FieldKind, string>> = {
     first_name: profile.firstName,
     last_name: profile.lastName,
@@ -86,10 +86,10 @@ export function answerForField(field: DetectedField, profile: import("@applypilo
     github: profile.github,
     portfolio: profile.portfolio,
   };
-  if (field.kind === "experience") {
-    const question = field.question.toLowerCase();
-    const matchedSkill = profile.skills?.find((skill) => question.includes(skill.name.toLowerCase()));
-    if (matchedSkill?.years !== undefined) return String(matchedSkill.years);
-  }
-  return answers[field.kind] ?? null;
+  const direct = answers[field.kind];
+  if (direct) return direct;
+  // Fall back to the shared intent engine so notice period, salary, current company,
+  // and per-skill experience questions are answered from verified profile data too.
+  const engine = answerQuestion(`${field.label} ${field.question}`.trim(), profile);
+  return engine.source === "profile" && engine.answer ? engine.answer : null;
 }

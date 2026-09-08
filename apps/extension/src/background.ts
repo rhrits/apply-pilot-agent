@@ -1,6 +1,6 @@
 import type { ActiveFieldPayload, ExtensionMessage } from "@applypilot/shared";
 import { isExtensionConfigured } from "./lib/config";
-import { clearExtensionSession, fetchAuthenticatedProfile, getExtensionSupabase, getExtensionUser } from "./lib/supabase";
+import { clearExtensionSession, fetchAuthenticatedProfile, fetchResumeFile, getExtensionSupabase, getExtensionUser } from "./lib/supabase";
 
 chrome.runtime.onInstalled.addListener(async () => {
   await chrome.storage.local.set({ extensionInstalledAt: new Date().toISOString() });
@@ -66,6 +66,11 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
 
   if (message.type === "GET_PROFILE" || message.type === "REFRESH_PROFILE") {
     fetchAuthenticatedProfile().then((profile) => sendResponse({ profile })).catch((error) => sendResponse({ profile: null, error: String(error) }));
+    return true;
+  }
+
+  if (message.type === "GET_RESUME_FILE") {
+    fetchResumeFile().then(sendResponse).catch((error) => sendResponse({ error: String(error) }));
     return true;
   }
 
