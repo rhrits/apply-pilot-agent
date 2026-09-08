@@ -10,7 +10,7 @@ export const demoProfile: UserProfile = {
   github: "https://github.com/alex-applicant",
   portfolio: "https://alex-applicant.dev",
   currentTitle: "Full-stack Engineer",
-  summary: "Full-stack engineer building reliable products with TypeScript, React, and Supabase.",
+  summary: "Full-stack engineer building reliable products with TypeScript, React, and modern cloud tools.",
   skills: [
     { name: "TypeScript", years: 3, proficiency: "Advanced" },
     { name: "React", years: 3, proficiency: "Advanced" },

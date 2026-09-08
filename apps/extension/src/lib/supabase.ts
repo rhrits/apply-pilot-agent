@@ -96,7 +96,7 @@ export async function clearExtensionSession() {
 /** Downloads the user's most recent resume and returns it as a data URL for file-input attachment. */
 export async function fetchResumeFile(): Promise<{ fileName: string; mimeType: string; dataUrl: string } | { error: string }> {
   const supabase = getExtensionSupabase();
-  if (!supabase) return { error: "Extension Supabase configuration is missing." };
+  if (!supabase) return { error: "Extension setup is missing. Please contact support." };
   const user = await getExtensionUser();
   if (!user) return { error: "Sign in to attach your resume." };
   const { data: resumes, error } = await supabase.from("resumes").select("name,storage_path,mime_type").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1);
@@ -116,7 +116,7 @@ export async function fetchResumeFile(): Promise<{ fileName: string; mimeType: s
 /** Saves the current page as a tracked job opportunity (jobs + applications rows) for the signed-in user. */
 export async function saveJobToSupabase(job: PageSummary): Promise<{ ok: boolean; error?: string; duplicate?: boolean }> {
   const supabase = getExtensionSupabase();
-  if (!supabase) return { ok: false, error: "Extension Supabase configuration is missing." };
+  if (!supabase) return { ok: false, error: "Extension setup is missing. Please contact support." };
   const user = await getExtensionUser();
   if (!user) return { ok: false, error: "Sign in to save this job." };
 
@@ -149,7 +149,7 @@ export interface TrackerSnapshot {
 /** Reads the job tracker so the side panel can show status without opening the web app. */
 export async function fetchTracker(): Promise<TrackerSnapshot | { error: string }> {
   const supabase = getExtensionSupabase();
-  if (!supabase) return { error: "Extension Supabase configuration is missing." };
+  if (!supabase) return { error: "Extension setup is missing. Please contact support." };
   const user = await getExtensionUser();
   if (!user) return { error: "Sign in to view your tracker." };
 

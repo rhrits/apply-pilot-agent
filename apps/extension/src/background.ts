@@ -39,14 +39,14 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
 
   if (message.type === "AUTH_REQUEST_OTP") {
     const supabase = getExtensionSupabase();
-    if (!supabase) { sendResponse({ ok: false, error: "Configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY for the extension build." }); return; }
+    if (!supabase) { sendResponse({ ok: false, error: "Extension setup is missing. Please contact support." }); return; }
     supabase.auth.signInWithOtp({ email: message.email.trim(), options: { shouldCreateUser: true } }).then(({ error }) => sendResponse(error ? { ok: false, error: error.message } : { ok: true })).catch((error) => sendResponse({ ok: false, error: String(error) }));
     return true;
   }
 
   if (message.type === "AUTH_VERIFY_OTP") {
     const supabase = getExtensionSupabase();
-    if (!supabase) { sendResponse({ ok: false, error: "Extension Supabase configuration is missing." }); return; }
+    if (!supabase) { sendResponse({ ok: false, error: "Extension setup is missing. Please contact support." }); return; }
     supabase.auth.verifyOtp({ email: message.email.trim(), token: message.token.trim(), type: "email" }).then(async ({ data, error }) => {
       if (error) { sendResponse({ ok: false, error: error.message }); return; }
       const profile = await fetchAuthenticatedProfile();
@@ -62,7 +62,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
 
   if (message.type === "GET_AUTH_TOKEN") {
     const supabase = getExtensionSupabase();
-    if (!supabase) { sendResponse({ accessToken: null, error: "Extension Supabase configuration is missing." }); return; }
+    if (!supabase) { sendResponse({ accessToken: null, error: "Extension setup is missing. Please contact support." }); return; }
     supabase.auth.getSession().then(({ data }) => sendResponse({ accessToken: data.session?.access_token ?? null })).catch((error) => sendResponse({ accessToken: null, error: String(error) }));
     return true;
   }
