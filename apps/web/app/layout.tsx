@@ -35,5 +35,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}<Script type="module" strategy="afterInteractive" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"f345f612cc04f9186e7264662ee1efb"}' /></body></html>;
+  return <html lang="en"><body>{children}<Script type="module" strategy="afterInteractive" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"f345f612cc04c9186e7264662ee1efb"}' /></body></html>;
 }
