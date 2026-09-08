@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -5,6 +6,18 @@ export const runtime = "nodejs";
 const headers = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Content-Type, Authorization", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 
 export function OPTIONS() { return new NextResponse(null, { status: 204, headers }); }
+
+async function hasReadyUser(request: Request) {
+  const authorization = request.headers.get("authorization");
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!authorization?.startsWith("Bearer ") || !url || !key) return false;
+  const supabase = createClient(url, key, { auth: { persistSession: false }, global: { headers: { Authorization: authorization } } });
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return false;
+  const { data: profile } = await supabase.from("profiles").select("onboarding_completed_at").eq("id", userData.user.id).maybeSingle();
+  return Boolean(profile?.onboarding_completed_at);
+}
 
 const MAX_BYTES = 20 * 1024 * 1024;
 
@@ -17,6 +30,7 @@ const MAX_BYTES = 20 * 1024 * 1024;
  * faster-whisper or whisper.cpp server works without code changes.
  */
 export async function POST(request: Request) {
+  if (!(await hasReadyUser(request))) return NextResponse.json({ error: "Complete sign-in and profile setup before using dictation." }, { status: 401, headers });
   const form = await request.formData().catch(() => null);
   const file = form?.get("audio");
   if (!(file instanceof File)) return NextResponse.json({ error: "Attach an audio recording." }, { status: 400, headers });

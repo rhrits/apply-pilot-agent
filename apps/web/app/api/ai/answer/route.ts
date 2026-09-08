@@ -26,6 +26,8 @@ async function authenticatedContext(request: Request) {
     supabase.from("projects").select("name,description,impact,technologies").eq("user_id", userId).order("created_at", { ascending: false }).limit(12),
   ]);
 
+  if (!profileResult.data?.onboarding_completed_at) return null;
+
   const row = (profileResult.data ?? {}) as Record<string, unknown>;
   const text = (input: unknown) => (typeof input === "string" ? input : "");
   const profile: UserProfile = {

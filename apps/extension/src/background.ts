@@ -1,8 +1,10 @@
-import type { ActiveFieldPayload, ExtensionMessage, ExtensionSettings } from "@applypilot/shared";
+import type { ActiveFieldPayload, ExtensionAuthStatus, ExtensionMessage, ExtensionSettings } from "@applypilot/shared";
 import { extensionConfig, isExtensionConfigured } from "./lib/config";
-import { clearExtensionSession, fetchAuthenticatedProfile, fetchResumeFile, fetchTracker, getExtensionSupabase, getExtensionUser, saveJobToSupabase } from "./lib/supabase";
+import { clearExtensionSession, fetchAuthenticatedProfile, fetchResumeFile, fetchTracker, getExtensionAuthStatus, getExtensionSupabase, saveJobToSupabase } from "./lib/supabase";
 import { findLocalMemory, saveAnswerMemory } from "./lib/memory";
 import { saveUnknownQuestion } from "./lib/unknown-questions";
+
+const panelPorts = new Set<chrome.runtime.Port>();
 
 chrome.runtime.onInstalled.addListener(async () => {
   const current = await chrome.storage.local.get("settings");
@@ -10,30 +12,33 @@ chrome.runtime.onInstalled.addListener(async () => {
 });
 
 async function authStatus() {
-  const configured = isExtensionConfigured();
-  if (!configured) return { configured: false, authenticated: false, email: null, profile: null };
-  const user = await getExtensionUser();
-  const cached = await chrome.storage.local.get("profile");
-  const profile = user ? cached.profile ?? await fetchAuthenticatedProfile() : null;
-  return { configured: true, authenticated: Boolean(user), email: user?.email ?? null, profile: profile ?? null };
+  return getExtensionAuthStatus();
+}
+
+async function readyStatus(): Promise<ExtensionAuthStatus> {
+  const status = await authStatus();
+  if (status.accessState !== "ready") throw new Error(status.accessState === "profile_required" ? "Complete your profile before using the extension." : "Sign in from the extension popup first.");
+  return status;
 }
 
 chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendResponse) => {
   const tabId = sender.tab?.id;
 
   if (message.type === "ACTIVE_FIELD") {
-    chrome.storage.session.set({ activeField: message.payload, activeTabId: tabId });
-    sendResponse({ ok: true });
-    return;
+    readyStatus().then(async () => {
+      await chrome.storage.session.set({ activeField: message.payload, activeTabId: tabId });
+      sendResponse({ ok: true });
+    }).catch((error) => sendResponse({ ok: false, error: String(error) }));
+    return true;
   }
 
   if (message.type === "GET_ACTIVE_FIELD") {
-    chrome.storage.session.get(["activeField", "activeTabId"]).then(sendResponse);
+    readyStatus().then(() => chrome.storage.session.get(["activeField", "activeTabId"])).then(sendResponse).catch((error) => sendResponse({ error: String(error) }));
     return true;
   }
 
   if (message.type === "AUTH_STATUS") {
-    authStatus().then(sendResponse).catch((error) => sendResponse({ configured: isExtensionConfigured(), authenticated: false, email: null, profile: null, error: String(error) }));
+    authStatus().then(sendResponse).catch((error) => sendResponse({ configured: isExtensionConfigured(), authenticated: false, accessState: "unauthenticated", userId: null, email: null, profile: null, error: String(error) }));
     return true;
   }
 
@@ -49,31 +54,37 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
     if (!supabase) { sendResponse({ ok: false, error: "Extension setup is missing. Please contact support." }); return; }
     supabase.auth.verifyOtp({ email: message.email.trim(), token: message.token.trim(), type: "email" }).then(async ({ data, error }) => {
       if (error) { sendResponse({ ok: false, error: error.message }); return; }
-      const profile = await fetchAuthenticatedProfile();
-      sendResponse({ ok: true, email: data.user?.email ?? message.email, profile });
+      const status = await authStatus();
+      sendResponse({ ok: true, ...status, email: status.email ?? data.user?.email ?? message.email });
     }).catch((error) => sendResponse({ ok: false, error: String(error) }));
     return true;
   }
 
   if (message.type === "AUTH_SIGN_OUT") {
-    clearExtensionSession().then(() => sendResponse({ ok: true })).catch((error) => sendResponse({ ok: false, error: String(error) }));
+    clearExtensionSession().then(async () => {
+      const status = await authStatus();
+      for (const port of panelPorts) port.postMessage({ type: "AUTH_STATUS", status });
+      sendResponse({ ok: true });
+    }).catch((error) => sendResponse({ ok: false, error: String(error) }));
     return true;
   }
 
   if (message.type === "GET_AUTH_TOKEN") {
-    const supabase = getExtensionSupabase();
-    if (!supabase) { sendResponse({ accessToken: null, error: "Extension setup is missing. Please contact support." }); return; }
-    supabase.auth.getSession().then(({ data }) => sendResponse({ accessToken: data.session?.access_token ?? null })).catch((error) => sendResponse({ accessToken: null, error: String(error) }));
+    readyStatus().then(async () => {
+      const supabase = getExtensionSupabase();
+      const { data } = (await supabase?.auth.getSession()) ?? { data: { session: null } };
+      sendResponse({ accessToken: data.session?.access_token ?? null });
+    }).catch((error) => sendResponse({ accessToken: null, error: String(error) }));
     return true;
   }
 
   if (message.type === "GET_PROFILE" || message.type === "REFRESH_PROFILE") {
-    fetchAuthenticatedProfile().then((profile) => sendResponse({ profile })).catch((error) => sendResponse({ profile: null, error: String(error) }));
+    readyStatus().then(() => fetchAuthenticatedProfile()).then((profile) => sendResponse({ profile })).catch((error) => sendResponse({ profile: null, error: String(error) }));
     return true;
   }
 
   if (message.type === "GET_RESUME_FILE") {
-    fetchResumeFile().then(sendResponse).catch((error) => sendResponse({ error: String(error) }));
+    readyStatus().then(() => fetchResumeFile()).then(sendResponse).catch((error) => sendResponse({ error: String(error) }));
     return true;
   }
 
@@ -83,31 +94,32 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
   }
 
   if (message.type === "UPDATE_SETTINGS") {
-    chrome.storage.local.get("settings").then(async (result) => {
+    readyStatus().then(() => chrome.storage.local.get("settings")).then(async (result) => {
       const settings = { autoSuggest: result.settings?.autoSuggest !== false, liveAI: result.settings?.liveAI === true, ...message.settings } satisfies ExtensionSettings;
       await chrome.storage.local.set({ settings });
       sendResponse(settings);
-    });
+    }).catch((error) => sendResponse({ error: String(error) }));
     return true;
   }
 
   if (message.type === "FIND_ANSWER_MEMORY") {
-    findLocalMemory(message.question).then((item) => sendResponse({ item })).catch((error) => sendResponse({ item: null, error: String(error) }));
+    readyStatus().then(() => findLocalMemory(message.question)).then((item) => sendResponse({ item })).catch((error) => sendResponse({ item: null, error: String(error) }));
     return true;
   }
 
   if (message.type === "SAVE_ANSWER_MEMORY") {
-    saveAnswerMemory(message.item).then((item) => sendResponse({ item })).catch((error) => sendResponse({ item: null, error: String(error) }));
+    readyStatus().then(() => saveAnswerMemory(message.item)).then((item) => sendResponse({ item })).catch((error) => sendResponse({ item: null, error: String(error) }));
     return true;
   }
 
   if (message.type === "SUGGEST_ANSWER") {
     (async () => {
-      const supabase = getExtensionSupabase();
-      const { data } = (await supabase?.auth.getSession()) ?? { data: { session: null } };
-      const accessToken = data.session?.access_token;
-      if (!accessToken) { sendResponse({ answer: "", error: "Not signed in" }); return; }
       try {
+        await readyStatus();
+        const supabase = getExtensionSupabase();
+        const { data } = (await supabase?.auth.getSession()) ?? { data: { session: null } };
+        const accessToken = data.session?.access_token;
+        if (!accessToken) { sendResponse({ answer: "", error: "Not signed in" }); return; }
         const response = await fetch(extensionConfig.aiApiUrl, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ question: message.question, page: message.page }) });
         const payload = await response.json();
         sendResponse(response.ok ? { answer: payload.answer ?? "", source: payload.source, notice: payload.notice } : { answer: "", error: payload.error ?? "Request failed" });
@@ -117,17 +129,17 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
   }
 
   if (message.type === "SAVE_UNKNOWN_QUESTION") {
-    saveUnknownQuestion(message.question, message.page).then((item) => sendResponse({ ok: Boolean(item), item })).catch((error) => sendResponse({ ok: false, error: String(error) }));
+    readyStatus().then(() => saveUnknownQuestion(message.question, message.page)).then((item) => sendResponse({ ok: Boolean(item), item })).catch((error) => sendResponse({ ok: false, error: String(error) }));
     return true;
   }
 
   if (message.type === "SAVE_JOB") {
-    saveJobToSupabase(message.job).then(sendResponse).catch((error) => sendResponse({ ok: false, error: String(error) }));
+    readyStatus().then(() => saveJobToSupabase(message.job)).then(sendResponse).catch((error) => sendResponse({ ok: false, error: String(error) }));
     return true;
   }
 
   if (message.type === "GET_TRACKER") {
-    fetchTracker().then(sendResponse).catch((error) => sendResponse({ error: String(error) }));
+    readyStatus().then(() => fetchTracker()).then(sendResponse).catch((error) => sendResponse({ error: String(error) }));
     return true;
   }
 
@@ -135,6 +147,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
     // Transcription runs on the web app's server so no provider key ships in the extension.
     (async () => {
       try {
+        await readyStatus();
         const supabase = getExtensionSupabase();
         const { data } = (await supabase?.auth.getSession()) ?? { data: { session: null } };
         const accessToken = data.session?.access_token;
@@ -156,13 +169,12 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
   }
 
   if (message.type === "OPEN_SIDE_PANEL") {
-    const targetTabId = tabId ?? messageTabId(sender);
-    if (targetTabId !== undefined) {
+    readyStatus().then(() => {
+      const targetTabId = message.tabId ?? tabId ?? messageTabId(sender);
+      if (targetTabId === undefined) { sendResponse({ ok: false, error: "No active tab" }); return; }
       chrome.sidePanel.open({ tabId: targetTabId }).then(() => sendResponse({ ok: true })).catch((error) => sendResponse({ ok: false, error: String(error) }));
-      return true;
-    }
-    sendResponse({ ok: false, error: "No active tab" });
-    return;
+    }).catch((error) => sendResponse({ ok: false, error: String(error) }));
+    return true;
   }
 
   if (message.type === "COPY_TEXT") {
@@ -188,8 +200,8 @@ chrome.alarms.create(SYNC_ALARM, { periodInMinutes: 15 });
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name !== SYNC_ALARM) return;
-  const user = await getExtensionUser().catch(() => null);
-  if (!user) return;
+  const status = await authStatus().catch(() => null);
+  if (!status || status.accessState !== "ready") return;
   const profile = await fetchAuthenticatedProfile().catch(() => null);
   if (profile) await chrome.storage.local.set({ profile, profileSyncedAt: new Date().toISOString() });
 });
@@ -197,6 +209,13 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 // Refresh as soon as the side panel or popup opens, so the panel never shows stale data.
 chrome.runtime.onConnect.addListener(async (port) => {
   if (port.name !== "applypilot-panel") return;
+  panelPorts.add(port);
+  port.onDisconnect.addListener(() => panelPorts.delete(port));
+  const status = await authStatus().catch(() => null);
+  if (!status || status.accessState !== "ready") {
+    port.postMessage({ type: "AUTH_STATUS", status });
+    return;
+  }
   const profile = await fetchAuthenticatedProfile().catch(() => null);
   if (profile) {
     await chrome.storage.local.set({ profile, profileSyncedAt: new Date().toISOString() });

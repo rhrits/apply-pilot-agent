@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { ActiveFieldPayload, AnswerResponse, ExtensionMessage, ScannedField, UserProfile } from "@applypilot/shared";
+import type { ActiveFieldPayload, AnswerResponse, ExtensionAccessState, ExtensionMessage, ScannedField, UserProfile } from "@applypilot/shared";
 import { extensionConfig } from "./lib/config";
 import type { TrackerSnapshot } from "./lib/supabase";
 import { CopyButton, DictationControl, ExternalIcon, InsertIcon, SaveIcon, SyncIcon } from "./components/ui";
@@ -100,6 +100,7 @@ function SidePanel() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
+  const [accessState, setAccessState] = useState<"loading" | ExtensionAccessState>("loading");
   const [accountEmail, setAccountEmail] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [fields, setFields] = useState<ScannedField[]>([]);
@@ -107,10 +108,11 @@ function SidePanel() {
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: "AUTH_STATUS" } satisfies ExtensionMessage).then((result) => {
-      setAuthenticated(Boolean(result?.authenticated));
+      setAccessState(result?.accessState ?? "unauthenticated");
+      setAuthenticated(result?.accessState === "ready");
       setAccountEmail(result?.email ?? null);
-      setProfile(result?.profile ?? null);
-      if (result?.authenticated) void loadTracker();
+      setProfile(result?.accessState === "ready" ? result.profile ?? null : null);
+      if (result?.accessState === "ready") void loadTracker();
     }).catch(() => undefined);
 
     chrome.runtime.sendMessage({ type: "GET_ACTIVE_FIELD" } satisfies ExtensionMessage).then((result) => {
@@ -120,8 +122,12 @@ function SidePanel() {
 
     // Opening this port asks the worker for a fresh profile, so the panel is never stale.
     const port = chrome.runtime.connect({ name: "applypilot-panel" });
-    port.onMessage.addListener((message: { type: string; profile?: UserProfile }) => {
+    port.onMessage.addListener((message: { type: string; profile?: UserProfile; status?: { accessState?: ExtensionAccessState } }) => {
       if (message.type === "PROFILE_SYNCED" && message.profile) setProfile(message.profile);
+      if (message.type === "AUTH_STATUS") {
+        setAccessState(message.status?.accessState ?? "unauthenticated");
+        setAuthenticated(message.status?.accessState === "ready");
+      }
     });
     return () => port.disconnect();
   }, []);
@@ -215,6 +221,16 @@ function SidePanel() {
     const id = result?.activeTabId;
     if (id) { await chrome.tabs.sendMessage(id, { type: "INSERT_IN_ACTIVE_FIELD", value: answer.answer } satisfies ExtensionMessage); setStatus("Inserted into the focused field"); }
     else setStatus("Focus a field first");
+  }
+
+  function openOnboarding() {
+    void chrome.tabs.create({ url: `${extensionConfig.webAppUrl}/login?next=/onboarding` });
+  }
+
+  if (accessState !== "ready") {
+    const title = accessState === "loading" ? "Checking access…" : accessState === "profile_required" ? "Create your profile first" : accessState === "unconfigured" ? "Extension setup required" : "Sign in to ApplyPilot";
+    const description = accessState === "profile_required" ? "Your account is connected, but the assistant stays locked until you complete your verified profile." : accessState === "unconfigured" ? "This extension build is missing its secure configuration." : "Open the ApplyPilot extension popup and sign in to use the page assistant.";
+    return <main className="panel"><header><img className="brand-mark" src="/icons/48.png" width={36} height={36} alt="" /><div><h1>ApplyPilot</h1><p>Page assistant</p></div><span className="ready off">LOCKED</span></header><section className="auth-banner"><strong>{title}</strong><br />{description}</section>{accessState === "profile_required" && <button className="generate" onClick={openOnboarding}>Create your profile</button>}<footer>ApplyPilot only reads or fills application data after authentication and profile setup.</footer></main>;
   }
 
   return <main className="panel">

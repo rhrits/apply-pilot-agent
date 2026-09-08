@@ -20,7 +20,8 @@ export const demoProfile: UserProfile = {
 
 export async function getProfile(): Promise<UserProfile | null> {
   const auth = await chrome.runtime.sendMessage({ type: "AUTH_STATUS" } satisfies ExtensionMessage);
-  if (!auth?.authenticated) return null;
-  const result = await chrome.storage.local.get("profile");
+  if (auth?.accessState !== "ready") return null;
+  const result = await chrome.storage.local.get(["profile", "profileOwnerId"]);
+  if (result.profileOwnerId !== auth.userId) return null;
   return (result.profile as UserProfile | undefined) ?? null;
 }

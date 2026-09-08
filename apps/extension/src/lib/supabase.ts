@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
-import type { PageSummary, UserProfile } from "@applypilot/shared";
+import type { ExtensionAuthStatus, PageSummary, UserProfile } from "@applypilot/shared";
 import { extensionConfig, isExtensionConfigured } from "./config";
 
 const chromeStorage = {
@@ -43,11 +43,27 @@ function asString(value: unknown) {
   return typeof value === "string" ? value : "";
 }
 
+const USER_SCOPED_KEYS = ["profile", "profileSyncedAt", "profileOwnerId", "answerMemory", "unknownQuestions"];
+
+async function ensureStorageOwner(userId: string) {
+  const stored = await chrome.storage.local.get("profileOwnerId");
+  if (stored.profileOwnerId !== userId) await chrome.storage.local.remove(USER_SCOPED_KEYS);
+  await chrome.storage.local.set({ profileOwnerId: userId });
+}
+
+export async function clearUserScopedStorage() {
+  await Promise.all([
+    chrome.storage.local.remove(USER_SCOPED_KEYS),
+    chrome.storage.session.remove(["activeField", "activeTabId"]),
+  ]);
+}
+
 export async function fetchAuthenticatedProfile(): Promise<UserProfile | null> {
   const supabase = getExtensionSupabase();
   if (!supabase) return null;
   const user = await getExtensionUser();
   if (!user) return null;
+  await ensureStorageOwner(user.id);
 
   const [profileResult, experiencesResult, skillsResult, educationResult, projectsResult] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
@@ -58,7 +74,11 @@ export async function fetchAuthenticatedProfile(): Promise<UserProfile | null> {
   ]);
 
   const row = profileResult.data as Record<string, unknown> | null;
-  if (!row) return null;
+  if (!row) {
+    await clearUserScopedStorage();
+    await chrome.storage.local.set({ profileOwnerId: user.id });
+    return null;
+  }
   const profile: UserProfile = {
     firstName: asString(row.first_name),
     lastName: asString(row.last_name),
@@ -83,14 +103,41 @@ export async function fetchAuthenticatedProfile(): Promise<UserProfile | null> {
     education: (educationResult.data ?? []).map((item) => ({ institution: asString(item.institution), degree: asString(item.degree), field: asString(item.field), period: [item.start_year, item.end_year].filter(Boolean).join(" – ") })),
     projects: (projectsResult.data ?? []).map((item) => ({ name: asString(item.name), description: asString(item.description), technologies: Array.isArray(item.technologies) ? item.technologies.map(String) : [], impact: asString(item.impact) })),
   };
-  await chrome.storage.local.set({ profile, profileSyncedAt: new Date().toISOString() });
+  await chrome.storage.local.set({ profile, profileOwnerId: user.id, profileSyncedAt: new Date().toISOString() });
   return profile;
+}
+
+export async function getExtensionAuthStatus(): Promise<ExtensionAuthStatus> {
+  const configured = isExtensionConfigured();
+  const urls = { onboardingUrl: `${extensionConfig.webAppUrl}/login?next=/onboarding`, profileUrl: `${extensionConfig.webAppUrl}/profile` };
+  if (!configured) return { configured: false, authenticated: false, accessState: "unconfigured", userId: null, email: null, profile: null, ...urls };
+
+  const user = await getExtensionUser();
+  if (!user) {
+    await clearUserScopedStorage();
+    return { configured: true, authenticated: false, accessState: "unauthenticated", userId: null, email: null, profile: null, ...urls };
+  }
+
+  await ensureStorageOwner(user.id);
+  const supabase = getExtensionSupabase();
+  const { data: profileRow, error } = await supabase!.from("profiles").select("id,onboarding_completed_at").eq("id", user.id).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!profileRow?.onboarding_completed_at) {
+    await chrome.storage.local.remove(["profile", "profileSyncedAt"]);
+    return { configured: true, authenticated: true, accessState: "profile_required", userId: user.id, email: user.email ?? null, profile: null, ...urls };
+  }
+
+  const cached = await chrome.storage.local.get(["profile", "profileOwnerId"]);
+  const profile = cached.profileOwnerId === user.id ? cached.profile as UserProfile | undefined : undefined;
+  const currentProfile = profile ?? await fetchAuthenticatedProfile();
+  if (!currentProfile) return { configured: true, authenticated: true, accessState: "profile_required", userId: user.id, email: user.email ?? null, profile: null, ...urls };
+  return { configured: true, authenticated: true, accessState: "ready", userId: user.id, email: user.email ?? null, profile: currentProfile, ...urls };
 }
 
 export async function clearExtensionSession() {
   const supabase = getExtensionSupabase();
   await supabase?.auth.signOut();
-  await chrome.storage.local.remove(["profile", "profileSyncedAt"]);
+  await clearUserScopedStorage();
 }
 
 /** Downloads the user's most recent resume and returns it as a data URL for file-input attachment. */

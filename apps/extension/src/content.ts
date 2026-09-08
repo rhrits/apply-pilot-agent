@@ -211,21 +211,33 @@ function getPageSummary(): PageSummary {
   return { title: document.title, url: location.href, hostname: location.hostname, company: guessCompany(), description: guessDescription() };
 }
 
+async function hasReadyAccess() {
+  const status = await chrome.runtime.sendMessage({ type: "AUTH_STATUS" } satisfies ExtensionMessage).catch(() => null);
+  return status?.accessState === "ready";
+}
+
 chrome.runtime.onMessage.addListener((message: ExtensionMessage, _sender, sendResponse) => {
   if (message.type === "INSERT_IN_ACTIVE_FIELD" && activeElement) {
-    sendResponse({ ok: insertValue(activeElement, message.value) });
+    hasReadyAccess().then((ready) => sendResponse(ready ? { ok: insertValue(activeElement!, message.value) } : { ok: false, error: "Complete sign-in and profile setup first." }));
+    return true;
   }
   if (message.type === "SCAN_PAGE" || message.type === "FILL_ALL") {
     scanPage(message.type === "FILL_ALL").then(sendResponse).catch((error) => sendResponse({ authenticated: false, fields: [], error: String(error) }));
     return true;
   }
   if (message.type === "ATTACH_RESUME") {
-    try { sendResponse(attachResume(message.fileName, message.mimeType, message.dataUrl)); }
-    catch (error) { sendResponse({ ok: false, error: String(error) }); }
+    hasReadyAccess().then((ready) => {
+      if (!ready) { sendResponse({ ok: false, error: "Complete sign-in and profile setup first." }); return; }
+      try { sendResponse(attachResume(message.fileName, message.mimeType, message.dataUrl)); }
+      catch (error) { sendResponse({ ok: false, error: String(error) }); }
+    });
     return true;
   }
   if (message.type === "GET_PAGE_SUMMARY") {
-    try { sendResponse(getPageSummary()); } catch (error) { sendResponse({ error: String(error) }); }
+    hasReadyAccess().then((ready) => {
+      if (!ready) { sendResponse({ error: "Complete sign-in and profile setup first." }); return; }
+      try { sendResponse(getPageSummary()); } catch (error) { sendResponse({ error: String(error) }); }
+    });
     return true;
   }
   if (message.type === "COPY_TEXT") {

@@ -81,6 +81,20 @@ export interface UserProfile {
   projects?: ProfileProject[];
 }
 
+export type ExtensionAccessState = "unconfigured" | "unauthenticated" | "profile_required" | "ready";
+
+export interface ExtensionAuthStatus {
+  configured: boolean;
+  authenticated: boolean;
+  accessState: ExtensionAccessState;
+  userId: string | null;
+  email: string | null;
+  profile: UserProfile | null;
+  onboardingUrl?: string;
+  profileUrl?: string;
+  error?: string;
+}
+
 export interface ResumeAnalysis {
   /** Original extracted text, retained so onboarding can persist the source verbatim. */
   rawText?: string;
@@ -168,7 +182,7 @@ export type ExtensionMessage =
   | { type: "GET_TRACKER" }
   | { type: "TRANSCRIBE_AUDIO"; dataUrl: string; mimeType: string }
   | { type: "SUGGEST_ANSWER"; question: string; page: ActiveFieldPayload["page"] }
-  | { type: "OPEN_SIDE_PANEL" }
+  | { type: "OPEN_SIDE_PANEL"; tabId?: number }
   | { type: "INSERT_IN_ACTIVE_FIELD"; value: string }
   | { type: "COPY_TEXT"; value: string };
 
