@@ -254,7 +254,7 @@ async function improveWithMistral(analysis: ResumeAnalysis): Promise<ResumeAnaly
   } catch {
     return { ...analysis, aiNotice: "Could not reach Mistral. Showing the locally extracted profile instead." };
   }
-  if (response.status === 429) return { ...analysis, aiNotice: "Mistral rate limit reached for this API key. Showing the locally extracted profile instead." };
+  if (response.status === 429) return { ...analysis, aiNotice: "AI enhancement is temporarily unavailable. Showing the locally extracted profile instead." };
   if (!response.ok) return { ...analysis, aiNotice: `Mistral request failed (HTTP ${response.status}). Showing the locally extracted profile instead.` };
   const payload = await response.json();
   const content = payload.choices?.[0]?.message?.content;

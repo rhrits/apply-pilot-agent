@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Could not reach the transcription service." }, { status: 502, headers });
   }
 
-  if (response.status === 429) return NextResponse.json({ error: "Transcription rate limit reached. Type your answer instead, or try again shortly." }, { status: 429, headers });
+  if (response.status === 429) return NextResponse.json({ error: "Speech-to-text is temporarily unavailable. Type your answer instead." }, { status: 502, headers });
   if (!response.ok) return NextResponse.json({ error: `Transcription failed (HTTP ${response.status}).` }, { status: 502, headers });
 
   const payload = await response.json().catch(() => null);

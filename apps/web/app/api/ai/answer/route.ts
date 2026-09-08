@@ -92,8 +92,7 @@ export async function POST(request: Request) {
     }),
   });
   if (response.status === 429) {
-    const retryAfter = response.headers.get("retry-after");
-    return NextResponse.json({ answer: "", source: "profile", confidence: 0, notice: retryAfter ? `AI rate limit reached. Try again in about ${retryAfter} seconds.` : "AI rate limit reached. Try again shortly." }, { headers });
+    return NextResponse.json({ answer: "", source: "profile", confidence: 0, notice: "AI is temporarily unavailable. Add this answer to your library manually or try again later." }, { headers });
   }
   if (!response.ok) return NextResponse.json({ error: "AI provider request failed" }, { status: 502, headers });
   const data = await response.json();

@@ -18,7 +18,7 @@ function parseUsername(input: string): string | null {
 
 function githubHeaders() {
   const base: Record<string, string> = { Accept: "application/vnd.github+json", "User-Agent": "ApplyPilot" };
-  // Optional: raises the rate limit from 60/hr to 5000/hr. Never exposed to the client.
+  // Optional server token for authenticated GitHub API access. Never exposed to the client.
   if (process.env.GITHUB_TOKEN) base.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
   return base;
 }
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
 
   const profileResponse = await fetch(`https://api.github.com/users/${username}`, { headers: githubHeaders() });
   if (profileResponse.status === 404) return NextResponse.json({ error: `GitHub user "${username}" was not found.` }, { status: 404, headers });
-  if (profileResponse.status === 403) return NextResponse.json({ error: "GitHub rate limit reached. Add a GITHUB_TOKEN on the server or try again later." }, { status: 429, headers });
+  if (profileResponse.status === 403) return NextResponse.json({ error: "GitHub is temporarily unavailable. You can continue without GitHub enrichment." }, { status: 502, headers });
   if (!profileResponse.ok) return NextResponse.json({ error: "Could not reach GitHub." }, { status: 502, headers });
   const profile = await profileResponse.json();
 
