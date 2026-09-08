@@ -17,7 +17,7 @@ function LoginForm() {
   const [step, setStep] = useState<"email" | "code">("email");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
-  const next = params.get("next") || "/";
+  const next = params.get("next") || "/dashboard";
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();

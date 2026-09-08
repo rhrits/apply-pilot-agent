@@ -204,7 +204,7 @@ function TrackerWorkspace() {
         <p className="page-subtitle">Drag a card to change its stage, keep a checklist per role, and never lose a follow-up.</p>
       </div>
       <div className="topbar-actions">
-        <Link href="/" className="text-link">Overview</Link>
+        <Link href="/dashboard" className="text-link">Overview</Link>
         <button className="save-button" onClick={() => setShowForm((value) => !value)}>＋ Add opportunity</button>
       </div>
     </div>

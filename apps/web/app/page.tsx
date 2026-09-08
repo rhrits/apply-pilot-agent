@@ -1,156 +1,63 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { AuthGate } from "../components/auth-gate";
-import { getSupabaseBrowserClient } from "../lib/supabase";
-import "./dashboard.css";
+import "./landing.css";
 
-interface WorkspaceData {
-  email: string;
-  firstName: string;
-  lastName: string;
-  currentTitle: string;
-  location: string;
-  summary: string;
-  skills: string[];
-  onboardingCompletedAt: string | null;
-  resumeCount: number;
-  skillCount: number;
-  experienceCount: number;
-  jobCount: number;
-  answerCount: number;
-  statusCounts: Record<string, number>;
+const features = [
+  { icon: "✦", title: "Verified profile", text: "Start with your resume, enrich it with projects and GitHub, then review every fact before it becomes reusable context." },
+  { icon: "↗", title: "Grounded answers", text: "Known facts and your reviewed answer memory come first. AI only drafts when a question genuinely needs it." },
+  { icon: "⌁", title: "Browser assistant", text: "Detect fields, suggest answers, fill what is safe, and keep a copy fallback for the forms that fight back." },
+  { icon: "▣", title: "Side Panel fallback", text: "Scan a page, inspect fields, attach a resume, or open your full profile when an in-page widget cannot be controlled." },
+  { icon: "◌", title: "Answer memory", text: "Save the answers you have already shaped in your own voice so the next application starts further ahead." },
+  { icon: "▤", title: "Application tracker", text: "Save opportunities from the extension and keep stages, notes, interviews, offers, and next steps in one view." },
+];
+
+const agents = ["Page", "Profile", "Question", "Memory", "Answer", "Autofill", "Resume", "Validation", "Review", "Learning"];
+
+function CheckIcon() {
+  return <span className="check-icon" aria-hidden="true">✓</span>;
 }
 
-const EMPTY: WorkspaceData = {
-  email: "", firstName: "", lastName: "", currentTitle: "", location: "", summary: "", skills: [],
-  onboardingCompletedAt: null, resumeCount: 0, skillCount: 0, experienceCount: 0, jobCount: 0, answerCount: 0, statusCounts: {},
-};
-
-export default function Dashboard() { return <AuthGate><DashboardContent /></AuthGate>; }
-
-function initials(firstName: string, lastName: string, email: string) {
-  const source = `${firstName} ${lastName}`.trim() || email;
-  const parts = source.split(/[\s@.]+/).filter(Boolean);
-  return (parts[0]?.[0] ?? "?").toUpperCase() + (parts[1]?.[0] ?? "").toUpperCase();
-}
-
-function greeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
-}
-
-function DashboardContent() {
-  const [data, setData] = useState<WorkspaceData>(EMPTY);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) { setLoading(false); return; }
-    supabase.auth.getUser().then(async ({ data: userData }) => {
-      const user = userData.user;
-      if (!user) { setLoading(false); return; }
-      const userId = user.id;
-
-      const [profileResult, skillsResult, experiencesResult, resumesResult, jobsResult, applicationsResult, answersResult] = await Promise.all([
-        supabase.from("profiles").select("first_name,last_name,current_title,location,summary,onboarding_completed_at").eq("id", userId).maybeSingle(),
-        supabase.from("skills").select("name").eq("user_id", userId).order("name"),
-        supabase.from("experiences").select("id", { count: "exact", head: true }).eq("user_id", userId),
-        supabase.from("resumes").select("id", { count: "exact", head: true }).eq("user_id", userId),
-        supabase.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", userId),
-        supabase.from("applications").select("status").eq("user_id", userId),
-        supabase.from("answer_library").select("id", { count: "exact", head: true }).eq("user_id", userId),
-      ]);
-
-      const statusCounts: Record<string, number> = {};
-      for (const row of applicationsResult.data ?? []) statusCounts[row.status] = (statusCounts[row.status] ?? 0) + 1;
-
-      setData({
-        email: user.email ?? "",
-        firstName: profileResult.data?.first_name ?? "",
-        lastName: profileResult.data?.last_name ?? "",
-        currentTitle: profileResult.data?.current_title ?? "",
-        location: profileResult.data?.location ?? "",
-        summary: profileResult.data?.summary ?? "",
-        skills: (skillsResult.data ?? []).map((row) => row.name).filter(Boolean),
-        onboardingCompletedAt: profileResult.data?.onboarding_completed_at ?? null,
-        resumeCount: resumesResult.count ?? 0,
-        skillCount: skillsResult.data?.length ?? 0,
-        experienceCount: experiencesResult.count ?? 0,
-        jobCount: jobsResult.count ?? 0,
-        answerCount: answersResult.count ?? 0,
-        statusCounts,
-      });
-      setLoading(false);
-    });
-  }, []);
-
-  const completeness = useMemo(() => {
-    const checks = [data.firstName, data.lastName, data.currentTitle, data.location, data.summary, data.skillCount > 0 ? "yes" : "", data.experienceCount > 0 ? "yes" : "", data.resumeCount > 0 ? "yes" : ""];
-    return Math.round((checks.filter(Boolean).length / checks.length) * 100);
-  }, [data]);
-
-  const displayName = data.firstName || data.email.split("@")[0] || "there";
-  const totalApplications = Object.values(data.statusCounts).reduce((sum, count) => sum + count, 0);
-  const activeApplications = (data.statusCounts.applying ?? 0) + (data.statusCounts.applied ?? 0) + (data.statusCounts.interview ?? 0);
-
-  const checklist = [
-    { done: Boolean(data.onboardingCompletedAt), label: "Complete onboarding", detail: "Your account and initial profile", href: "/onboarding" },
-    { done: data.resumeCount > 0, label: "Import a resume", detail: `${data.resumeCount} resume${data.resumeCount === 1 ? "" : "s"} on file`, href: "/profile" },
-    { done: data.answerCount > 0, label: "Build your answer library", detail: `${data.answerCount} reusable answer${data.answerCount === 1 ? "" : "s"} saved`, href: "/answer-library" },
-    { done: data.jobCount > 0, label: "Track your first opportunity", detail: `${data.jobCount} job${data.jobCount === 1 ? "" : "s"} tracked`, href: "/tracker" },
-  ];
-
-  return <div className="dashboard"><aside className="sidebar"><div className="logo"><img src="/icons/48.png" width={30} height={30} alt="" /><span>ApplyPilot</span></div><nav className="nav"><Link className="active" href="/">Overview</Link><Link href="/profile">My profile & resume</Link><Link href="/tracker">Job tracker</Link><Link href="/answer-library">Answer library</Link></nav><div className="sidebar-bottom"><strong>Browser extension</strong><p>Sign in to the extension popup with this same email, then press <em>Refresh profile data</em> to sync.</p></div></aside><main className="main">
-    <div className="topbar"><div><div className="eyebrow">Your workspace</div><h1>{greeting()}, {displayName}</h1></div><div className="avatar">{initials(data.firstName, data.lastName, data.email)}</div></div>
-
-    <section className="hero">
-      <div>
-        <div className="eyebrow">One profile. Every application.</div>
-        <h2>{completeness >= 90 ? "Your profile is ready to apply." : "Finish building your profile."}</h2>
-        <p>ApplyPilot answers from your verified facts first, and only asks AI for genuinely open-ended questions.</p>
-        <div className="hero-actions"><Link href="/profile" className="hero-button">{data.resumeCount > 0 ? "Edit profile" : "Build profile"}</Link><Link href="/tracker" className="hero-link">Open tracker →</Link></div>
+function ProductPreview() {
+  return <div className="product-preview" aria-label="ApplyPilot dashboard and browser extension preview">
+    <div className="preview-glow" />
+    <div className="browser-window dashboard-window">
+      <div className="window-bar"><span /><span /><span /><small>app.applypilot.dev / dashboard</small></div>
+      <div className="dashboard-preview-body">
+        <aside><div className="mini-brand"><img src="/applypilot-icon.svg" alt="" /> <b>ApplyPilot</b></div><div className="mini-nav active">Overview</div><div className="mini-nav">My profile & resume</div><div className="mini-nav">Job tracker</div><div className="mini-nav">Answer library</div><div className="mini-sidebar-note"><b>Browser extension</b><br />Synced and ready</div></aside>
+        <div className="mini-main"><div className="mini-top"><div><label>Your workspace</label><h3>Good morning, Priya</h3></div><i>PS</i></div><div className="mini-hero"><div><label>One profile. Every application.</label><h4>Your profile is ready to apply.</h4><p>Facts first. AI when you need it.</p><button>Open tracker →</button></div><div className="mini-ring"><strong>92%</strong><span>ready</span></div></div><div className="mini-stats"><div><b>92%</b><span>Profile complete</span><em /></div><div><b>12</b><span>Tracked jobs</span><small>3 interviews</small></div><div><b>34</b><span>Answer memories</span><small>Reusable</small></div></div><div className="mini-checklist"><div><CheckIcon /><span><b>Import a resume</b><small>1 resume on file</small></span><strong>Done</strong></div><div><CheckIcon /><span><b>Build your answer library</b><small>34 reusable answers saved</small></span><strong>Done</strong></div></div></div>
       </div>
-      <div className="hero-graphic"><svg viewBox="0 0 120 120" width="112" height="112"><circle cx="60" cy="60" r="52" fill="none" stroke="#e4e0ff" strokeWidth="10"/><circle cx="60" cy="60" r="52" fill="none" stroke="#5546d9" strokeWidth="10" strokeLinecap="round" strokeDasharray={`${completeness * 3.27} 327`} transform="rotate(-90 60 60)"/><text x="60" y="66" textAnchor="middle" fontSize="24" fontWeight="700" fill="#1f2040" fontFamily="Space Grotesk">{completeness}%</text></svg></div>
-    </section>
-
-    <div className="grid">
-      <section className="card">
-        <h3>Profile completeness</h3>
-        <div className="metric">{completeness}%</div>
-        <div className="metric-label">{completeness >= 90 ? "Ready for most applications" : "A few more details will help"}</div>
-        <div className="progress"><span style={{ width: `${completeness}%` }} /></div>
-        <div className="small-note">{data.resumeCount === 0 ? "Import a resume to jump ahead fast." : `${data.skillCount} skills · ${data.experienceCount} roles on file`}</div>
-      </section>
-      <section className="card">
-        <h3>Opportunities tracked</h3>
-        <div className="metric">{loading ? "…" : data.jobCount}</div>
-        <div className="metric-label">Across your application board</div>
-        <div className="small-note" style={{ marginTop: 20 }}>{totalApplications === 0 ? "Save your first job from the extension or tracker." : `${activeApplications} active · ${data.statusCounts.offer ?? 0} offer(s)`}</div>
-      </section>
-      <section className="card">
-        <h3>Answer memory</h3>
-        <div className="metric">{loading ? "…" : data.answerCount}</div>
-        <div className="metric-label">Reusable answers saved</div>
-        <div className="small-note" style={{ marginTop: 20 }}>{data.answerCount === 0 ? "Onboarding can generate 30+ for you." : "The extension checks these before calling AI."}</div>
-      </section>
     </div>
+    <div className="browser-window extension-window">
+      <div className="extension-head"><img src="/applypilot-icon.svg" alt="" /><div><b>ApplyPilot</b><small>Page assistant</small></div><span>SYNCED</span></div>
+      <div className="extension-page"><label>Current page</label><b>Senior Product Designer · Linear</b></div>
+      <div className="extension-actions"><span>Scan page</span><span>Fill all</span><span>Attach resume</span><span>Save job</span></div>
+      <div className="extension-tabs"><b>Assistant</b><span>My data</span><span>Fields</span><span>Tracker</span></div>
+      <label className="extension-question">Question or field prompt</label><div className="extension-textarea">Why are you interested in this role?</div>
+      <button className="extension-generate">Generate answer</button>
+      <div className="suggestion-card"><div><b>Suggested answer</b><span>MEMORY</span></div><p>I’m excited by the chance to make complex tools feel clear and useful...</p><div><button>Copy</button><button>Insert</button><button>Save</button></div></div>
+    </div>
+    <div className="preview-badge badge-profile"><span>●</span> Profile match · 92%</div>
+    <div className="preview-badge badge-safe"><CheckIcon /> Review before insert</div>
+  </div>;
+}
 
-    <section className="card activity">
-      <div className="section-head"><h3>Setup checklist</h3></div>
-      {checklist.map((item) => <Link className="activity-row" href={item.href} key={item.label}><div className={`activity-icon ${item.done ? "done" : ""}`}>{item.done ? "✓" : "○"}</div><div><strong>{item.label}</strong><span>{item.detail}</span></div><div className={`pill ${item.done ? "" : "pending"}`}>{item.done ? "Done" : "To do"}</div></Link>)}
-    </section>
+export default function LandingPage() {
+  return <main className="landing-page">
+    <header className="landing-nav"><div className="container nav-inner"><Link href="/" className="brand-lockup"><img src="/applypilot-icon.svg" alt="" /><span>ApplyPilot</span></Link><nav className="desktop-nav"><a href="#product">Product</a><a href="#how-it-works">How it works</a><a href="#trust">Trust</a><a href="#open-source">Open source</a></nav><div className="nav-actions"><Link href="/login?next=/onboarding" className="nav-signin">Sign in</Link><Link href="/login?next=/onboarding" className="button button-small">Build your profile <span>↗</span></Link></div></div></header>
 
-    <section className="card" style={{ marginTop: 18 }}>
-      <div className="section-head"><h3>Profile snapshot</h3><Link className="text-link" href="/profile">Edit profile</Link></div>
-      {data.firstName || data.currentTitle ? <div className="profile-list">
-        <div className="profile-item"><span>Name</span><strong>{[data.firstName, data.lastName].filter(Boolean).join(" ") || "Not set"}</strong></div>
-        <div className="profile-item"><span>Focus</span><strong>{data.currentTitle || "Not set"}</strong></div>
-        <div className="profile-item"><span>Core skills</span><strong>{data.skills.slice(0, 3).join(" · ") || "Add skills on your profile"}</strong></div>
-      </div> : <p className="empty-snapshot">Your profile is empty. <Link href="/onboarding">Run onboarding</Link> to build it from your resume and links.</p>}
-    </section>
-  </main></div>;
+    <section className="hero-section"><div className="hero-orbit orbit-one" /><div className="hero-orbit orbit-two" /><div className="container hero-grid"><div className="hero-copy"><h1>Apply with your experience.<br /><em>Not AI’s imagination.</em></h1><p className="hero-lede">ApplyPilot builds a verified profile from your resume and helps you answer application questions across the web — with every draft under your control.</p><div className="hero-actions"><Link href="/login?next=/onboarding" className="button button-primary">Build your profile <span>↗</span></Link><a href="#how-it-works" className="button button-ghost">See how it works <span>↓</span></a></div><div className="hero-proof"><span><CheckIcon /> Open source</span><span><CheckIcon /> Review before insert</span><span><CheckIcon /> Never submits for you</span></div></div><ProductPreview /></div><div className="container hero-bottom"><span>Built for the parts of job hunting that repeat</span><div><b>Resume</b><i>×</i><b>Profile</b><i>×</i><b>Browser</b><i>×</i><b>Tracker</b></div></div></section>
+
+    <section className="trust-strip"><div className="container trust-strip-inner"><div><span className="trust-mark">✦</span><p><b>Known facts first.</b> AI second.</p></div><div><span className="trust-mark green">✓</span><p><b>Missing beats invented.</b> Always.</p></div><div><span className="trust-mark orange">◒</span><p><b>You stay in control.</b> Every time.</p></div></div></section>
+
+    <section id="product" className="section section-product"><div className="container"><div className="section-intro centered"><div className="eyebrow">A calmer way to apply</div><h2>One source of truth.<br /><span>Everywhere you apply.</span></h2><p>From the first resume import to the final follow-up, ApplyPilot keeps your real experience close and the repetitive work light.</p></div><div className="feature-grid">{features.map((feature) => <article className="feature-card" key={feature.title}><div className="feature-icon">{feature.icon}</div><h3>{feature.title}</h3><p>{feature.text}</p><a href="#how-it-works">Learn more <span>→</span></a></article>)}</div></div></section>
+
+    <section id="how-it-works" className="section workflow-section"><div className="container"><div className="section-intro"><div className="eyebrow">From resume to ready</div><h2>Build once.<br /><span>Move faster every time.</span></h2><p>ApplyPilot turns your application process into a simple loop: capture the truth, find the right context, review the draft, and keep moving.</p></div><div className="workflow-grid"><div className="workflow-steps"><article className="workflow-step active"><div className="step-number">01</div><div><h3>Import your story</h3><p>Start with a resume. Add GitHub, projects, links, voice notes, and the details only you know.</p><span className="step-tag">Resume-first</span></div></article><article className="workflow-step"><div className="step-number">02</div><div><h3>Verify the signal</h3><p>Review what was extracted, see where it came from, and fill the gaps before it becomes profile memory.</p><span className="step-tag">Source-aware</span></div></article><article className="workflow-step"><div className="step-number">03</div><div><h3>Answer in context</h3><p>The extension detects the question and checks your profile and saved answers before it asks AI.</p><span className="step-tag">Memory-first</span></div></article><article className="workflow-step"><div className="step-number">04</div><div><h3>Review, then move on</h3><p>Copy, insert, edit, save the job, and keep the decision yours. Nothing submits itself.</p><span className="step-tag">Human-approved</span></div></article></div><div className="flow-visual"><div className="flow-card flow-resume"><span className="flow-card-icon">▤</span><div><b>Your resume</b><small>12 roles · 34 skills</small></div><span className="flow-check">✓</span></div><div className="flow-line"><i /><i /><i /></div><div className="flow-card flow-profile"><span className="flow-card-icon">✦</span><div><b>Verified profile</b><small>92% complete</small></div><span className="flow-check">✓</span></div><div className="flow-line"><i /><i /><i /></div><div className="flow-card flow-answer"><span className="flow-card-icon">⌁</span><div><b>Reviewed answer</b><small>Source: memory</small></div><span className="flow-check">✓</span></div><div className="flow-line"><i /><i /><i /></div><div className="flow-card flow-tracker"><span className="flow-card-icon">▤</span><div><b>Next opportunity</b><small>Interview · Friday</small></div><span className="flow-check">→</span></div><div className="flow-orbit orbit-small" /><div className="flow-orbit orbit-large" /></div></div></div></section>
+
+    <section className="section agents-section"><div className="container agents-layout"><div className="agents-copy"><div className="eyebrow">Behind the assist</div><h2>Specialists that work<br /><span>as one careful copilot.</span></h2><p>One orchestrator coordinates ten focused agents. Each handles a small part of the journey, and every AI-generated suggestion still passes through a review boundary.</p><div className="agent-stat"><strong>10</strong><span>specialist agents<br />+ 1 orchestrator</span></div><Link href="/login?next=/onboarding" className="text-link">Build your verified profile <span>↗</span></Link></div><div className="agent-map"><div className="agent-map-core"><img src="/applypilot-icon.svg" alt="" /><b>Application<br />orchestrator</b><small>coordinates the flow</small></div>{agents.map((agent, index) => <div className={`agent-node node-${index + 1}`} key={agent}><span>{String(index + 1).padStart(2, "0")}</span>{agent}</div>)}<div className="agent-ring ring-a" /><div className="agent-ring ring-b" /><div className="agent-pulse" /></div></div></section>
+
+    <section id="trust" className="section trust-section"><div className="container trust-layout"><div className="trust-copy"><div className="eyebrow">Automation with boundaries</div><h2>Helpful should never<br /><span>mean hands-off.</span></h2><p>Job applications are personal. ApplyPilot is designed to reduce repetition without pretending that a model knows you better than you do.</p><Link href="/login?next=/onboarding" className="button button-primary">Start with your resume <span>↗</span></Link></div><div className="trust-list"><div><CheckIcon /><div><b>Missing facts stay missing</b><p>No plausible filler for experience you do not have.</p></div></div><div><CheckIcon /><div><b>Page content is untrusted</b><p>Application text cannot override your profile or the assistant’s rules.</p></div></div><div><CheckIcon /><div><b>Sensitive fields stay review-first</b><p>Work authorization, salary, consent, and submission remain yours.</p></div></div><div><CheckIcon /><div><b>Nothing submits automatically</b><p>ApplyPilot prepares. You review and confirm.</p></div></div></div></div></section>
+
+    <section id="open-source" className="section open-source-section"><div className="container open-source-card"><div className="open-source-mark"><img src="/applypilot-icon.svg" alt="" /></div><div><div className="eyebrow">Open source, by design</div><h2>Your application data deserves<br /><span>inspectable boundaries.</span></h2><p>See how profile data, AI prompts, extension permissions, and database policies fit together. Contribute improvements or run the stack yourself.</p><div className="open-source-actions"><a className="button button-dark" href="https://github.com/rhrits/apply-pilot-agent" target="_blank" rel="noreferrer">Explore on GitHub <span>↗</span></a><a className="text-link light" href="https://github.com/rhrits/apply-pilot-agent/blob/main/SECURITY.md" target="_blank" rel="noreferrer">Read the security model <span>→</span></a></div></div></div></section>
+
+    <footer className="landing-footer"><div className="container footer-inner"><div><Link href="/" className="brand-lockup"><img src="/applypilot-icon.svg" alt="" /><span>ApplyPilot</span></Link><p>The job-application copilot that never invents your experience.</p></div><div className="footer-links"><div><b>Product</b><a href="#product">Features</a><a href="#how-it-works">How it works</a><Link href="/login?next=/onboarding">Get started</Link></div><div><b>Project</b><a href="#open-source">Open source</a><a href="https://github.com/rhrits/apply-pilot-agent/blob/main/SECURITY.md" target="_blank" rel="noreferrer">Security</a><a href="https://github.com/rhrits/apply-pilot-agent" target="_blank" rel="noreferrer">GitHub ↗</a></div></div></div><div className="container footer-bottom"><span>© 2026 ApplyPilot</span><span>Built for accurate applications.</span></div></footer>
+  </main>;
 }

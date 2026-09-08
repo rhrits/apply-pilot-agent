@@ -211,7 +211,7 @@ function ProfileWorkspace() {
   return <main className="main profile-page">
     <div className="topbar">
       <div><div className="eyebrow">Application profile</div><h1>Your source of truth</h1></div>
-      <Link href="/" className="text-link">Back to overview</Link>
+      <Link href="/dashboard" className="text-link">Back to overview</Link>
     </div>
 
     <section className="profile-hero">
