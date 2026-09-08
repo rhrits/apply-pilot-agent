@@ -20,14 +20,21 @@ export function AuthGate({ children, requireOnboarding = true, requireAccess = t
       const session = sessionData.session;
       const data = sessionData.session ? { user: sessionData.session.user } : { user: null };
       if (!data.user) { router.replace(`/login?next=${encodeURIComponent(pathname)}`); return; }
-      if (requireOnboarding && pathname !== "/onboarding") {
-        const { data: profile } = await supabase.from("profiles").select("onboarding_completed_at").eq("id", data.user.id).maybeSingle();
-        if (!profile?.onboarding_completed_at) { router.replace("/onboarding"); return; }
+      const profileResult = requireOnboarding || pathname === "/onboarding"
+        ? await supabase.from("profiles").select("onboarding_completed_at").eq("id", data.user.id).maybeSingle()
+        : { data: null };
+      const profileComplete = Boolean(profileResult.data?.onboarding_completed_at);
+      if (requireOnboarding && pathname !== "/onboarding" && !profileComplete) {
+        router.replace("/onboarding"); return;
+      }
+      const accessPath = `/access?next=${encodeURIComponent(pathname)}`;
+      if (pathname === "/onboarding" && profileComplete) {
+        router.replace(`/access?next=${encodeURIComponent("/dashboard")}`); return;
       }
       if (requireAccess) {
         const response = await fetch("/api/access/status", { headers: { Authorization: `Bearer ${session?.access_token ?? ""}` } });
         const access = await response.json().catch(() => null) as { hasAccess?: boolean } | null;
-        if (!response.ok || !access?.hasAccess) { router.replace("/access"); return; }
+        if (!response.ok || !access?.hasAccess) { router.replace(accessPath); return; }
       }
       setState("authenticated");
     }).catch(() => router.replace(`/login?next=${encodeURIComponent(pathname)}`));

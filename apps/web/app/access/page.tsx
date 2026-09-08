@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AuthGate } from "../../components/auth-gate";
 import { accessFetch } from "../../lib/access-client";
 import "./access.css";
@@ -14,6 +15,10 @@ export default function AccessPage() {
 }
 
 function AccessContent() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const requestedNext = params.get("next") || "/dashboard";
+  const nextPath = requestedNext.startsWith("/") && !requestedNext.startsWith("//") ? requestedNext : "/dashboard";
   const [status, setStatus] = useState<AccessStatus | null>(null);
   const [message, setMessage] = useState("");
   const [requestMessage, setRequestMessage] = useState("");
@@ -28,6 +33,7 @@ function AccessContent() {
   }
 
   useEffect(() => { void loadStatus(); }, []);
+  useEffect(() => { if (status?.hasAccess) router.replace(nextPath); }, [nextPath, router, status?.hasAccess]);
 
   async function requestAccess() {
     setBusy(true); setMessage("");
@@ -38,7 +44,7 @@ function AccessContent() {
 
   async function redeemCode() {
     setBusy(true); setMessage("");
-    try { await accessFetch("/api/access/redeem", { method: "POST", body: JSON.stringify({ code }) }); await loadStatus(); setCode(""); setMessage("Access unlocked. Welcome to ApplyPilot."); }
+    try { await accessFetch("/api/access/redeem", { method: "POST", body: JSON.stringify({ code }) }); setCode(""); router.replace(nextPath); }
     catch (error) { setMessage(error instanceof Error ? error.message : "Could not redeem code"); }
     finally { setBusy(false); }
   }
