@@ -17,6 +17,7 @@ function Popup() {
   const [message, setMessage] = useState("Checking your ApplyPilot session…");
   const [autoSuggest, setAutoSuggest] = useState(true);
   const [liveAI, setLiveAI] = useState(false);
+  const [activeTabId, setActiveTabId] = useState<number | null>(null);
 
   async function loadAuth() {
     const result = await chrome.runtime.sendMessage({ type: "AUTH_STATUS" } satisfies ExtensionMessage) as AuthState;
@@ -32,6 +33,7 @@ function Popup() {
   }
   useEffect(() => { void loadAuth(); }, []);
   useEffect(() => { chrome.runtime.sendMessage({ type: "GET_SETTINGS" } satisfies ExtensionMessage).then((settings) => { setAutoSuggest(settings?.autoSuggest !== false); setLiveAI(settings?.liveAI === true); }).catch(() => undefined); }, []);
+  useEffect(() => { chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => setActiveTabId(tab?.id ?? null)).catch(() => undefined); }, []);
 
   async function toggleAutoSuggest() {
     const next = !autoSuggest;
@@ -70,11 +72,8 @@ function Popup() {
     setMessage(result?.profile ? "Your profile is up to date" : result?.error || "Profile refresh failed");
   }
   function openPanel() {
-    chrome.tabs.query({ active: true, currentWindow: true }).then(async ([tab]) => {
-      if (!tab.id) { setMessage("Open the Side Panel from the toolbar"); return; }
-      const result = await chrome.runtime.sendMessage({ type: "OPEN_SIDE_PANEL", tabId: tab.id } satisfies ExtensionMessage);
-      if (result?.ok) window.close(); else setMessage(result?.error ?? "Open the Side Panel from the toolbar");
-    });
+    if (activeTabId === null) { setMessage("Open the Side Panel from the toolbar"); return; }
+    chrome.sidePanel.open({ tabId: activeTabId }).then(() => window.close()).catch((error) => setMessage(String(error)));
   }
   function openProfile() { chrome.tabs.create({ url: auth.accessState === "profile_required" ? auth.onboardingUrl ?? `${extensionConfig.webAppUrl}/login?next=/onboarding` : auth.profileUrl ?? `${extensionConfig.webAppUrl}/profile` }); }
 

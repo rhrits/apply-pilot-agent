@@ -169,11 +169,13 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
   }
 
   if (message.type === "OPEN_SIDE_PANEL") {
-    readyStatus().then(() => {
-      const targetTabId = message.tabId ?? tabId ?? messageTabId(sender);
-      if (targetTabId === undefined) { sendResponse({ ok: false, error: "No active tab" }); return; }
-      chrome.sidePanel.open({ tabId: targetTabId }).then(() => sendResponse({ ok: true })).catch((error) => sendResponse({ ok: false, error: String(error) }));
-    }).catch((error) => sendResponse({ ok: false, error: String(error) }));
+    const targetTabId = message.tabId ?? tabId ?? messageTabId(sender);
+    if (targetTabId === undefined) { sendResponse({ ok: false, error: "No active tab" }); return; }
+
+    // Chrome requires sidePanel.open() to run directly from the user gesture.
+    // Do not wait for the asynchronous auth check before opening; the panel
+    // performs the same readiness check before exposing any profile data or actions.
+    chrome.sidePanel.open({ tabId: targetTabId }).then(() => sendResponse({ ok: true })).catch((error) => sendResponse({ ok: false, error: String(error) }));
     return true;
   }
 
