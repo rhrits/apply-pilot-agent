@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">ApplyPilot</title>
+  <desc id="desc">A violet compass star inside a rounded square.</desc>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8b7cff"/>
+      <stop offset="1" stop-color="#5546d9"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#g)"/>
+  <circle cx="256" cy="256" r="146" fill="none" stroke="#fff" stroke-opacity=".32" stroke-width="4"/>
+  <path d="M256 100l29 127 127 29-127 29-29 127-29-127-127-29 127-29z" fill="#fff"/>
+  <circle cx="256" cy="256" r="26" fill="#5546d9"/>
+</svg>

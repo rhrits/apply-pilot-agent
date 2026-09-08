@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ApplicationStatus, JobApplication } from "@applypilot/shared";
 import { getSupabaseBrowserClient } from "../../lib/supabase";
+import { AuthGate } from "../../components/auth-gate";
 import "./tracker.css";
 
 const statuses: Array<{ value: ApplicationStatus; label: string; accent: string }> = [
@@ -22,7 +23,9 @@ const samples: JobApplication[] = [
 
 const blankJob: Omit<JobApplication, "id" | "createdAt" | "updatedAt"> = { company: "", title: "", url: "", location: "", workMode: "unknown", employmentType: "full-time", salary: "", status: "saved", priority: "medium", nextStep: "", nextStepDate: "", notes: "", contactName: "", source: "Manual" };
 
-export default function TrackerPage() {
+export default function TrackerPage() { return <AuthGate><TrackerWorkspace /></AuthGate>; }
+
+function TrackerWorkspace() {
   const [jobs, setJobs] = useState<JobApplication[]>(samples);
   const [filter, setFilter] = useState<"all" | ApplicationStatus>("all");
   const [search, setSearch] = useState("");

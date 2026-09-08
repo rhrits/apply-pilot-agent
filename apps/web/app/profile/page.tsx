@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { ResumeAnalysis, UserProfile } from "@applypilot/shared";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "../../lib/supabase";
+import { AuthGate } from "../../components/auth-gate";
 import "./profile.css";
 import "./profile-auth.css";
 
@@ -11,7 +12,9 @@ const demoProfile: UserProfile = {
   firstName: "Alex", lastName: "Applicant", email: "alex@example.com", phone: "+1 555 010 2026", location: "Remote / New York", linkedin: "https://linkedin.com/in/alex-applicant", github: "https://github.com/alex-applicant", portfolio: "https://alex-applicant.dev", currentTitle: "Full-stack Engineer", summary: "Full-stack engineer building reliable products with TypeScript, React, and Supabase.", skills: [{ name: "TypeScript", years: 3, proficiency: "Advanced" }, { name: "React", years: 3, proficiency: "Advanced" }, { name: "Python", years: 2, proficiency: "Intermediate" }], experiences: [], education: [], projects: [],
 };
 
-export default function ProfilePage() {
+export default function ProfilePage() { return <AuthGate><ProfileWorkspace /></AuthGate>; }
+
+function ProfileWorkspace() {
   const [profile, setProfile] = useState<UserProfile>(demoProfile);
   const [resumeText, setResumeText] = useState("");
   const [analysis, setAnalysis] = useState<ResumeAnalysis | null>(null);

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import "./answer-library.css";
+import { AuthGate } from "../../components/auth-gate";
 
 type SavedAnswer = { id: string; question: string; answer: string; category: string; tags: string[] };
 const starterAnswers: SavedAnswer[] = [
@@ -10,7 +11,9 @@ const starterAnswers: SavedAnswer[] = [
   { id: "starter-2", question: "Why do you want to work here?", answer: "I am interested because the role combines meaningful product work with the chance to contribute as a hands-on engineer. The team’s focus aligns with the way I like to build: practical, collaborative, and measurable.", category: "Motivation", tags: ["company", "motivation"] },
 ];
 
-export default function AnswerLibraryPage() {
+export default function AnswerLibraryPage() { return <AuthGate><AnswerLibraryWorkspace /></AuthGate>; }
+
+function AnswerLibraryWorkspace() {
   const [answers, setAnswers] = useState<SavedAnswer[]>(starterAnswers);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
