@@ -229,6 +229,9 @@ export type ExtensionMessage =
   | { type: "INSPECT_FORM_ALL_FRAMES"; tabId: number }
   | { type: "ADVANCE_SAFE_STEP_FRAME" }
   | { type: "ADVANCE_SAFE_STEP_ALL_FRAMES"; tabId: number }
+  | { type: "CAPTURE_FORM_FRAME"; frameId: number }
+  | { type: "CAPTURE_APPLICATION_DRAFT"; tabId: number; sessionId: string }
+  | { type: "APPROVE_APPLICATION_DRAFT"; draftId: string; sessionId: string; stepIndex: number; snapshotHash: string }
   | { type: "GET_RESUME_FILE" }
   | { type: "ATTACH_RESUME"; fileName: string; mimeType: string; dataUrl: string }
   | { type: "GET_PAGE_SUMMARY" }

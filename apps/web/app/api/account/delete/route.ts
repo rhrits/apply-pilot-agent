@@ -25,8 +25,14 @@ export async function POST(request: Request) {
     .filter((path): path is string => Boolean(path));
   if (paths.length) await supabase.storage.from("resumes").remove(paths);
 
+  const { data: drafts } = await supabase.from("application_drafts").select("screenshot_path").eq("user_id", userId);
+  const evidencePaths = (drafts ?? []).map((row) => (row as { screenshot_path?: string }).screenshot_path).filter((path): path is string => Boolean(path));
+  if (evidencePaths.length) await supabase.storage.from("application-evidence").remove(evidencePaths);
+
   // Child rows first so foreign keys never block the profile delete.
   const tables = [
+    "application_drafts",
+    "application_sessions",
     "applications",
     "jobs",
     "answers",

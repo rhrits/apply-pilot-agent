@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
-import type { ApplicationVerdict, ExtensionAuthStatus, PageSummary, UserProfile } from "@uplyfox/shared";
+import type { ApplicationVerdict, ExtensionAuthStatus, PageSummary, PreSubmitSnapshot, UserProfile } from "@uplyfox/shared";
 import { extensionConfig, isExtensionConfigured } from "./config";
 
 const chromeStorage = {
@@ -52,9 +52,11 @@ async function ensureStorageOwner(userId: string) {
 }
 
 export async function clearUserScopedStorage() {
+  const sessionValues = await chrome.storage.session.get(null);
+  const applicationKeys = Object.keys(sessionValues).filter((key) => key.startsWith("applicationSession:") || key.startsWith("applicationDraft:") || key.startsWith("approvalGrant:"));
   await Promise.all([
     chrome.storage.local.remove(USER_SCOPED_KEYS),
-    chrome.storage.session.remove(["activeField", "activeTabId"]),
+    chrome.storage.session.remove(["activeField", "activeTabId", "activeFrameId", ...applicationKeys]),
   ]);
 }
 
@@ -169,6 +171,66 @@ export async function fetchResumeFile(): Promise<{ fileName: string; mimeType: s
   for (let index = 0; index < bytes.length; index += 1) binary += String.fromCharCode(bytes[index]);
   const mimeType = (resume.mime_type as string) || "application/pdf";
   return { fileName: (resume.name as string) || "resume.pdf", mimeType, dataUrl: `data:${mimeType};base64,${btoa(binary)}` };
+}
+
+function dataUrlBlob(dataUrl: string): Blob | null {
+  const match = dataUrl.match(/^data:([^;,]+);base64,(.+)$/);
+  if (!match) return null;
+  const binary = atob(match[2]);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return new Blob([bytes], { type: match[1] });
+}
+
+/** Persists a redacted immutable review draft and optional private viewport screenshot. */
+export async function saveApplicationDraft(snapshot: PreSubmitSnapshot, screenshotDataUrl?: string): Promise<{ ok: boolean; draftId?: string; screenshotPath?: string; error?: string }> {
+  const supabase = getExtensionSupabase();
+  if (!supabase) return { ok: false, error: "Extension setup is missing." };
+  const user = await getExtensionUser();
+  if (!user) return { ok: false, error: "Sign in before saving an application draft." };
+  const draftId = crypto.randomUUID();
+  let screenshotPath: string | undefined;
+
+  if (screenshotDataUrl) {
+    const blob = dataUrlBlob(screenshotDataUrl);
+    if (blob) {
+      screenshotPath = `${user.id}/${snapshot.sessionId}/${draftId}.png`;
+      const upload = await supabase.storage.from("application-evidence").upload(screenshotPath, blob, { contentType: "image/png", upsert: false });
+      if (upload.error) screenshotPath = undefined; // HTML/answer draft remains useful without a screenshot.
+    }
+  }
+
+  const { error: sessionError } = await supabase.from("application_sessions").upsert({
+    id: snapshot.sessionId, user_id: user.id, url: snapshot.job.url, ats: snapshot.job.hostname,
+    mode: "review_before_submit", status: "ready_for_review", blockers: snapshot.steps.at(-1)?.blockers ?? [], updated_at: new Date().toISOString(),
+  });
+  if (sessionError) {
+    if (screenshotPath) await supabase.storage.from("application-evidence").remove([screenshotPath]);
+    return { ok: false, error: sessionError.message };
+  }
+
+  const { error } = await supabase.from("application_drafts").insert({
+    id: draftId, session_id: snapshot.sessionId, user_id: user.id, step_index: snapshot.stepIndex,
+    answers: snapshot.steps, form_html: JSON.stringify(snapshot.frames), screenshot_path: screenshotPath ?? null,
+    snapshot_hash: snapshot.snapshotHash, redaction_version: snapshot.redactionVersion,
+  });
+  if (error) {
+    if (screenshotPath) await supabase.storage.from("application-evidence").remove([screenshotPath]);
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, draftId, screenshotPath };
+}
+
+export async function approveApplicationDraft(input: { draftId: string; sessionId: string; snapshotHash: string; expiresAt: string }): Promise<{ ok: boolean; error?: string }> {
+  const supabase = getExtensionSupabase();
+  if (!supabase) return { ok: false, error: "Extension setup is missing." };
+  const user = await getExtensionUser();
+  if (!user) return { ok: false, error: "Sign in before approving a draft." };
+  const now = new Date().toISOString();
+  const { data, error } = await supabase.from("application_drafts").update({ approved_at: now, approval_expires_at: input.expiresAt }).eq("id", input.draftId).eq("session_id", input.sessionId).eq("user_id", user.id).eq("snapshot_hash", input.snapshotHash).is("approved_at", null).select("id").maybeSingle();
+  if (error || !data) return { ok: false, error: error?.message ?? "The draft changed or was already approved. Capture it again." };
+  await supabase.from("application_sessions").update({ status: "approved", updated_at: now }).eq("id", input.sessionId).eq("user_id", user.id);
+  return { ok: true };
 }
 
 /** Saves the current page as a tracked job opportunity (jobs + applications rows) for the signed-in user. */

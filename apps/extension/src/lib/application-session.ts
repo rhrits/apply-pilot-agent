@@ -4,7 +4,8 @@ import type { FormBlocker, FormStepSnapshot } from "@uplyfox/shared";
 
 export type ApplicationSessionStatus =
   | "observing" | "filling" | "waiting_for_transition" | "awaiting_user"
-  | "blocked" | "stalled" | "timed_out" | "max_steps" | "cancelled" | "complete";
+  | "blocked" | "stalled" | "timed_out" | "max_steps" | "cancelled" | "complete"
+  | "ready_for_review" | "approved" | "approval_expired";
 
 export interface StepIdentity {
   url: string;

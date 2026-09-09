@@ -11,6 +11,7 @@ import {
   type FormValidationError,
   type InspectedField,
   type PageSummary,
+  isSecretLike,
 } from "@uplyfox/shared";
 import { answerForField, extractField, extractGroupField, labelForChoice, matchOption } from "./lib/field-detector";
 import { currentApplicationVerdict, installApplicationDetector } from "./lib/application-signals";
@@ -468,6 +469,70 @@ function captchaBlocker(frameId: number) {
   return challenge ? [{ kind: "captcha" as const, detail: "Human verification detected. Solve it manually before continuing.", frameId }] : [];
 }
 
+const UNSAFE_CAPTURE_ELEMENTS = "script, iframe, object, embed, canvas, video, audio, template, svg, math";
+
+/**
+ * Builds inert review evidence from the smallest useful form root in this frame.
+ * This output is stored as text only and is never injected back into a live page.
+ */
+function captureFormFrame(frameId: number) {
+  const roots = queryDeep("form, [role='form']").filter(visible);
+  const root = roots.sort((a, b) => b.querySelectorAll("input,select,textarea").length - a.querySelectorAll("input,select,textarea").length)[0] ?? document.body;
+  if (!root) return { frameId, html: null, redactions: [], screenshotSafe: false, error: "No document body found." };
+  const clone = root.cloneNode(true) as Element;
+  const originals = [root, ...Array.from(root.querySelectorAll("input,textarea,select,[contenteditable='true']"))];
+  const copies = [clone, ...Array.from(clone.querySelectorAll("input,textarea,select,[contenteditable='true']"))];
+  const redactions: string[] = [];
+  let screenshotSafe = true;
+
+  for (let index = 0; index < Math.min(originals.length, copies.length); index += 1) {
+    const original = originals[index];
+    const copy = copies[index];
+    if (!(original instanceof Element) || !(copy instanceof Element)) continue;
+    const identity = `${original.getAttribute("type") ?? ""} ${original.getAttribute("name") ?? ""} ${original.id} ${original.getAttribute("autocomplete") ?? ""} ${original.getAttribute("aria-label") ?? ""}`;
+    const type = original.getAttribute("type")?.toLowerCase() ?? "";
+    const redact = type === "password" || type === "hidden" || type === "file" || isSecretLike(identity);
+    if (type === "hidden") { copy.remove(); redactions.push("hidden"); continue; }
+    if (redact) {
+      copy.removeAttribute("value");
+      if (copy instanceof HTMLTextAreaElement) copy.textContent = "";
+      copy.setAttribute("data-uplyfox-redacted", "true");
+      redactions.push(type === "file" ? "file" : type === "password" ? "password" : "secret_like");
+      screenshotSafe = false;
+      continue;
+    }
+    if (original instanceof HTMLInputElement && copy instanceof HTMLInputElement) {
+      copy.setAttribute("value", original.value.slice(0, 2000));
+      if (original.checked) copy.setAttribute("checked", ""); else copy.removeAttribute("checked");
+    } else if (original instanceof HTMLTextAreaElement && copy instanceof HTMLTextAreaElement) {
+      copy.textContent = original.value.slice(0, 5000);
+    } else if (original instanceof HTMLSelectElement && copy instanceof HTMLSelectElement) {
+      Array.from(copy.options).forEach((option, position) => { if (original.options[position]?.selected) option.setAttribute("selected", ""); else option.removeAttribute("selected"); });
+    } else if ((original as HTMLElement).isContentEditable) {
+      copy.textContent = ((original as HTMLElement).innerText || original.textContent || "").slice(0, 5000);
+    }
+  }
+
+  clone.querySelectorAll(UNSAFE_CAPTURE_ELEMENTS).forEach((element) => element.remove());
+  const dangerousAttributes = /^(on|src$|srcset$|href$|poster$|action$|formaction$|method$|target$|style$)/i;
+  for (const element of [clone, ...Array.from(clone.querySelectorAll("*"))]) {
+    for (const attribute of Array.from(element.attributes)) if (dangerousAttributes.test(attribute.name)) element.removeAttribute(attribute.name);
+    if (element instanceof HTMLButtonElement || element.getAttribute("role") === "button") {
+      element.setAttribute("disabled", "");
+      element.setAttribute("aria-disabled", "true");
+      element.removeAttribute("type");
+    }
+    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) element.setAttribute("disabled", "");
+  }
+  // A captured <form> is converted to a plain section so it remains inert even if a
+  // future reviewer accidentally renders it without a sandbox.
+  const wrapper = document.createElement("section");
+  wrapper.setAttribute("data-uplyfox-captured-form", "true");
+  wrapper.innerHTML = clone.tagName.toLowerCase() === "form" ? clone.innerHTML : clone.outerHTML;
+  const html = wrapper.outerHTML.slice(0, 120_000);
+  return { frameId, html, redactions, screenshotSafe, error: "" };
+}
+
 /** Phase A: inspect one frame completely without writing to the page. */
 async function inspectFormFrame(frameId: number) {
   const profile = await getProfile().catch(() => null);
@@ -707,6 +772,10 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, _sender, sendRe
   }
   if (message.type === "ADVANCE_SAFE_STEP_FRAME") {
     hasReadyAccess().then((ready) => sendResponse(ready ? advanceSafeStepFrame() : { ok: false, reason: "not_ready", detail: "Complete sign-in and profile setup first." }));
+    return true;
+  }
+  if (message.type === "CAPTURE_FORM_FRAME") {
+    hasReadyAccess().then((ready) => sendResponse(ready ? captureFormFrame(message.frameId) : { frameId: message.frameId, html: null, redactions: [], screenshotSafe: false, error: "Complete sign-in and profile setup first." }));
     return true;
   }
   if (message.type === "ATTACH_RESUME") {

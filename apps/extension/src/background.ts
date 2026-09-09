@@ -1,7 +1,8 @@
-import { classifyNavAction, fieldSignature, type ActiveFieldPayload, type ButtonDescriptor, type ExtensionAuthStatus, type ExtensionMessage, type ExtensionSettings, type FormBlocker, type FormStepSnapshot, type FormValidationError, type InspectedField } from "@uplyfox/shared";
+import { classifyNavAction, computeSnapshotHash, createApprovalGrant, fieldSignature, sha256, snapshotStep, type ActiveFieldPayload, type ButtonDescriptor, type ExtensionAuthStatus, type ExtensionMessage, type ExtensionSettings, type FormBlocker, type FormStepSnapshot, type FormValidationError, type InspectedField, type PreSubmitSnapshot, type SnapshotFrame } from "@uplyfox/shared";
 import { extensionConfig, isExtensionConfigured } from "./lib/config";
 import { checkConnection, postJson } from "./lib/api-client";
-import { clearExtensionSession, fetchAuthenticatedProfile, fetchResumeFile, fetchTracker, getExtensionAuthStatus, getExtensionSupabase, markApplicationApplied, saveJobToSupabase, undoApplicationApplied } from "./lib/supabase";
+import { approveApplicationDraft, clearExtensionSession, fetchAuthenticatedProfile, fetchResumeFile, fetchTracker, getExtensionAuthStatus, getExtensionSupabase, markApplicationApplied, saveApplicationDraft, saveJobToSupabase, undoApplicationApplied } from "./lib/supabase";
+import type { ApplicationSession } from "./lib/application-session";
 import { findLocalMemory, saveAnswerMemory } from "./lib/memory";
 import { saveUnknownQuestion } from "./lib/unknown-questions";
 
@@ -307,6 +308,90 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
       }
       sendResponse({ ok: false, reason: "no_safe_next", detail: "No tested, allowlisted Next control was found in a reachable application frame.", failures });
     })().catch((error) => sendResponse({ ok: false, reason: "navigation_error", detail: error instanceof Error ? error.message : String(error) }));
+    return true;
+  }
+
+  if (message.type === "CAPTURE_APPLICATION_DRAFT") {
+    (async () => {
+      await readyStatus();
+      const sessionKey = `applicationSession:${message.tabId}`;
+      const stored = await chrome.storage.session.get(sessionKey);
+      const session = stored[sessionKey] as ApplicationSession | undefined;
+      if (!session || session.sessionId !== message.sessionId || !session.currentStep) {
+        sendResponse({ ok: false, error: "The safe-step session changed. Inspect the final step again." }); return;
+      }
+      if (session.currentStep.navAction.kind !== "submit" && session.currentStep.navAction.kind !== "review") {
+        sendResponse({ ok: false, error: "Capture is available only on the final Review or Submit step." }); return;
+      }
+
+      const frameRecords = await chrome.webNavigation.getAllFrames({ tabId: message.tabId }).catch(() => null);
+      const frameList = frameRecords?.length ? frameRecords : [{ frameId: 0, parentFrameId: -1, url: session.currentStep.url }];
+      const captures = await Promise.all(frameList.map(async (frame) => {
+        try {
+          const capture = await chrome.tabs.sendMessage(message.tabId, { type: "CAPTURE_FORM_FRAME", frameId: frame.frameId } satisfies ExtensionMessage, { frameId: frame.frameId });
+          return { frame, capture };
+        } catch (error) {
+          return { frame, capture: { html: null, redactions: [], screenshotSafe: false, error: error instanceof Error ? error.message : String(error) } };
+        }
+      }));
+
+      const frames: SnapshotFrame[] = await Promise.all(captures.map(async ({ frame, capture }) => {
+        let origin = "";
+        try { origin = frame.url ? new URL(frame.url).origin : ""; } catch { /* Non-URL frames have no origin. */ }
+        return { frameId: frame.frameId, parentFrameId: frame.parentFrameId, origin, html: capture.html ?? null, htmlSha256: capture.html ? await sha256(capture.html) : undefined, status: capture.html ? "captured" as const : "unavailable" as const, redactions: capture.redactions ?? [] };
+      }));
+
+      const uniqueSteps = [...session.steps, session.currentStep].filter((step, index, all) => all.findIndex((candidate) => candidate.stepKey === step.stepKey) === index);
+      const steps = uniqueSteps.map(snapshotStep);
+      const tab = await chrome.tabs.get(message.tabId);
+      const page = await chrome.tabs.sendMessage(message.tabId, { type: "GET_PAGE_SUMMARY" } satisfies ExtensionMessage, { frameId: 0 }).catch(() => null);
+      const allScreenshotSafe = captures.every(({ capture }) => capture.screenshotSafe === true);
+      let screenshotDataUrl: string | undefined;
+      if (allScreenshotSafe && tab.active) screenshotDataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" }).catch(() => undefined);
+      const screenshotSha256 = screenshotDataUrl ? await sha256(screenshotDataUrl) : undefined;
+      const base: Omit<PreSubmitSnapshot, "snapshotHash"> = {
+        version: 1,
+        sessionId: session.sessionId,
+        stepIndex: session.stepIndex,
+        job: { title: page?.title ?? tab.title ?? "Application", company: page?.company ?? "", url: page?.url ?? tab.url ?? session.currentStep.url, hostname: page?.hostname ?? "" },
+        steps,
+        frames,
+        blankFields: steps.flatMap((step) => step.answers.filter((answer) => answer.value == null || answer.value === "")),
+        submitTarget: session.currentStep.navAction.label && session.currentStep.navAction.selector && session.currentStep.navAction.frameId !== undefined ? { label: session.currentStep.navAction.label, selector: session.currentStep.navAction.selector, frameId: session.currentStep.navAction.frameId } : undefined,
+        screenshotSha256,
+        redactionVersion: "v1",
+        capturedAt: new Date().toISOString(),
+      };
+      const snapshot: PreSubmitSnapshot = { ...base, snapshotHash: await computeSnapshotHash(base) };
+      const saved = await saveApplicationDraft(snapshot, screenshotDataUrl);
+      const draftId = saved.draftId ?? crypto.randomUUID();
+      const reviewSnapshot = { ...snapshot, screenshotPath: saved.screenshotPath, frames: snapshot.frames.map((frame) => ({ ...frame, html: null })) };
+      await chrome.storage.session.set({ [`applicationDraft:${message.tabId}`]: { draftId, snapshot: reviewSnapshot, persisted: saved.ok } });
+      sendResponse({ ok: true, draftId, snapshot: reviewSnapshot, persisted: saved.ok, warning: saved.ok ? undefined : `Draft is available for review locally, but could not be saved remotely: ${saved.error}` });
+    })().catch((error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+    return true;
+  }
+
+  if (message.type === "APPROVE_APPLICATION_DRAFT") {
+    (async () => {
+      await readyStatus();
+      const keys = await chrome.storage.session.get(null);
+      const storedDraft = Object.values(keys).find((value) => {
+        const candidate = value as { draftId?: string; snapshot?: PreSubmitSnapshot } | undefined;
+        return candidate?.draftId === message.draftId;
+      }) as { draftId: string; snapshot: PreSubmitSnapshot; persisted?: boolean } | undefined;
+      if (!storedDraft || storedDraft.snapshot.sessionId !== message.sessionId || storedDraft.snapshot.stepIndex !== message.stepIndex || storedDraft.snapshot.snapshotHash !== message.snapshotHash) {
+        sendResponse({ ok: false, error: "The reviewed snapshot changed. Capture a new draft before approving." }); return;
+      }
+      if (!storedDraft.persisted) { sendResponse({ ok: false, error: "The draft is not safely persisted yet. Apply the Phase D database migration and capture it again." }); return; }
+      const grant = createApprovalGrant({ draftId: message.draftId, sessionId: message.sessionId, stepIndex: message.stepIndex, snapshotHash: message.snapshotHash });
+      const approved = await approveApplicationDraft({ draftId: message.draftId, sessionId: message.sessionId, snapshotHash: message.snapshotHash, expiresAt: new Date(grant.expiresAt).toISOString() });
+      if (!approved.ok) { sendResponse(approved); return; }
+      // The one-time token remains extension-local. It is never stored in Supabase,
+      // exposed to the page, or returned to a content script. Phase E must consume it.
+      await chrome.storage.session.set({ [`approvalGrant:${message.sessionId}`]: grant });
+      sendResponse({ ok: true, approvedAt: new Date(grant.issuedAt).toISOString(), expiresAt: new Date(grant.expiresAt).toISOString() });
+    })().catch((error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) }));
     return true;
   }
 

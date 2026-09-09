@@ -1,6 +1,6 @@
 # UplyFox Auto-Apply Agent — Plan
 
-**Status:** Phases A–C shipped; Phases D–E pending
+**Status:** Phases A–D shipped; Phase E pending
 **Date:** 2026-09-09
 **Supersedes:** the "explicitly out of scope" line on auto-submission in [UPLYFOX-V2-PLAN.md](UPLYFOX-V2-PLAN.md) — see §2.
 
@@ -407,13 +407,43 @@ Bounded by max steps, wall-clock timeout, and a stall detector. A stall is repor
 - Added ten Phase C state-machine and navigation-policy tests. Extension suite: 125 tests green at
   shipment.
 
-### Phase D — Draft, review, approve
+### Phase D — Draft, review, approve ✅ shipped
 
 - `PreSubmitSnapshot` capture and storage (§5.3)
 - Review screen: every answer grouped by step, `source` badge, confidence, blanks, AI-generated
   answers highlighted, sensitive answers called out
 - Controls: edit · save for this question · save for this question type · exclude · approve
 - The capability token (§5.4)
+
+#### Phase D implementation — 2026-09-09
+
+- Added `packages/shared/src/application-snapshot.ts`: immutable answer/step/frame snapshots,
+  secret detection, answer redaction, canonical SHA-256 hashing, ten-minute approval grants, and
+  exact session/draft/step/hash/expiry/consumption validation.
+- Added frame-local inert HTML capture. It chooses the largest visible form root, projects live
+  non-secret control state into a clone, removes hidden fields, redacts password/file/token/OTP/
+  banking/card/SSN-like values, strips scripts/iframes/media/SVG/MathML/templates, removes event and
+  external URL/action/style attributes, disables controls, converts the form to a plain section,
+  and enforces a 120 KB bound.
+- Visible-tab screenshots are captured only when every frame reports the viewport safe. A password,
+  file, hidden-secret, or secret-like field suppresses screenshot capture rather than uploading
+  unredacted pixels. Screenshots are viewport-only and stored in the private
+  `application-evidence` bucket.
+- Added migration `202609090005_application_drafts.sql` with user-owned RLS for sessions/drafts,
+  immutable snapshot hashes, approval expiry/consumption fields, indexes, and a private evidence
+  bucket policy. Account deletion now removes both evidence objects and draft/session rows.
+- Added **Capture review draft** at the final Review/Submit boundary. The side panel groups every
+  answer by step and displays value, source, confidence, review/sensitive status, blank/redacted
+  count, frame count, persistence state, and the snapshot-hash prefix. Raw HTML is never placed in
+  extension session storage or rendered in the panel.
+- Approval is enabled only after durable Supabase persistence. The background revalidates the exact
+  locally held session/draft/step/hash tuple, updates the matching unapproved database row, then
+  mints a random single-use ten-minute grant bound to that same tuple. The grant is extension-local,
+  never sent to the page or stored remotely. Phase E must consume it.
+- Normal sign-out now clears application sessions, review drafts, active frame identity, and approval
+  grants, preventing cross-account review-state leakage.
+- Added seven Phase D snapshot/redaction/hash/approval tests. Extension suite: 132 tests green at
+  shipment.
 
 ### Phase E — Submit and confirm
 

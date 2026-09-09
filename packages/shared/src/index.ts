@@ -5,6 +5,7 @@ export * from "./fact-retrieval";
 export * from "./extraction-review";
 export * from "./form-graph";
 export * from "./field-resolution";
+export * from "./application-snapshot";
 export * from "./suggestion-agent";
 export * from "./job-match";
 export * from "./onboarding";

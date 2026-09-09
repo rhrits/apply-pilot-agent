@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { describeApplicationSignals, summarizeFormPlan, type ActiveFieldPayload, type AnswerResponse, type ApplicationVerdict, type ExtensionAccessState, type ExtensionMessage, type FormStepSnapshot, type PageSummary, type ScannedField, type UserProfile } from "@uplyfox/shared";
+import { describeApplicationSignals, summarizeFormPlan, type ActiveFieldPayload, type AnswerResponse, type ApplicationVerdict, type ExtensionAccessState, type ExtensionMessage, type FormStepSnapshot, type PageSummary, type PreSubmitSnapshot, type ScannedField, type UserProfile } from "@uplyfox/shared";
 import { extensionConfig } from "./lib/config";
 import type { TrackerSnapshot } from "./lib/supabase";
 import { CopyButton, DictationControl, ExternalIcon, InsertIcon, SaveIcon, SyncIcon } from "./components/ui";
@@ -12,6 +12,7 @@ import "./sidepanel-tabs.css";
 import "./brand-overrides.css";
 import "./sidepanel-fox.css";
 import "./form-plan.css";
+import "./draft-review.css";
 
 const API_URL = extensionConfig.aiApiUrl;
 type Tab = "assistant" | "profile" | "fields" | "tracker";
@@ -113,6 +114,8 @@ function SidePanel() {
   const [fields, setFields] = useState<ScannedField[]>([]);
   const [formPlan, setFormPlan] = useState<FormStepSnapshot | null>(null);
   const [applicationSession, setApplicationSession] = useState<ApplicationSession | null>(null);
+  const [applicationDraft, setApplicationDraft] = useState<{ draftId: string; snapshot: PreSubmitSnapshot; persisted: boolean; warning?: string } | null>(null);
+  const [draftApproved, setDraftApproved] = useState(false);
   const sessionCancelled = useRef(false);
   const [tracker, setTracker] = useState<TrackerSnapshot | null>(null);
   const [pageMatch, setPageMatch] = useState<PageSummary | null>(null);
@@ -171,12 +174,15 @@ function SidePanel() {
     void chrome.tabs.query({ active: true, currentWindow: true }).then(async ([tabInfo]) => {
       if (!tabInfo?.id) return;
       const key = `applicationSession:${tabInfo.id}`;
-      const stored = await chrome.storage.session.get(key);
+      const draftKey = `applicationDraft:${tabInfo.id}`;
+      const stored = await chrome.storage.session.get([key, draftKey]);
       const session = stored[key] as ApplicationSession | undefined;
       if (session) {
         setApplicationSession(session);
         if (session.currentStep) setFormPlan(session.currentStep);
       }
+      const draft = stored[draftKey] as { draftId: string; snapshot: PreSubmitSnapshot; persisted: boolean; warning?: string } | undefined;
+      if (draft) setApplicationDraft(draft);
     }).catch(() => undefined);
   }, []);
 
@@ -407,6 +413,40 @@ function SidePanel() {
     setStatus("Safe multi-step mode cancelled.");
   }
 
+  async function captureReviewDraft() {
+    const tabId = await activeTabId();
+    if (!tabId || !applicationSession) return;
+    beginPanelWork();
+    setStatus("Capturing a redacted review draft…");
+    try {
+      const result = await chrome.runtime.sendMessage({ type: "CAPTURE_APPLICATION_DRAFT", tabId, sessionId: applicationSession.sessionId } satisfies ExtensionMessage);
+      if (!result?.ok || !result.snapshot || !result.draftId) { setStatus(result?.error || "Could not capture the draft."); return; }
+      setApplicationDraft({ draftId: result.draftId, snapshot: result.snapshot, persisted: result.persisted === true, warning: result.warning });
+      setDraftApproved(false);
+      const reviewing: ApplicationSession = { ...applicationSession, status: "ready_for_review", terminalReason: "Review every captured answer before approval." };
+      await publishSession(reviewing);
+      setStatus(result.warning || "Draft captured. Review every answer before approving.");
+    } finally {
+      endPanelWork();
+    }
+  }
+
+  async function approveReviewDraft() {
+    if (!applicationDraft) return;
+    beginPanelWork();
+    setStatus("Binding approval to this exact snapshot…");
+    try {
+      const { snapshot, draftId } = applicationDraft;
+      const result = await chrome.runtime.sendMessage({ type: "APPROVE_APPLICATION_DRAFT", draftId, sessionId: snapshot.sessionId, stepIndex: snapshot.stepIndex, snapshotHash: snapshot.snapshotHash } satisfies ExtensionMessage);
+      if (!result?.ok) { setStatus(result?.error || "Could not approve this draft."); return; }
+      setDraftApproved(true);
+      if (applicationSession) await publishSession({ ...applicationSession, status: "approved", terminalReason: "Exact draft approved; awaiting Phase E submission." });
+      setStatus(`Approved until ${new Date(result.expiresAt).toLocaleTimeString()}. Phase E will consume this approval once.`);
+    } finally {
+      endPanelWork();
+    }
+  }
+
   /**
    * Scans (or fills) every frame of the tab, not just the top document.
    *
@@ -593,6 +633,21 @@ function SidePanel() {
             <span>Step {applicationSession.stepIndex + 1} / {applicationSession.maxSteps}</span>
             {applicationSession.terminalReason && <p>{applicationSession.terminalReason}</p>}
           </div>}
+          {applicationSession && (formPlan.navAction.kind === "submit" || formPlan.navAction.kind === "review") && !applicationDraft && <button className="capture-draft-button" type="button" onClick={captureReviewDraft}>Capture review draft</button>}
+          {applicationDraft && <section className="draft-review">
+            <div className="draft-review-head"><div><small>Pre-submit draft</small><strong>{applicationDraft.snapshot.job.title || "Application"}</strong><span>{applicationDraft.snapshot.job.company}</span></div><b>{applicationDraft.persisted ? "Saved" : "Local only"}</b></div>
+            {applicationDraft.warning && <p className="draft-warning">{applicationDraft.warning}</p>}
+            {applicationDraft.snapshot.steps.map((step) => <details className="draft-step" open key={step.stepKey}>
+              <summary>{step.heading || `Step ${step.index + 1}`} <span>{step.answers.length} fields</span></summary>
+              {step.answers.map((answer) => <div className={`draft-answer ${answer.redacted ? "redacted" : answer.needsReview ? "review" : ""}`} key={answer.fieldId}>
+                <div><strong>{answer.question}</strong><small>{answer.source} · {Math.round(answer.confidence * 100)}%{answer.sensitive ? " · sensitive" : ""}</small></div>
+                <p>{answer.redacted ? "Redacted — never stored" : Array.isArray(answer.value) ? answer.value.join(", ") : answer.value || answer.blankReason || "Blank"}</p>
+              </div>)}
+            </details>)}
+            <div className="draft-audit"><span>{applicationDraft.snapshot.blankFields.length} blank/redacted</span><span>{applicationDraft.snapshot.frames.length} frames</span><code title={applicationDraft.snapshot.snapshotHash}>{applicationDraft.snapshot.snapshotHash.slice(0, 12)}…</code></div>
+            <p className="draft-disclaimer">Approval is bound to this exact hash. If the page changes, it cannot be reused.</p>
+            {draftApproved ? <div className="draft-approved">✓ Exact draft approved</div> : <button className="approve-draft-button" type="button" disabled={!applicationDraft.persisted} onClick={approveReviewDraft}>I reviewed every answer — approve</button>}
+          </section>}
           <div className="plan-summary">
             <div><strong>{summary.total}</strong><span>Total</span></div>
             <div className="resolved"><strong>{summary.resolved}</strong><span>Ready</span></div>
