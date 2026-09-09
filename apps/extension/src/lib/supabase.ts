@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
-import type { ApplicationVerdict, ExtensionAuthStatus, PageSummary, PreSubmitSnapshot, UserProfile } from "@uplyfox/shared";
+import type { ApplicationVerdict, ExtensionAuthStatus, PageSummary, PreSubmitSnapshot, SubmissionSignal, UserProfile } from "@uplyfox/shared";
 import { extensionConfig, isExtensionConfigured } from "./config";
 
 const chromeStorage = {
@@ -53,7 +53,7 @@ async function ensureStorageOwner(userId: string) {
 
 export async function clearUserScopedStorage() {
   const sessionValues = await chrome.storage.session.get(null);
-  const applicationKeys = Object.keys(sessionValues).filter((key) => key.startsWith("applicationSession:") || key.startsWith("applicationDraft:") || key.startsWith("approvalGrant:"));
+  const applicationKeys = Object.keys(sessionValues).filter((key) => key.startsWith("applicationSession:") || key.startsWith("applicationDraft:") || key.startsWith("approvalGrant:") || key.startsWith("submissionAttempt:") || key.startsWith("pendingSubmissionTab:") || key.startsWith("latestSubmissionTab:") || key.startsWith("phaseEGuardTab:"));
   await Promise.all([
     chrome.storage.local.remove(USER_SCOPED_KEYS),
     chrome.storage.session.remove(["activeField", "activeTabId", "activeFrameId", ...applicationKeys]),
@@ -200,8 +200,11 @@ export async function saveApplicationDraft(snapshot: PreSubmitSnapshot, screensh
     }
   }
 
+  const normalizedUrl = snapshot.job.url.replace(/[?#].*$/, "").replace(/\/$/, "");
+  const { data: trackedJob } = await supabase.from("jobs").select("id").eq("user_id", user.id).in("url", [snapshot.job.url, normalizedUrl]).limit(1).maybeSingle();
+
   const { error: sessionError } = await supabase.from("application_sessions").upsert({
-    id: snapshot.sessionId, user_id: user.id, url: snapshot.job.url, ats: snapshot.job.hostname,
+    id: snapshot.sessionId, user_id: user.id, job_id: trackedJob?.id ?? null, url: snapshot.job.url, ats: snapshot.job.hostname,
     mode: "review_before_submit", status: "ready_for_review", blockers: snapshot.steps.at(-1)?.blockers ?? [], updated_at: new Date().toISOString(),
   });
   if (sessionError) {
@@ -221,16 +224,34 @@ export async function saveApplicationDraft(snapshot: PreSubmitSnapshot, screensh
   return { ok: true, draftId, screenshotPath };
 }
 
-export async function approveApplicationDraft(input: { draftId: string; sessionId: string; snapshotHash: string; expiresAt: string }): Promise<{ ok: boolean; error?: string }> {
+export async function approveApplicationDraft(input: { draftId: string; sessionId: string; snapshotHash: string; expiresAt: string; tokenVerifier: string }): Promise<{ ok: boolean; error?: string }> {
   const supabase = getExtensionSupabase();
   if (!supabase) return { ok: false, error: "Extension setup is missing." };
   const user = await getExtensionUser();
   if (!user) return { ok: false, error: "Sign in before approving a draft." };
-  const now = new Date().toISOString();
-  const { data, error } = await supabase.from("application_drafts").update({ approved_at: now, approval_expires_at: input.expiresAt }).eq("id", input.draftId).eq("session_id", input.sessionId).eq("user_id", user.id).eq("snapshot_hash", input.snapshotHash).is("approved_at", null).select("id").maybeSingle();
-  if (error || !data) return { ok: false, error: error?.message ?? "The draft changed or was already approved. Capture it again." };
-  await supabase.from("application_sessions").update({ status: "approved", updated_at: now }).eq("id", input.sessionId).eq("user_id", user.id);
-  return { ok: true };
+  const { data, error } = await supabase.rpc("issue_application_approval", { p_draft_id: input.draftId, p_session_id: input.sessionId, p_snapshot_hash: input.snapshotHash, p_token_verifier: input.tokenVerifier, p_expires_at: input.expiresAt });
+  return error || data !== true ? { ok: false, error: error?.message ?? "The draft changed or was already approved. Capture it again." } : { ok: true };
+}
+
+export async function consumeApplicationApproval(input: { attemptId: string; draftId: string; sessionId: string; snapshotHash: string; tokenVerifier: string; startedAt: string; deadlineAt: string }): Promise<{ ok: boolean; error?: string }> {
+  const supabase = getExtensionSupabase();
+  if (!supabase) return { ok: false, error: "Extension setup is missing." };
+  const { data, error } = await supabase.rpc("consume_application_approval", {
+    p_attempt_id: input.attemptId, p_draft_id: input.draftId, p_session_id: input.sessionId,
+    p_snapshot_hash: input.snapshotHash, p_token_verifier: input.tokenVerifier,
+    p_started_at: input.startedAt, p_deadline_at: input.deadlineAt,
+  });
+  return error || data !== true ? { ok: false, error: error?.message ?? "Approval was expired, changed, or already consumed." } : { ok: true };
+}
+
+export async function finalizeSubmissionAttempt(input: { attemptId: string; outcome: "confirmed" | "unknown" | "failed"; evidence: SubmissionSignal[]; reason: string; applicationId?: string }): Promise<{ ok: boolean; error?: string }> {
+  const supabase = getExtensionSupabase();
+  if (!supabase) return { ok: false, error: "Extension setup is missing." };
+  const { data, error } = await supabase.rpc("finalize_submission_attempt", {
+    p_attempt_id: input.attemptId, p_outcome: input.outcome, p_evidence: input.evidence,
+    p_reason: input.reason, p_external_application_id: input.applicationId ?? null,
+  });
+  return error || data !== true ? { ok: false, error: error?.message ?? "Submission outcome was already finalized." } : { ok: true };
 }
 
 /** Saves the current page as a tracked job opportunity (jobs + applications rows) for the signed-in user. */

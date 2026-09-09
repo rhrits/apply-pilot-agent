@@ -79,6 +79,11 @@ export interface ButtonDescriptor {
   visible: boolean;
   type?: string;
   role?: string;
+  tagName?: "button" | "input";
+  shadowPath?: string[];
+  documentToken?: string;
+  formFingerprint?: string;
+  ariaDisabled?: boolean;
 }
 
 export interface NavAction {
@@ -88,6 +93,13 @@ export interface NavAction {
   frameId?: number;
   disabled?: boolean;
   confidence: number;
+  tagName?: "button" | "input";
+  type?: string;
+  role?: string;
+  shadowPath?: string[];
+  documentToken?: string;
+  formFingerprint?: string;
+  ariaDisabled?: boolean;
 }
 
 export type FormBlockerKind =
@@ -113,6 +125,7 @@ export interface FrameDescriptor {
   status: "scanned" | "unavailable";
   fieldCount: number;
   error?: string;
+  documentToken?: string;
 }
 
 export interface FormStepSnapshot {
@@ -171,7 +184,7 @@ export function classifyNavAction(buttons: ButtonDescriptor[]): NavAction {
   const usable = buttons.filter((button) => button.visible && !SUBMIT_DENY.test(button.label.trim()));
   const choose = (pattern: RegExp, kind: NavAction["kind"], confidence: number): NavAction | null => {
     const button = usable.find((candidate) => pattern.test(candidate.label.trim()));
-    return button ? { kind, label: button.label, selector: button.selector, frameId: button.frameId, disabled: button.disabled, confidence } : null;
+    return button ? { kind, label: button.label, selector: button.selector, frameId: button.frameId, disabled: button.disabled, confidence, tagName: button.tagName, type: button.type, role: button.role, shadowPath: button.shadowPath, documentToken: button.documentToken, formFingerprint: button.formFingerprint, ariaDisabled: button.ariaDisabled } : null;
   };
   return choose(SUBMIT, "submit", 0.98)
     ?? choose(REVIEW, "review", 0.95)

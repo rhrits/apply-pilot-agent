@@ -46,12 +46,26 @@ export interface PreSubmitSnapshot {
   frames: SnapshotFrame[];
   blankFields: SnapshotAnswer[];
   resume?: { fileName: string };
-  submitTarget?: { label: string; frameId: number; selector: string };
+  submitTarget?: SubmitTargetDescriptor;
   screenshotPath?: string;
   screenshotSha256?: string;
   redactionVersion: "v1";
   snapshotHash: string;
   capturedAt: string;
+}
+
+export interface SubmitTargetDescriptor {
+  label: string;
+  frameId: number;
+  selector: string;
+  shadowPath: string[];
+  documentToken: string;
+  tagName: "button" | "input";
+  type: "submit";
+  role?: string;
+  disabled: boolean;
+  ariaDisabled: boolean;
+  formFingerprint: string;
 }
 
 export interface ApprovalGrant {
@@ -97,7 +111,11 @@ export function snapshotStep(step: FormStepSnapshot): SnapshotStep {
 
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize);
-  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value as Record<string, unknown>).filter(([key]) => key !== "snapshotHash" && key !== "screenshotPath").sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonicalize(item)]));
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+    // Evidence metadata proves what was captured, but must not make two identical live
+    // forms hash differently merely because they were captured at different times.
+    .filter(([key]) => !["snapshotHash", "screenshotPath", "screenshotSha256", "capturedAt", "html", "htmlSha256"].includes(key))
+    .sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonicalize(item)]));
   return value;
 }
 

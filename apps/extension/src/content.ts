@@ -4,6 +4,8 @@ import {
   canAutoFill,
   classifyNavAction,
   fieldSignature,
+  isConfirmationText,
+  isConfirmationUrl,
   resolveField,
   type ButtonDescriptor,
   type ExtensionMessage,
@@ -19,6 +21,8 @@ import { fillComboboxVerified, insertValueVerified, selectChoiceVerified } from 
 import { getLocalMemory } from "./lib/memory";
 import { getProfile } from "./lib/profile";
 import { adapterForHost, isSafeNextElement } from "./lib/navigation-adapters";
+import { NETWORK_SIGNAL_SOURCE } from "./lib/network-channel";
+import { validateSubmitTarget } from "./lib/submit-target";
 import "./styles.css";
 
 /**
@@ -30,6 +34,7 @@ import "./styles.css";
  * frame, since that is exactly where the previously-invisible fields live.
  */
 const isTopFrame = window.top === window.self;
+const DOCUMENT_TOKEN = crypto.randomUUID();
 
 let activeElement: Element | null = null;
 let overlay: HTMLDivElement | null = null;
@@ -38,6 +43,7 @@ let requestToken = 0;
 let lastSelectedText = "";
 let lastDetectedJobKey = "";
 let jobDetectionTimer: number | undefined;
+const observedSubmissionAttempts = new Set<string>();
 
 function removeOverlay() {
   overlay?.remove();
@@ -458,8 +464,13 @@ function buttonsForFrame(frameId: number): ButtonDescriptor[] {
       frameId,
       disabled: element instanceof HTMLButtonElement || element instanceof HTMLInputElement ? element.disabled : element.getAttribute("aria-disabled") === "true",
       visible: true,
-      type: element.getAttribute("type") ?? undefined,
+      type: element instanceof HTMLButtonElement || element instanceof HTMLInputElement ? element.type : element.getAttribute("type") ?? undefined,
       role: element.getAttribute("role") ?? undefined,
+      tagName: element instanceof HTMLButtonElement ? "button" as const : element instanceof HTMLInputElement ? "input" as const : undefined,
+      shadowPath: shadowPathFor(element),
+      documentToken: DOCUMENT_TOKEN,
+      formFingerprint: selectorFor(element.closest("form, [role='form']") ?? element.parentElement ?? element),
+      ariaDisabled: element.getAttribute("aria-disabled") === "true",
     }))
     .filter((button) => button.label);
 }
@@ -546,7 +557,7 @@ async function inspectFormFrame(frameId: number) {
   const validationErrors = validationErrorsFor(fields, frameId);
   const blockers = [...blockersForFields(fields, validationErrors), ...captchaBlocker(frameId)];
   const heading = queryDeep("h1, [role='heading'][aria-level='1'], h2").filter(visible).map((node) => ((node as HTMLElement).innerText || node.textContent || "").trim()).find(Boolean) ?? "";
-  return { authenticated: true, fields, validationErrors, buttons: buttonsForFrame(frameId), blockers, heading: heading.slice(0, 200), url: location.href, signature: fieldSignature(fields) };
+  return { authenticated: true, fields, validationErrors, buttons: buttonsForFrame(frameId), blockers, heading: heading.slice(0, 200), url: location.href, signature: fieldSignature(fields), documentToken: DOCUMENT_TOKEN };
 }
 
 /**
@@ -570,6 +581,65 @@ function advanceSafeStepFrame() {
   const stepMarker = adapter.stepMarkerSelectors.flatMap((selector) => queryDeep(selector)).filter(visible).map((element) => ((element as HTMLElement).innerText || element.textContent || "").trim()).find(Boolean) ?? "";
   target.click();
   return { ok: true, clicked: true, adapterId: adapter.id, label, stepMarker, url: location.href };
+}
+
+function sendAttemptSignal(attemptId: string, kind: "target_click" | "form_submit" | "network_success" | "network_failure" | "confirmation_url" | "confirmation_dom" | "application_id" | "validation_error" | "captcha", detail?: string) {
+  chrome.runtime.sendMessage({ type: "SUBMISSION_ATTEMPT_SIGNAL", attemptId, signal: { kind, at: Date.now(), detail: detail?.slice(0, 240), documentToken: DOCUMENT_TOKEN } } satisfies ExtensionMessage).catch(() => undefined);
+}
+
+/** Observes only post-approval evidence and correlates every signal to one attempt id. */
+function observeSubmissionAttempt(attemptId: string, startedAt: number, deadlineAt: number) {
+  if (observedSubmissionAttempts.has(attemptId)) return;
+  observedSubmissionAttempts.add(attemptId);
+  const active = () => Date.now() >= startedAt && Date.now() <= deadlineAt;
+  const inspectConfirmation = () => {
+    if (!active()) return;
+    if (isConfirmationUrl(location.href)) sendAttemptSignal(attemptId, "confirmation_url", location.pathname);
+    const text = (document.body?.innerText || document.body?.textContent || "").replace(/\s+/g, " ").slice(0, 5000);
+    if (isConfirmationText(text)) sendAttemptSignal(attemptId, "confirmation_dom", text.match(/.{0,80}(thank|submitted|received|application).{0,120}/i)?.[0] ?? "Confirmation text detected");
+    const applicationId = text.match(/(?:application|confirmation|reference)\s*(?:id|number|#|no\.?)[\s:#-]*([A-Z0-9-]{5,40})/i)?.[1];
+    if (applicationId) sendAttemptSignal(attemptId, "application_id", applicationId);
+    if (queryDeep("[aria-invalid='true'], [role='alert']").filter(visible).length) sendAttemptSignal(attemptId, "validation_error", "Validation errors appeared after submission.");
+    if (queryDeep("iframe[src*='recaptcha'], iframe[src*='hcaptcha'], iframe[src*='turnstile'], .g-recaptcha, .h-captcha, [class*='cf-turnstile']").length) sendAttemptSignal(attemptId, "captcha", "Human verification appeared during submission.");
+  };
+  document.addEventListener("submit", () => { if (active()) sendAttemptSignal(attemptId, "form_submit", "Form submit event"); }, true);
+  window.addEventListener("message", (event) => {
+    if (!active() || event.source !== window || event.origin !== location.origin || event.data?.source !== NETWORK_SIGNAL_SOURCE) return;
+    const status = Number(event.data?.status ?? 0);
+    sendAttemptSignal(attemptId, status >= 200 && status < 400 ? "network_success" : "network_failure", `${event.data?.method ?? "POST"} ${event.data?.url ?? ""} (${status})`);
+  });
+  const observer = new MutationObserver(inspectConfirmation);
+  observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+  window.setTimeout(() => observer.disconnect(), Math.max(0, deadlineAt - Date.now()) + 1000);
+  inspectConfirmation();
+  window.setTimeout(inspectConfirmation, 600);
+}
+
+function resolveShadowTarget(shadowPath: string[], selector: string): Element[] {
+  let root: Document | ShadowRoot = document;
+  for (const hostSelector of shadowPath) {
+    const hosts: Element[] = Array.from(root.querySelectorAll(hostSelector));
+    if (hosts.length !== 1 || !hosts[0].shadowRoot) return [];
+    root = hosts[0].shadowRoot!;
+  }
+  try { return Array.from(root.querySelectorAll(selector)); } catch { return []; }
+}
+
+/** Executes exactly one reviewed native submit control; there is no fallback search. */
+function executeApprovedSubmit(attemptId: string, startedAt: number, deadlineAt: number, target: Extract<ExtensionMessage, { type: "EXECUTE_APPROVED_SUBMIT" }>["target"]) {
+  const matches = resolveShadowTarget(target.shadowPath, target.selector);
+  const element = matches[0] ?? null;
+  const native = element instanceof HTMLButtonElement || element instanceof HTMLInputElement;
+  const tagName = element instanceof HTMLButtonElement ? "button" : element instanceof HTMLInputElement ? "input" : "";
+  const label = element ? (element.getAttribute("aria-label") || (element instanceof HTMLInputElement ? element.value : (element as HTMLElement).innerText || element.textContent) || "").replace(/\s+/g, " ").trim() : "";
+  const formFingerprint = element ? selectorFor(element.closest("form, [role='form']") ?? element.parentElement ?? element) : "";
+  const validation = validateSubmitTarget(target, { documentToken: DOCUMENT_TOKEN, matchCount: matches.length, label, tagName, type: native ? element.type : "", role: element?.getAttribute("role") ?? undefined, formFingerprint, disabled: native ? element.disabled : true, ariaDisabled: element?.getAttribute("aria-disabled") === "true", visible: element ? visible(element) : false, connected: element?.isConnected === true });
+  if (!validation.ok || !native) return { ok: false, reason: validation.ok ? "target_mismatch" : validation.reason, detail: "The reviewed Submit control changed, moved, or became unavailable after approval." };
+  const submitElement = element as HTMLButtonElement | HTMLInputElement;
+  observeSubmissionAttempt(attemptId, startedAt, deadlineAt);
+  sendAttemptSignal(attemptId, "target_click", label);
+  submitElement.click();
+  return { ok: true, clicked: true, documentToken: DOCUMENT_TOKEN };
 }
 
 async function scanPage(fill: boolean) {
@@ -777,6 +847,15 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, _sender, sendRe
   if (message.type === "CAPTURE_FORM_FRAME") {
     hasReadyAccess().then((ready) => sendResponse(ready ? captureFormFrame(message.frameId) : { frameId: message.frameId, html: null, redactions: [], screenshotSafe: false, error: "Complete sign-in and profile setup first." }));
     return true;
+  }
+  if (message.type === "OBSERVE_SUBMISSION_ATTEMPT") {
+    observeSubmissionAttempt(message.attemptId, message.startedAt, message.deadlineAt);
+    sendResponse({ ok: true, documentToken: DOCUMENT_TOKEN });
+    return false;
+  }
+  if (message.type === "EXECUTE_APPROVED_SUBMIT") {
+    sendResponse(executeApprovedSubmit(message.attemptId, message.startedAt, message.deadlineAt, message.target));
+    return false;
   }
   if (message.type === "ATTACH_RESUME") {
     hasReadyAccess().then((ready) => {

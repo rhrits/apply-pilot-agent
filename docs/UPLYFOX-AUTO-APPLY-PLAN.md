@@ -1,6 +1,6 @@
 # UplyFox Auto-Apply Agent — Plan
 
-**Status:** Phases A–D shipped; Phase E pending
+**Status:** Phases A–E shipped; production portal validation pending
 **Date:** 2026-09-09
 **Supersedes:** the "explicitly out of scope" line on auto-submission in [UPLYFOX-V2-PLAN.md](UPLYFOX-V2-PLAN.md) — see §2.
 
@@ -445,13 +445,54 @@ Bounded by max steps, wall-clock timeout, and a stall detector. A stall is repor
 - Added seven Phase D snapshot/redaction/hash/approval tests. Extension suite: 132 tests green at
   shipment.
 
-### Phase E — Submit and confirm
+### Phase E — Submit and confirm ✅ shipped
 
 - Submission executes only with a valid token
 - **Reuse the P3 detector** to confirm: URL confirmation, DOM confirmation, network response,
   success heading, application ID
 - No confirmation found → record `submission_state = unknown`, **never** `submitted`
 - Write the tracker row with the snapshot attached
+
+#### Phase E implementation — 2026-09-10
+
+- Split stable **approval material** from evidence metadata: capture timestamps, screenshot path/hash,
+  raw inert HTML, and HTML hashes no longer alter the approval hash. Field answers, frame status,
+  target document token, selector, shadow path, label, tag/type/role, enabled state, and form
+  fingerprint remain hash-bound. An unchanged recapture hashes identically; any reviewed target or
+  answer change invalidates approval.
+- Each content-script document now has a random document token, preventing Chrome frame-ID reuse
+  after navigation from satisfying a stale approval.
+- Added a complete `SubmitTargetDescriptor`. Capture and approval require exactly one visible,
+  enabled native `button`/`input` whose effective type is `submit`, explicit submit semantics, a stable
+  form fingerprint, and no blocker, validation error, inaccessible frame, or redacted secret field.
+- Added a second explicit review action: **Re-check and submit this exact application**. Approval alone
+  never clicks. The final action freshly reinspects and recaptures the live page, recomputes stable
+  approval material, compares the hash, validates the local grant tuple/expiry, and aborts before
+  consumption if anything changed.
+- Added migration `202609100001_submission_attempts.sql`. Raw approval tokens remain local; only their
+  SHA-256 verifier is stored. Owner-checked SECURITY DEFINER RPCs issue approval, atomically consume it
+  exactly once while creating a durable attempt, and idempotently finalize an outcome. Draft/session
+  ownership is enforced by a composite foreign key and authenticated clients cannot directly update
+  approval/consumption columns.
+- Exact submit execution accepts no fallback selector. The target frame resolves the stored shadow
+  path and selector, requires exactly one match, rechecks document token, label, tag, effective type,
+  role, form fingerprint, visibility, connection and enabled state, arms observation, then performs
+  one native click. It never calls `form.submit()`/`requestSubmit()` and never searches for another
+  button.
+- Added attempt-specific confirmation with target-click, form-submit, successful/failed application
+  network status, confirmation URL/DOM, application ID, validation and CAPTCHA signals. Confirmation
+  requires the reviewed click plus **two independent post-click result signals**; pre-existing
+  confirmation text and submit events alone cannot confirm. Explicit failure wins over apparent
+  success.
+- Full-navigation recovery uses `webNavigation.onDOMContentLoaded` to re-arm initial URL/DOM scanning
+  from the persisted attempt. A durable `chrome.alarms` deadline finalizes unproven clicks as
+  `unknown`, not submitted. Service-worker uptime and side-panel presence are not required.
+- Confirmed outcomes move the tracker to Applied and stamp `applied_at`. Unknown/failed outcomes keep
+  it at Applying and store the explicit `submission_state`, evidence and reason. The passive P3
+  detector is suppressed during and briefly after Phase E so it cannot overwrite a strict unknown or
+  failed result.
+- Added 17 Phase E stable-hash, grant, strict-target and confirmation tests. Extension suite: 149 tests
+  green at shipment.
 
 ---
 

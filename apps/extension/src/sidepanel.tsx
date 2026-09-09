@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { describeApplicationSignals, summarizeFormPlan, type ActiveFieldPayload, type AnswerResponse, type ApplicationVerdict, type ExtensionAccessState, type ExtensionMessage, type FormStepSnapshot, type PageSummary, type PreSubmitSnapshot, type ScannedField, type UserProfile } from "@uplyfox/shared";
+import { describeApplicationSignals, summarizeFormPlan, type ActiveFieldPayload, type AnswerResponse, type ApplicationVerdict, type ExtensionAccessState, type ExtensionMessage, type FormStepSnapshot, type PageSummary, type PreSubmitSnapshot, type ScannedField, type SubmissionAttempt, type UserProfile } from "@uplyfox/shared";
 import { extensionConfig } from "./lib/config";
 import type { TrackerSnapshot } from "./lib/supabase";
 import { CopyButton, DictationControl, ExternalIcon, InsertIcon, SaveIcon, SyncIcon } from "./components/ui";
@@ -116,6 +116,7 @@ function SidePanel() {
   const [applicationSession, setApplicationSession] = useState<ApplicationSession | null>(null);
   const [applicationDraft, setApplicationDraft] = useState<{ draftId: string; snapshot: PreSubmitSnapshot; persisted: boolean; warning?: string } | null>(null);
   const [draftApproved, setDraftApproved] = useState(false);
+  const [submissionAttempt, setSubmissionAttempt] = useState<SubmissionAttempt | null>(null);
   const sessionCancelled = useRef(false);
   const [tracker, setTracker] = useState<TrackerSnapshot | null>(null);
   const [pageMatch, setPageMatch] = useState<PageSummary | null>(null);
@@ -150,7 +151,7 @@ function SidePanel() {
 
     // Opening this port asks the worker for a fresh profile, so the panel is never stale.
     const port = chrome.runtime.connect({ name: "uplyfox-panel" });
-    port.onMessage.addListener((message: { type: string; profile?: UserProfile; status?: { accessState?: ExtensionAccessState }; payload?: ActiveFieldPayload; job?: PageSummary; verdict?: ApplicationVerdict }) => {
+    port.onMessage.addListener((message: { type: string; profile?: UserProfile; status?: { accessState?: ExtensionAccessState }; payload?: ActiveFieldPayload; job?: PageSummary; verdict?: ApplicationVerdict; attempt?: SubmissionAttempt; reason?: string }) => {
       if (message.type === "PROFILE_SYNCED" && message.profile) setProfile(message.profile);
       if (message.type === "ACTIVE_FIELD" && message.payload) { setActive(message.payload); setQuestion(message.payload.field.question); setSelectedText(""); setAnswer(null); }
       if (message.type === "APPLICATION_APPLIED" && message.job) {
@@ -161,6 +162,11 @@ function SidePanel() {
           reason: describeApplicationSignals(message.verdict?.signals ?? []),
         });
         void loadTracker();
+      }
+      if (message.type === "SUBMISSION_OUTCOME" && message.attempt) {
+        setSubmissionAttempt(message.attempt);
+        setStatus(message.reason || `Submission ${message.attempt.status}.`);
+        if (message.attempt.status === "confirmed") void loadTracker();
       }
       if (message.type === "AUTH_STATUS") {
         setAccessState(message.status?.accessState ?? "unauthenticated");
@@ -175,14 +181,22 @@ function SidePanel() {
       if (!tabInfo?.id) return;
       const key = `applicationSession:${tabInfo.id}`;
       const draftKey = `applicationDraft:${tabInfo.id}`;
-      const stored = await chrome.storage.session.get([key, draftKey]);
+      const latestKey = `latestSubmissionTab:${tabInfo.id}`;
+      const stored = await chrome.storage.session.get([key, draftKey, latestKey]);
       const session = stored[key] as ApplicationSession | undefined;
       if (session) {
         setApplicationSession(session);
         if (session.currentStep) setFormPlan(session.currentStep);
+        if (session.status === "approved") setDraftApproved(true);
       }
       const draft = stored[draftKey] as { draftId: string; snapshot: PreSubmitSnapshot; persisted: boolean; warning?: string } | undefined;
       if (draft) setApplicationDraft(draft);
+      const attemptId = stored[latestKey] as string | undefined;
+      if (attemptId) {
+        const attemptValues = await chrome.storage.session.get(`submissionAttempt:${attemptId}`);
+        const attempt = attemptValues[`submissionAttempt:${attemptId}`] as SubmissionAttempt | undefined;
+        if (attempt) setSubmissionAttempt(attempt);
+      }
     }).catch(() => undefined);
   }, []);
 
@@ -447,6 +461,23 @@ function SidePanel() {
     }
   }
 
+  async function submitApprovedDraft() {
+    if (!applicationDraft || !applicationSession || !draftApproved) return;
+    const tabId = await activeTabId();
+    if (!tabId || tabId !== applicationSession.tabId) { setStatus("Return to the approved application tab before submitting."); return; }
+    beginPanelWork();
+    setStatus("Re-checking the exact approved page before one Submit click…");
+    try {
+      const { snapshot, draftId } = applicationDraft;
+      const response = await chrome.runtime.sendMessage({ type: "SUBMIT_APPROVED_DRAFT", tabId, draftId, sessionId: snapshot.sessionId, stepIndex: snapshot.stepIndex, snapshotHash: snapshot.snapshotHash } satisfies ExtensionMessage);
+      if (!response?.ok) { setStatus(response?.error || "The approved application could not be submitted."); return; }
+      setSubmissionAttempt({ attemptId: response.attemptId, sessionId: snapshot.sessionId, draftId, tabId, frameId: snapshot.submitTarget?.frameId ?? 0, snapshotHash: snapshot.snapshotHash, startedAt: Date.now(), deadlineAt: response.deadlineAt, status: "clicked", signals: [] });
+      setStatus("Submit clicked once. Waiting for independent confirmation signals…");
+    } finally {
+      endPanelWork();
+    }
+  }
+
   /**
    * Scans (or fills) every frame of the tab, not just the top document.
    *
@@ -646,7 +677,9 @@ function SidePanel() {
             </details>)}
             <div className="draft-audit"><span>{applicationDraft.snapshot.blankFields.length} blank/redacted</span><span>{applicationDraft.snapshot.frames.length} frames</span><code title={applicationDraft.snapshot.snapshotHash}>{applicationDraft.snapshot.snapshotHash.slice(0, 12)}…</code></div>
             <p className="draft-disclaimer">Approval is bound to this exact hash. If the page changes, it cannot be reused.</p>
-            {draftApproved ? <div className="draft-approved">✓ Exact draft approved</div> : <button className="approve-draft-button" type="button" disabled={!applicationDraft.persisted} onClick={approveReviewDraft}>I reviewed every answer — approve</button>}
+            {!applicationDraft.snapshot.submitTarget && <p className="draft-warning">No exact native Submit control was captured. Continue to the final submit page manually, then capture again.</p>}
+            {draftApproved ? <div className="approved-actions"><div className="draft-approved">✓ Exact draft approved</div><button className="final-submit-button" type="button" disabled={Boolean(submissionAttempt)} onClick={submitApprovedDraft}>Re-check and submit this exact application</button></div> : <button className="approve-draft-button" type="button" disabled={!applicationDraft.persisted || !applicationDraft.snapshot.submitTarget || applicationDraft.snapshot.steps.some((step) => step.blockers.length > 0 || step.validationErrors.length > 0 || step.answers.some((answer) => answer.redacted))} onClick={approveReviewDraft}>I reviewed every answer — approve</button>}
+            {submissionAttempt && <div className={`submission-outcome ${submissionAttempt.status}`}><strong>{submissionAttempt.status === "confirmed" ? "Submission confirmed" : submissionAttempt.status === "unknown" ? "Confirmation unknown" : submissionAttempt.status === "failed" ? "Submission failed" : "Waiting for confirmation"}</strong><small>{submissionAttempt.status === "confirmed" ? "The tracker was moved to Applied." : submissionAttempt.status === "unknown" ? "The tracker remains Applying. Check the portal before trying again." : submissionAttempt.status === "failed" ? submissionAttempt.errorReason || "The portal reported a failure." : "UplyFox requires two independent success signals."}</small></div>}
           </section>}
           <div className="plan-summary">
             <div><strong>{summary.total}</strong><span>Total</span></div>

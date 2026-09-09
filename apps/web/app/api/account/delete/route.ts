@@ -31,6 +31,7 @@ export async function POST(request: Request) {
 
   // Child rows first so foreign keys never block the profile delete.
   const tables = [
+    "submission_attempts",
     "application_drafts",
     "application_sessions",
     "applications",

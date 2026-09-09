@@ -15,7 +15,7 @@ function step(): FormStepSnapshot {
 
 function snapshot(hash = ""): PreSubmitSnapshot {
   const captured = snapshotStep(step());
-  return { version: 1, sessionId: "session", stepIndex: 1, job: { title: "Engineer", company: "Acme", url: "https://example.com/apply", hostname: "example.com" }, steps: [captured], frames: [], blankFields: captured.answers.filter((answer) => answer.value == null), submitTarget: { label: "Submit", frameId: 0, selector: "#submit" }, redactionVersion: "v1", snapshotHash: hash, capturedAt: "2026-09-09T12:00:00.000Z" };
+  return { version: 1, sessionId: "session", stepIndex: 1, job: { title: "Engineer", company: "Acme", url: "https://example.com/apply", hostname: "example.com" }, steps: [captured], frames: [], blankFields: captured.answers.filter((answer) => answer.value == null), submitTarget: { label: "Submit", frameId: 0, selector: "#submit", shadowPath: [], documentToken: "doc-1", tagName: "button", type: "submit", disabled: false, ariaDisabled: false, formFingerprint: "#application" }, redactionVersion: "v1", snapshotHash: hash, capturedAt: "2026-09-09T12:00:00.000Z" };
 }
 
 describe("application snapshot", () => {
@@ -51,6 +51,26 @@ describe("application snapshot", () => {
     const first = snapshot();
     const uploaded = { ...first, screenshotPath: "user/session/draft.png" };
     expect(await computeSnapshotHash(first)).toBe(await computeSnapshotHash(uploaded));
+  });
+
+  it("produces the same approval hash for unchanged recaptures at different times", async () => {
+    const first = snapshot();
+    const later = snapshot();
+    later.capturedAt = "2026-09-09T12:05:00.000Z";
+    later.steps[0].capturedAt = "2026-09-09T12:05:00.000Z";
+    later.screenshotSha256 = "different-evidence-image";
+    expect(await computeSnapshotHash(first)).toBe(await computeSnapshotHash(later));
+  });
+
+  it("changes the approval hash when the target document or control changes", async () => {
+    const first = snapshot();
+    const changedDocument = snapshot();
+    changedDocument.submitTarget!.documentToken = "doc-2";
+    expect(await computeSnapshotHash(first)).not.toBe(await computeSnapshotHash(changedDocument));
+
+    const changedType = snapshot();
+    changedType.submitTarget!.selector = "#another-submit";
+    expect(await computeSnapshotHash(first)).not.toBe(await computeSnapshotHash(changedType));
   });
 
   it("binds approval to session, draft, step and hash", () => {

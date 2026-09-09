@@ -6,6 +6,7 @@ export * from "./extraction-review";
 export * from "./form-graph";
 export * from "./field-resolution";
 export * from "./application-snapshot";
+export * from "./submission-attempt";
 export * from "./suggestion-agent";
 export * from "./job-match";
 export * from "./onboarding";

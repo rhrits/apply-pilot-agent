@@ -1,7 +1,7 @@
-import { classifyNavAction, computeSnapshotHash, createApprovalGrant, fieldSignature, sha256, snapshotStep, type ActiveFieldPayload, type ButtonDescriptor, type ExtensionAuthStatus, type ExtensionMessage, type ExtensionSettings, type FormBlocker, type FormStepSnapshot, type FormValidationError, type InspectedField, type PreSubmitSnapshot, type SnapshotFrame } from "@uplyfox/shared";
+import { approvalMatches, classifyNavAction, computeSnapshotHash, createApprovalGrant, evaluateSubmissionAttempt, fieldSignature, sha256, snapshotStep, SUBMISSION_CONFIRMATION_WINDOW_MS, type ActiveFieldPayload, type ApprovalGrant, type ButtonDescriptor, type ExtensionAuthStatus, type ExtensionMessage, type ExtensionSettings, type FormBlocker, type FormStepSnapshot, type FormValidationError, type InspectedField, type PreSubmitSnapshot, type SnapshotFrame, type SubmissionAttempt, type SubmissionSignal } from "@uplyfox/shared";
 import { extensionConfig, isExtensionConfigured } from "./lib/config";
 import { checkConnection, postJson } from "./lib/api-client";
-import { approveApplicationDraft, clearExtensionSession, fetchAuthenticatedProfile, fetchResumeFile, fetchTracker, getExtensionAuthStatus, getExtensionSupabase, markApplicationApplied, saveApplicationDraft, saveJobToSupabase, undoApplicationApplied } from "./lib/supabase";
+import { approveApplicationDraft, clearExtensionSession, consumeApplicationApproval, fetchAuthenticatedProfile, fetchResumeFile, fetchTracker, finalizeSubmissionAttempt, getExtensionAuthStatus, getExtensionSupabase, markApplicationApplied, saveApplicationDraft, saveJobToSupabase, undoApplicationApplied } from "./lib/supabase";
 import type { ApplicationSession } from "./lib/application-session";
 import { findLocalMemory, saveAnswerMemory } from "./lib/memory";
 import { saveUnknownQuestion } from "./lib/unknown-questions";
@@ -21,6 +21,74 @@ async function readyStatus(): Promise<ExtensionAuthStatus> {
   const status = await authStatus();
   if (status.accessState !== "ready") throw new Error(status.accessState === "profile_required" ? "Complete your profile before using the extension." : status.accessState === "access_required" ? "Redeem a UplyFox access code before using the extension." : "Sign in from the extension popup first.");
   return status;
+}
+
+async function inspectTabNow(tabId: number): Promise<FormStepSnapshot> {
+  const frameRecords = await chrome.webNavigation.getAllFrames({ tabId }).catch(() => null);
+  const frames = frameRecords?.length ? frameRecords : [{ frameId: 0, parentFrameId: -1, url: "" }];
+  const scans = await Promise.all(frames.map(async (frame) => {
+    try {
+      const result = await chrome.tabs.sendMessage(tabId, { type: "INSPECT_FORM_FRAME", frameId: frame.frameId } satisfies ExtensionMessage, { frameId: frame.frameId });
+      return { frame, result, error: "" };
+    } catch (error) { return { frame, result: null, error: error instanceof Error ? error.message : String(error) }; }
+  }));
+  const fields = scans.flatMap(({ result }) => (result?.fields ?? []) as InspectedField[]);
+  const validationErrors = scans.flatMap(({ result }) => (result?.validationErrors ?? []) as FormValidationError[]);
+  const buttons = scans.flatMap(({ result }) => (result?.buttons ?? []) as ButtonDescriptor[]);
+  const blockers: FormBlocker[] = [
+    ...scans.flatMap(({ result }) => (result?.blockers ?? []) as FormBlocker[]),
+    ...scans.filter(({ result }) => !result).map(({ frame, error }) => ({ kind: "unavailable_frame" as const, detail: `Could not inspect embedded frame: ${frame.url || "unknown frame"}${error ? ` (${error})` : ""}`, frameId: frame.frameId })),
+  ];
+  const top = scans.find(({ frame }) => frame.frameId === 0)?.result;
+  const signature = fieldSignature(fields);
+  return {
+    stepIndex: 0, stepKey: `${tabId}:${signature}`, heading: top?.heading || scans.map(({ result }) => result?.heading).find(Boolean) || undefined,
+    url: top?.url || frames.find((frame) => frame.frameId === 0)?.url || "",
+    frames: scans.map(({ frame, result, error }) => {
+      let origin = ""; try { origin = frame.url ? new URL(frame.url).origin : ""; } catch { /* no origin */ }
+      return { frameId: frame.frameId, parentFrameId: frame.parentFrameId, url: frame.url, origin, status: result ? "scanned" as const : "unavailable" as const, fieldCount: result?.fields?.length ?? 0, error: error || undefined, documentToken: result?.documentToken };
+    }),
+    fields, fieldSignature: signature, validationErrors, navAction: classifyNavAction(buttons), blockers, capturedAt: Date.now(),
+  };
+}
+
+async function freshReviewSnapshot(tabId: number, storedSnapshot: PreSubmitSnapshot): Promise<PreSubmitSnapshot> {
+  const liveStep = await inspectTabNow(tabId);
+  liveStep.stepIndex = storedSnapshot.stepIndex;
+  const frameRecords = await chrome.webNavigation.getAllFrames({ tabId }).catch(() => null);
+  const frameList = frameRecords?.length ? frameRecords : [{ frameId: 0, parentFrameId: -1, url: liveStep.url }];
+  const captures = await Promise.all(frameList.map(async (frame) => {
+    try { return { frame, capture: await chrome.tabs.sendMessage(tabId, { type: "CAPTURE_FORM_FRAME", frameId: frame.frameId } satisfies ExtensionMessage, { frameId: frame.frameId }) }; }
+    catch { return { frame, capture: { html: null, redactions: [], screenshotSafe: false } }; }
+  }));
+  const frames: SnapshotFrame[] = captures.map(({ frame, capture }) => {
+    let origin = ""; try { origin = frame.url ? new URL(frame.url).origin : ""; } catch { /* no origin */ }
+    return { frameId: frame.frameId, parentFrameId: frame.parentFrameId, origin, html: null, status: capture.html ? "captured" : "unavailable", redactions: capture.redactions ?? [] };
+  });
+  const steps = storedSnapshot.steps.map((step, index) => index === storedSnapshot.steps.length - 1 ? snapshotStep(liveStep) : step);
+  const nav = liveStep.navAction;
+  const submitTarget = nav.kind === "submit" && nav.label && nav.selector && nav.frameId !== undefined && nav.documentToken && nav.tagName && nav.type === "submit" && nav.formFingerprint && !nav.disabled && !nav.ariaDisabled
+    ? { label: nav.label, selector: nav.selector, frameId: nav.frameId, shadowPath: nav.shadowPath ?? [], documentToken: nav.documentToken, tagName: nav.tagName, type: "submit" as const, role: nav.role, disabled: false, ariaDisabled: false, formFingerprint: nav.formFingerprint }
+    : undefined;
+  const base = { ...storedSnapshot, steps, frames, submitTarget, blankFields: steps.flatMap((step) => step.answers.filter((answer) => answer.value == null || answer.value === "")), capturedAt: new Date().toISOString(), snapshotHash: "" };
+  return { ...base, snapshotHash: await computeSnapshotHash(base) };
+}
+
+async function finalizeAttempt(attempt: SubmissionAttempt, outcome: "confirmed" | "unknown" | "failed", reason: string, applicationId?: string) {
+  const key = `submissionAttempt:${attempt.attemptId}`;
+  const current = await chrome.storage.session.get(key);
+  const latest = current[key] as SubmissionAttempt | undefined;
+  if (!latest || latest.status === "confirmed" || latest.status === "unknown" || latest.status === "failed") return;
+  const finished: SubmissionAttempt = { ...latest, status: outcome, errorReason: outcome === "confirmed" ? undefined : reason, applicationId };
+  const persisted = await finalizeSubmissionAttempt({ attemptId: latest.attemptId, outcome, evidence: latest.signals, reason, applicationId });
+  if (!persisted.ok) {
+    await chrome.storage.session.set({ [key]: { ...latest, errorReason: `Outcome persistence pending: ${persisted.error}` } });
+    await chrome.alarms.create(`submission:${latest.attemptId}`, { when: Date.now() + 5_000 });
+    return;
+  }
+  await chrome.storage.session.set({ [key]: finished, [`phaseEGuardTab:${latest.tabId}`]: Date.now() + 120_000 });
+  await chrome.storage.session.remove([`approvalGrant:${latest.sessionId}`, `pendingSubmissionTab:${latest.tabId}`]);
+  for (const port of panelPorts) port.postMessage({ type: "SUBMISSION_OUTCOME", attempt: finished, reason });
 }
 
 chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendResponse) => {
@@ -161,6 +229,11 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
     (async () => {
       try {
         await readyStatus();
+        if (tabId !== undefined) {
+          const pending = await chrome.storage.session.get([`pendingSubmissionTab:${tabId}`, `phaseEGuardTab:${tabId}`]);
+          if (pending[`pendingSubmissionTab:${tabId}`]) { sendResponse({ ok: false, ignored: true, reason: "phase_e_attempt_active" }); return; }
+          if (Number(pending[`phaseEGuardTab:${tabId}`] ?? 0) > Date.now()) { sendResponse({ ok: false, ignored: true, reason: "phase_e_outcome_guard" }); return; }
+        }
         const settings = await chrome.storage.local.get("settings");
         if (settings.settings?.autoTrackJobs === false) { sendResponse({ ok: false, ignored: true }); return; }
         const result = await saveJobToSupabase(message.job);
@@ -275,7 +348,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         frames: scans.map(({ frame, result, error }) => {
           let origin = "";
           try { origin = frame.url ? new URL(frame.url).origin : ""; } catch { /* Non-URL frames have no origin. */ }
-          return { frameId: frame.frameId, parentFrameId: frame.parentFrameId, url: frame.url, origin, status: result ? "scanned" as const : "unavailable" as const, fieldCount: result?.fields?.length ?? 0, error: error || undefined };
+          return { frameId: frame.frameId, parentFrameId: frame.parentFrameId, url: frame.url, origin, status: result ? "scanned" as const : "unavailable" as const, fieldCount: result?.fields?.length ?? 0, error: error || undefined, documentToken: result?.documentToken };
         }),
         fields,
         fieldSignature: signature,
@@ -320,7 +393,9 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
       if (!session || session.sessionId !== message.sessionId || !session.currentStep) {
         sendResponse({ ok: false, error: "The safe-step session changed. Inspect the final step again." }); return;
       }
-      if (session.currentStep.navAction.kind !== "submit" && session.currentStep.navAction.kind !== "review") {
+      const liveStep = await inspectTabNow(message.tabId);
+      liveStep.stepIndex = session.stepIndex;
+      if (liveStep.navAction.kind !== "submit" && liveStep.navAction.kind !== "review") {
         sendResponse({ ok: false, error: "Capture is available only on the final Review or Submit step." }); return;
       }
 
@@ -341,7 +416,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         return { frameId: frame.frameId, parentFrameId: frame.parentFrameId, origin, html: capture.html ?? null, htmlSha256: capture.html ? await sha256(capture.html) : undefined, status: capture.html ? "captured" as const : "unavailable" as const, redactions: capture.redactions ?? [] };
       }));
 
-      const uniqueSteps = [...session.steps, session.currentStep].filter((step, index, all) => all.findIndex((candidate) => candidate.stepKey === step.stepKey) === index);
+      const uniqueSteps = [...session.steps, liveStep].filter((step, index, all) => all.findIndex((candidate) => candidate.stepKey === step.stepKey) === index);
       const steps = uniqueSteps.map(snapshotStep);
       const tab = await chrome.tabs.get(message.tabId);
       const page = await chrome.tabs.sendMessage(message.tabId, { type: "GET_PAGE_SUMMARY" } satisfies ExtensionMessage, { frameId: 0 }).catch(() => null);
@@ -357,7 +432,18 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         steps,
         frames,
         blankFields: steps.flatMap((step) => step.answers.filter((answer) => answer.value == null || answer.value === "")),
-        submitTarget: session.currentStep.navAction.label && session.currentStep.navAction.selector && session.currentStep.navAction.frameId !== undefined ? { label: session.currentStep.navAction.label, selector: session.currentStep.navAction.selector, frameId: session.currentStep.navAction.frameId } : undefined,
+        submitTarget: liveStep.navAction.kind === "submit"
+          && liveStep.navAction.label
+          && liveStep.navAction.selector
+          && liveStep.navAction.frameId !== undefined
+          && liveStep.navAction.documentToken
+          && liveStep.navAction.tagName
+          && liveStep.navAction.type === "submit"
+          && liveStep.navAction.formFingerprint
+          && !liveStep.navAction.disabled
+          && !liveStep.navAction.ariaDisabled
+          ? { label: liveStep.navAction.label, selector: liveStep.navAction.selector, frameId: liveStep.navAction.frameId, shadowPath: liveStep.navAction.shadowPath ?? [], documentToken: liveStep.navAction.documentToken, tagName: liveStep.navAction.tagName, type: "submit", role: liveStep.navAction.role, disabled: false, ariaDisabled: false, formFingerprint: liveStep.navAction.formFingerprint }
+          : undefined,
         screenshotSha256,
         redactionVersion: "v1",
         capturedAt: new Date().toISOString(),
@@ -384,14 +470,89 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         sendResponse({ ok: false, error: "The reviewed snapshot changed. Capture a new draft before approving." }); return;
       }
       if (!storedDraft.persisted) { sendResponse({ ok: false, error: "The draft is not safely persisted yet. Apply the Phase D database migration and capture it again." }); return; }
+      if (!storedDraft.snapshot.submitTarget) { sendResponse({ ok: false, error: "No exact native Submit control was captured. Continue to the final page manually and capture again." }); return; }
+      if (storedDraft.snapshot.steps.some((step) => step.blockers.length || step.validationErrors.length)) { sendResponse({ ok: false, error: "Resolve every blocker and validation error, then capture a new draft." }); return; }
+      if (storedDraft.snapshot.steps.some((step) => step.answers.some((answer) => answer.redacted))) { sendResponse({ ok: false, error: "This application contains a redacted secret field and cannot be submitted automatically." }); return; }
       const grant = createApprovalGrant({ draftId: message.draftId, sessionId: message.sessionId, stepIndex: message.stepIndex, snapshotHash: message.snapshotHash });
-      const approved = await approveApplicationDraft({ draftId: message.draftId, sessionId: message.sessionId, snapshotHash: message.snapshotHash, expiresAt: new Date(grant.expiresAt).toISOString() });
-      if (!approved.ok) { sendResponse(approved); return; }
+      const grantKey = `approvalGrant:${message.sessionId}`;
+      await chrome.storage.session.set({ [grantKey]: grant });
+      const approved = await approveApplicationDraft({ draftId: message.draftId, sessionId: message.sessionId, snapshotHash: message.snapshotHash, expiresAt: new Date(grant.expiresAt).toISOString(), tokenVerifier: await sha256(grant.token) });
+      if (!approved.ok) { await chrome.storage.session.remove(grantKey); sendResponse(approved); return; }
       // The one-time token remains extension-local. It is never stored in Supabase,
       // exposed to the page, or returned to a content script. Phase E must consume it.
-      await chrome.storage.session.set({ [`approvalGrant:${message.sessionId}`]: grant });
       sendResponse({ ok: true, approvedAt: new Date(grant.issuedAt).toISOString(), expiresAt: new Date(grant.expiresAt).toISOString() });
     })().catch((error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+    return true;
+  }
+
+  if (message.type === "SUBMIT_APPROVED_DRAFT") {
+    (async () => {
+      await readyStatus();
+      const grantKey = `approvalGrant:${message.sessionId}`;
+      const values = await chrome.storage.session.get([grantKey, `applicationDraft:${message.tabId}`]);
+      const grant = values[grantKey] as ApprovalGrant | undefined;
+      const storedDraft = values[`applicationDraft:${message.tabId}`] as { draftId: string; snapshot: PreSubmitSnapshot; persisted: boolean } | undefined;
+      const tuple = { sessionId: message.sessionId, draftId: message.draftId, stepIndex: message.stepIndex, snapshotHash: message.snapshotHash };
+      if (!grant || !approvalMatches(grant, tuple) || !storedDraft || storedDraft.draftId !== message.draftId || !storedDraft.persisted) {
+        sendResponse({ ok: false, error: "Approval is missing, expired, consumed, or does not match this draft." }); return;
+      }
+
+      // Reinspect and recapture stable approval material immediately before consumption.
+      // Any changed value, field, frame document, target, validation state, or blocker
+      // changes the hash and aborts without consuming or clicking.
+      const fresh = await freshReviewSnapshot(message.tabId, storedDraft.snapshot);
+      if (fresh.snapshotHash !== grant.snapshotHash || !fresh.submitTarget) {
+        await chrome.storage.session.remove(grantKey);
+        sendResponse({ ok: false, error: "The application changed after approval. Capture and review a new draft." }); return;
+      }
+      if (fresh.steps.some((step) => step.blockers.length || step.validationErrors.length || step.answers.some((answer) => answer.redacted))) {
+        sendResponse({ ok: false, error: "The live application now has a blocker, validation error, or redacted secret field." }); return;
+      }
+
+      const attemptId = crypto.randomUUID();
+      const startedAt = Date.now();
+      const deadlineAt = startedAt + SUBMISSION_CONFIRMATION_WINDOW_MS;
+      const attempt: SubmissionAttempt = { attemptId, sessionId: message.sessionId, draftId: message.draftId, tabId: message.tabId, frameId: fresh.submitTarget.frameId, snapshotHash: fresh.snapshotHash, startedAt, deadlineAt, status: "armed", signals: [] };
+      const consumed = await consumeApplicationApproval({ attemptId, draftId: message.draftId, sessionId: message.sessionId, snapshotHash: message.snapshotHash, tokenVerifier: await sha256(grant.token), startedAt: new Date(startedAt).toISOString(), deadlineAt: new Date(deadlineAt).toISOString() });
+      if (!consumed.ok) { await chrome.storage.session.remove(grantKey); sendResponse(consumed); return; }
+      const attemptKey = `submissionAttempt:${attemptId}`;
+      await chrome.storage.session.set({ [attemptKey]: attempt, [`pendingSubmissionTab:${message.tabId}`]: attemptId, [`latestSubmissionTab:${message.tabId}`]: attemptId, [grantKey]: { ...grant, consumedAt: startedAt } });
+      await chrome.alarms.create(`submission:${attemptId}`, { when: deadlineAt });
+
+      // Arm all reachable frames before the click so a fast SPA transition cannot race
+      // past the observers. Failed observer injection is tolerated only if the exact
+      // target frame is still reachable for execution.
+      const frames = await chrome.webNavigation.getAllFrames({ tabId: message.tabId }).catch(() => null);
+      await Promise.all((frames ?? [{ frameId: 0 }]).map((frame) => chrome.tabs.sendMessage(message.tabId, { type: "OBSERVE_SUBMISSION_ATTEMPT", attemptId, startedAt, deadlineAt } satisfies ExtensionMessage, { frameId: frame.frameId }).catch(() => null)));
+      const executed = await chrome.tabs.sendMessage(message.tabId, { type: "EXECUTE_APPROVED_SUBMIT", attemptId, startedAt, deadlineAt, target: fresh.submitTarget } satisfies ExtensionMessage, { frameId: fresh.submitTarget.frameId }).catch((error) => ({ ok: false, reason: "execution_error", detail: String(error) }));
+      if (!executed?.ok) {
+        await finalizeAttempt(attempt, "failed", executed?.detail || "The exact reviewed Submit control could not be executed.");
+        sendResponse({ ok: false, error: executed?.detail || "Submission execution failed.", attemptId }); return;
+      }
+      const afterExecution = await chrome.storage.session.get(attemptKey);
+      const armed = afterExecution[attemptKey] as SubmissionAttempt | undefined;
+      if (armed && !armed.signals.some((signal) => signal.kind === "target_click")) {
+        await chrome.storage.session.set({ [attemptKey]: { ...armed, status: "clicked", signals: [...armed.signals, { kind: "target_click", at: Date.now(), detail: fresh.submitTarget.label, frameId: fresh.submitTarget.frameId, documentToken: fresh.submitTarget.documentToken }] } });
+      }
+      sendResponse({ ok: true, attemptId, deadlineAt });
+    })().catch((error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+    return true;
+  }
+
+  if (message.type === "SUBMISSION_ATTEMPT_SIGNAL") {
+    (async () => {
+      const key = `submissionAttempt:${message.attemptId}`;
+      const stored = await chrome.storage.session.get(key);
+      const attempt = stored[key] as SubmissionAttempt | undefined;
+      if (!attempt || attempt.tabId !== tabId || ["confirmed", "unknown", "failed"].includes(attempt.status)) { sendResponse({ ok: false, ignored: true }); return; }
+      const duplicate = attempt.signals.some((signal) => signal.kind === message.signal.kind && signal.detail === message.signal.detail && Math.abs(signal.at - message.signal.at) < 500);
+      const signals = duplicate ? attempt.signals : [...attempt.signals, { ...message.signal, frameId: sender.frameId ?? message.signal.frameId } as SubmissionSignal];
+      const next: SubmissionAttempt = { ...attempt, status: signals.some((signal) => signal.kind === "target_click") ? "clicked" : attempt.status, signals };
+      await chrome.storage.session.set({ [key]: next });
+      const verdict = evaluateSubmissionAttempt(next);
+      if (verdict.outcome === "confirmed" || verdict.outcome === "failed") await finalizeAttempt(next, verdict.outcome, verdict.reason, verdict.applicationId);
+      sendResponse({ ok: true, outcome: verdict.outcome });
+    })().catch((error) => sendResponse({ ok: false, error: String(error) }));
     return true;
   }
 
@@ -440,6 +601,29 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
 function messageTabId(sender: chrome.runtime.MessageSender): number | undefined {
   return sender.tab?.id;
 }
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (!alarm.name.startsWith("submission:")) return;
+  const attemptId = alarm.name.slice("submission:".length);
+  void chrome.storage.session.get(`submissionAttempt:${attemptId}`).then(async (stored) => {
+    const attempt = stored[`submissionAttempt:${attemptId}`] as SubmissionAttempt | undefined;
+    if (!attempt) return;
+    const verdict = evaluateSubmissionAttempt(attempt, Math.max(Date.now(), attempt.deadlineAt));
+    if (verdict.outcome === "confirmed" || verdict.outcome === "failed" || verdict.outcome === "unknown") await finalizeAttempt(attempt, verdict.outcome, verdict.reason, verdict.applicationId);
+  });
+});
+
+/** Re-arm initial URL/DOM confirmation scanning after a full document navigation. */
+chrome.webNavigation.onDOMContentLoaded.addListener((details) => {
+  void chrome.storage.session.get(`pendingSubmissionTab:${details.tabId}`).then(async (stored) => {
+    const attemptId = stored[`pendingSubmissionTab:${details.tabId}`] as string | undefined;
+    if (!attemptId) return;
+    const attemptValues = await chrome.storage.session.get(`submissionAttempt:${attemptId}`);
+    const attempt = attemptValues[`submissionAttempt:${attemptId}`] as SubmissionAttempt | undefined;
+    if (!attempt || Date.now() > attempt.deadlineAt || ["confirmed", "unknown", "failed"].includes(attempt.status)) return;
+    await chrome.tabs.sendMessage(details.tabId, { type: "OBSERVE_SUBMISSION_ATTEMPT", attemptId, startedAt: attempt.startedAt, deadlineAt: attempt.deadlineAt } satisfies ExtensionMessage, { frameId: details.frameId }).catch(() => undefined);
+  });
+});
 
 /**
  * Live profile sync.

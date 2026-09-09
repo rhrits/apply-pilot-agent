@@ -30,7 +30,10 @@ declare global {
 
 function report(method: string, url: string, status: number) {
   try {
-    if (!isApplicationRequest(method, url, status)) return;
+    // Classify the endpoint without filtering on status here. Phase E must observe a
+    // definitive 4xx/5xx failure as failure evidence rather than letting it time out as
+    // unknown. Bodies are still never read or reported.
+    if (!isApplicationRequest(method, url)) return;
     // Strip query and hash: they can carry session tokens or personal identifiers.
     const path = url.split(/[?#]/)[0].slice(0, 200);
     window.postMessage({ source: NETWORK_SIGNAL_SOURCE, method, url: path, status }, window.location.origin);

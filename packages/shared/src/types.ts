@@ -232,6 +232,10 @@ export type ExtensionMessage =
   | { type: "CAPTURE_FORM_FRAME"; frameId: number }
   | { type: "CAPTURE_APPLICATION_DRAFT"; tabId: number; sessionId: string }
   | { type: "APPROVE_APPLICATION_DRAFT"; draftId: string; sessionId: string; stepIndex: number; snapshotHash: string }
+  | { type: "SUBMIT_APPROVED_DRAFT"; tabId: number; draftId: string; sessionId: string; stepIndex: number; snapshotHash: string }
+  | { type: "EXECUTE_APPROVED_SUBMIT"; attemptId: string; startedAt: number; deadlineAt: number; target: { label: string; frameId: number; selector: string; shadowPath: string[]; documentToken: string; tagName: "button" | "input"; type: "submit"; role?: string; disabled: boolean; ariaDisabled: boolean; formFingerprint: string } }
+  | { type: "OBSERVE_SUBMISSION_ATTEMPT"; attemptId: string; startedAt: number; deadlineAt: number }
+  | { type: "SUBMISSION_ATTEMPT_SIGNAL"; attemptId: string; signal: { kind: "target_click" | "form_submit" | "network_success" | "network_failure" | "confirmation_url" | "confirmation_dom" | "application_id" | "validation_error" | "captcha"; at: number; detail?: string; frameId?: number; documentToken?: string } }
   | { type: "GET_RESUME_FILE" }
   | { type: "ATTACH_RESUME"; fileName: string; mimeType: string; dataUrl: string }
   | { type: "GET_PAGE_SUMMARY" }
