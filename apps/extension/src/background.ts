@@ -1,6 +1,7 @@
 import type { ActiveFieldPayload, ExtensionAuthStatus, ExtensionMessage, ExtensionSettings } from "@uplyfox/shared";
 import { extensionConfig, isExtensionConfigured } from "./lib/config";
-import { clearExtensionSession, fetchAuthenticatedProfile, fetchResumeFile, fetchTracker, getExtensionAuthStatus, getExtensionSupabase, saveJobToSupabase } from "./lib/supabase";
+import { checkConnection, postJson } from "./lib/api-client";
+import { clearExtensionSession, fetchAuthenticatedProfile, fetchResumeFile, fetchTracker, getExtensionAuthStatus, getExtensionSupabase, markApplicationApplied, saveJobToSupabase, undoApplicationApplied } from "./lib/supabase";
 import { findLocalMemory, saveAnswerMemory } from "./lib/memory";
 import { saveUnknownQuestion } from "./lib/unknown-questions";
 
@@ -120,11 +121,27 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         const supabase = getExtensionSupabase();
         const { data } = (await supabase?.auth.getSession()) ?? { data: { session: null } };
         const accessToken = data.session?.access_token;
-        if (!accessToken) { sendResponse({ answer: "", error: "Not signed in" }); return; }
-        const response = await fetch(extensionConfig.aiApiUrl, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ question: message.question, page: message.page, field: message.field, selectedText: message.selectedText }) });
-        const payload = await response.json();
-        sendResponse(response.ok ? { answer: payload.answer ?? "", source: payload.source, notice: payload.notice } : { answer: "", error: payload.error ?? "Request failed" });
+        if (!accessToken) { sendResponse({ answer: "", error: "Sign in from the UplyFox popup to get suggestions." }); return; }
+        const result = await postJson<{ answer?: string; source?: string; notice?: string }>(extensionConfig.aiApiUrl, {
+          question: message.question, page: message.page, field: message.field, selectedText: message.selectedText,
+        }, accessToken);
+        // Transport and account failures are reported as a notice rather than a raw
+        // exception string, so the overlay always explains what to do next.
+        if (!result.ok) { sendResponse({ answer: "", error: result.message, kind: result.kind }); return; }
+        sendResponse({ answer: result.data.answer ?? "", source: result.data.source, notice: result.data.notice });
       } catch (error) { sendResponse({ answer: "", error: String(error) }); }
+    })();
+    return true;
+  }
+
+  if (message.type === "CHECK_CONNECTION") {
+    (async () => {
+      try {
+        await readyStatus();
+        const supabase = getExtensionSupabase();
+        const { data } = (await supabase?.auth.getSession()) ?? { data: { session: null } };
+        sendResponse(await checkConnection(data.session?.access_token));
+      } catch (error) { sendResponse({ ok: false, message: String(error), host: "", localhostBuild: false }); }
     })();
     return true;
   }
@@ -150,6 +167,31 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         sendResponse(result);
       } catch (error) { sendResponse({ ok: false, error: String(error) }); }
     })();
+    return true;
+  }
+
+  if (message.type === "APPLICATION_SUBMITTED") {
+    (async () => {
+      try {
+        await readyStatus();
+        const settings = await chrome.storage.local.get("settings");
+        if (settings.settings?.autoTrackJobs === false) { sendResponse({ ok: false, ignored: true }); return; }
+        const result = await markApplicationApplied(message.job, message.verdict);
+        // Surfaced in the side panel with an Undo action: an automatic status change is
+        // only trustworthy if the user can see it and reverse it.
+        if (result.ok && result.changed) {
+          for (const port of panelPorts) {
+            port.postMessage({ type: "APPLICATION_APPLIED", job: message.job, verdict: message.verdict });
+          }
+        }
+        sendResponse(result);
+      } catch (error) { sendResponse({ ok: false, error: String(error) }); }
+    })();
+    return true;
+  }
+
+  if (message.type === "UNDO_APPLICATION") {
+    readyStatus().then(() => undoApplicationApplied(message.url)).then(sendResponse).catch((error) => sendResponse({ ok: false, error: String(error) }));
     return true;
   }
 

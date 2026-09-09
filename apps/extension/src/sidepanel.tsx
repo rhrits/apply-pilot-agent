@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { ActiveFieldPayload, AnswerResponse, ExtensionAccessState, ExtensionMessage, PageSummary, ScannedField, UserProfile } from "@uplyfox/shared";
+import { describeApplicationSignals, type ActiveFieldPayload, type AnswerResponse, type ApplicationVerdict, type ExtensionAccessState, type ExtensionMessage, type PageSummary, type ScannedField, type UserProfile } from "@uplyfox/shared";
 import { extensionConfig } from "./lib/config";
 import type { TrackerSnapshot } from "./lib/supabase";
 import { CopyButton, DictationControl, ExternalIcon, InsertIcon, SaveIcon, SyncIcon } from "./components/ui";
@@ -109,6 +109,7 @@ function SidePanel() {
   const [fields, setFields] = useState<ScannedField[]>([]);
   const [tracker, setTracker] = useState<TrackerSnapshot | null>(null);
   const [pageMatch, setPageMatch] = useState<PageSummary | null>(null);
+  const [appliedToast, setAppliedToast] = useState<{ title: string; url: string; reason: string } | null>(null);
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: "AUTH_STATUS" } satisfies ExtensionMessage).then((result) => {
@@ -126,9 +127,18 @@ function SidePanel() {
 
     // Opening this port asks the worker for a fresh profile, so the panel is never stale.
     const port = chrome.runtime.connect({ name: "uplyfox-panel" });
-    port.onMessage.addListener((message: { type: string; profile?: UserProfile; status?: { accessState?: ExtensionAccessState }; payload?: ActiveFieldPayload }) => {
+    port.onMessage.addListener((message: { type: string; profile?: UserProfile; status?: { accessState?: ExtensionAccessState }; payload?: ActiveFieldPayload; job?: PageSummary; verdict?: ApplicationVerdict }) => {
       if (message.type === "PROFILE_SYNCED" && message.profile) setProfile(message.profile);
       if (message.type === "ACTIVE_FIELD" && message.payload) { setActive(message.payload); setQuestion(message.payload.field.question); setSelectedText(""); setAnswer(null); }
+      if (message.type === "APPLICATION_APPLIED" && message.job) {
+        // Always show why, so an automatic status change is never opaque.
+        setAppliedToast({
+          title: [message.job.title, message.job.company].filter(Boolean).join(" · ") || "This application",
+          url: message.job.url,
+          reason: describeApplicationSignals(message.verdict?.signals ?? []),
+        });
+        void loadTracker();
+      }
       if (message.type === "AUTH_STATUS") {
         setAccessState(message.status?.accessState ?? "unauthenticated");
         setAuthenticated(message.status?.accessState === "ready");
@@ -271,6 +281,19 @@ function SidePanel() {
 
     {!authenticated && <section className="auth-banner">Sign in from the extension popup to connect your profile.</section>}
     {authenticated && <section className="account-banner">{accountEmail}</section>}
+
+    {appliedToast && <section className="applied-toast">
+      <div>
+        <strong>Marked as applied</strong>
+        <p>{appliedToast.title}</p>
+        <small>{appliedToast.reason}</small>
+      </div>
+      <button onClick={() => {
+        chrome.runtime.sendMessage({ type: "UNDO_APPLICATION", url: appliedToast.url } satisfies ExtensionMessage)
+          .then(() => { setAppliedToast(null); void loadTracker(); })
+          .catch(() => setAppliedToast(null));
+      }}>Undo</button>
+    </section>}
 
     <section className="page-card">
       <small>{active?.page.hostname ?? "Current page"}</small>

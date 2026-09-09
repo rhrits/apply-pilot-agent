@@ -36,3 +36,12 @@ input:focus,textarea:focus{border-color:var(--uplyfox-purple)!important;box-shad
 .chip.matched{background:#fff;color:var(--uplyfox-wine);border:1px solid var(--uplyfox-wine-border)}
 .chip.missing{background:#fff;color:var(--uplyfox-purple);border:1px dashed var(--uplyfox-purple-border)}
 .match-summary{margin:9px 0 0;font-size:10px;line-height:1.5;color:#5f5c74}
+
+/* Undoable notice shown when a submission was detected and the status changed itself. */
+.applied-toast{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px;padding:10px 11px;border:1px solid var(--uplyfox-wine-border);border-radius:11px;background:var(--uplyfox-wine-soft)}
+.applied-toast strong{display:block;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--uplyfox-wine)}
+.applied-toast p{margin:3px 0 0;font-size:11px;font-weight:600;line-height:1.35;color:#1f2040}
+.applied-toast small{display:block;margin-top:3px;font-size:9px;line-height:1.45;color:#6b6880}
+.applied-toast button{flex-shrink:0;padding:5px 11px;border:1px solid var(--uplyfox-wine-border);border-radius:7px;background:#fff;color:var(--uplyfox-wine);font:700 10px system-ui;cursor:pointer}
+.applied-toast button:hover{background:var(--uplyfox-gradient);color:#fff;border-color:transparent}
+

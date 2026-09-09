@@ -19,6 +19,15 @@ function Popup() {
   const [autoSuggest, setAutoSuggest] = useState(true);
   const [liveAI, setLiveAI] = useState(true);
   const [activeTabId, setActiveTabId] = useState<number | null>(null);
+  const [connection, setConnection] = useState<{ ok: boolean; message: string; localhostBuild?: boolean } | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  async function runConnectionCheck() {
+    setChecking(true);
+    const report = await chrome.runtime.sendMessage({ type: "CHECK_CONNECTION" } satisfies ExtensionMessage).catch(() => null);
+    setConnection(report ?? { ok: false, message: "The UplyFox background worker did not respond. Reload the extension." });
+    setChecking(false);
+  }
 
   async function loadAuth() {
     const result = await chrome.runtime.sendMessage({ type: "AUTH_STATUS" } satisfies ExtensionMessage) as AuthState;
@@ -55,6 +64,11 @@ function Popup() {
     await chrome.runtime.sendMessage({ type: "UPDATE_SETTINGS", settings: { liveAI: next } } satisfies ExtensionMessage);
   }
 
+  const connectionPanel = <>
+    <button className="button secondary" onClick={runConnectionCheck} disabled={checking}>{checking ? "Checking…" : "Check AI connection"}</button>
+    {connection && <p className={`connection-note ${connection.ok ? "ok" : "bad"}`}>{connection.message}</p>}
+  </>;
+
 
   async function requestCode() {
     if (!email.trim()) { setMessage("Enter your email first"); return; }
@@ -86,7 +100,7 @@ function Popup() {
   }
   function openProfile() { chrome.tabs.create({ url: auth.accessState === "profile_required" ? auth.onboardingUrl ?? `${extensionConfig.webAppUrl}/login?next=/onboarding` : auth.profileUrl ?? `${extensionConfig.webAppUrl}/profile` }); }
 
-  return <main className="popup-shell"><div className="brand"><img className="brand-mark" src="/icons/48.png" width={34} height={34} alt="" /><div><strong>UplyFox</strong><small>Authenticated job copilot</small></div></div><div className="status"><span className={`dot ${auth.authenticated ? "" : "idle"}`} />{message}</div>{auth.authenticated ? <><div className="account-card"><strong>{auth.email}</strong><span>Profile data synced</span></div><button className="button primary" onClick={openPanel}>Open page assistant</button><button className="button secondary" onClick={refreshProfile}>Sync profile data</button><label className="toggle-row"><span><strong>Automatic suggestions</strong><small>Show a suggestion when you focus a field</small></span><input type="checkbox" checked={autoSuggest} onChange={toggleAutoSuggest} /></label><label className="toggle-row"><span><strong>Live AI suggestions</strong><small>When there's no direct match, ask the AI and offer to save it</small></span><input type="checkbox" checked={liveAI} onChange={toggleLiveAI} /></label><button className="button secondary" onClick={signOut}>Sign out</button></> : <section className="popup-auth"><h2>Connect your profile</h2><p>Use the same email as the web app to sync your profile data.</p>{step === "email" ? <><input className="popup-input" value={email} onChange={(event) => setEmail(event.target.value)} type="email" placeholder="you@example.com" /><button className="button primary" onClick={requestCode} disabled={busy}>{busy ? "Sending…" : "Send sign-in email"}</button></> : <><input className="popup-input" value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" maxLength={8} placeholder="Code from email" /><button className="button primary" onClick={verifyCode} disabled={busy}>{busy ? "Verifying…" : "Verify code"}</button><button className="button secondary" onClick={() => setStep("email")}>Change email</button></>}{!auth.configured && <button className="button secondary" onClick={openProfile}>Open web setup</button>}</section>}<p className="privacy-note">Your session stays in extension storage. Your profile data is only available to you.</p></main>;
+  return <main className="popup-shell"><div className="brand"><img className="brand-mark" src="/icons/48.png" width={34} height={34} alt="" /><div><strong>UplyFox</strong><small>Authenticated job copilot</small></div></div><div className="status"><span className={`dot ${auth.authenticated ? "" : "idle"}`} />{message}</div>{auth.authenticated ? <><div className="account-card"><strong>{auth.email}</strong><span>Profile data synced</span></div><button className="button primary" onClick={openPanel}>Open page assistant</button><button className="button secondary" onClick={refreshProfile}>Sync profile data</button><label className="toggle-row"><span><strong>Automatic suggestions</strong><small>Show a suggestion when you focus a field</small></span><input type="checkbox" checked={autoSuggest} onChange={toggleAutoSuggest} /></label><label className="toggle-row"><span><strong>Live AI suggestions</strong><small>When there's no direct match, ask the AI and offer to save it</small></span><input type="checkbox" checked={liveAI} onChange={toggleLiveAI} /></label>{connectionPanel}<button className="button secondary" onClick={signOut}>Sign out</button></> : <section className="popup-auth"><h2>Connect your profile</h2><p>Use the same email as the web app to sync your profile data.</p>{step === "email" ? <><input className="popup-input" value={email} onChange={(event) => setEmail(event.target.value)} type="email" placeholder="you@example.com" /><button className="button primary" onClick={requestCode} disabled={busy}>{busy ? "Sending…" : "Send sign-in email"}</button></> : <><input className="popup-input" value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" maxLength={8} placeholder="Code from email" /><button className="button primary" onClick={verifyCode} disabled={busy}>{busy ? "Verifying…" : "Verify code"}</button><button className="button secondary" onClick={() => setStep("email")}>Change email</button></>}{!auth.configured && <button className="button secondary" onClick={openProfile}>Open web setup</button>}</section>}<p className="privacy-note">Your session stays in extension storage. Your profile data is only available to you.</p></main>;
 }
 
 createRoot(document.getElementById("root")!).render(<Popup />);

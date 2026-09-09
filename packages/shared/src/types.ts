@@ -114,6 +114,27 @@ export interface ResumeAnalysis {
 
 export type ApplicationStatus = "saved" | "applying" | "applied" | "assessment" | "interview" | "offer" | "rejected" | "withdrawn";
 
+/** One observation suggesting the user submitted an application on the current page. */
+export type ApplicationSignalKind =
+  | "intent_click"
+  | "form_submit"
+  | "network_post"
+  | "url_confirmation"
+  | "dom_confirmation";
+
+export interface ApplicationSignal {
+  kind: ApplicationSignalKind;
+  /** Short, non-sensitive evidence (button text, endpoint path). Never a request body. */
+  detail?: string;
+  at: number;
+}
+
+export interface ApplicationVerdict {
+  applied: boolean;
+  confidence: number;
+  signals: ApplicationSignal[];
+}
+
 export interface JobApplication {
   id: string;
   remoteId?: string;
@@ -208,6 +229,9 @@ export type ExtensionMessage =
   | { type: "GET_PAGE_SUMMARY" }
   | { type: "JOB_PAGE_DETECTED"; job: PageSummary }
   | { type: "SAVE_JOB"; job: PageSummary }
+  | { type: "APPLICATION_SUBMITTED"; job: PageSummary; verdict: ApplicationVerdict }
+  | { type: "UNDO_APPLICATION"; url: string }
+  | { type: "CHECK_CONNECTION" }
   | { type: "GET_TRACKER" }
   | { type: "TRANSCRIBE_AUDIO"; dataUrl: string; mimeType: string }
   | { type: "SUGGEST_ANSWER"; question: string; page: ActiveFieldPayload["page"]; field?: DetectedField; selectedText?: string }
@@ -247,4 +271,8 @@ export interface AnswerResponse {
   source: "profile" | "ai" | "demo" | "memory";
   confidence: number;
   notice?: string;
+  /** How well the profile covered the question, from fact retrieval. */
+  coverage?: number;
+  /** Profile areas the question needed but that hold no data. */
+  gaps?: string[];
 }

@@ -17,6 +17,15 @@ const manifest: ManifestV3Export = {
       js: ["src/content.ts"],
       run_at: "document_idle",
     },
+    {
+      // Runs in the page's own JS context so submissions made with the page's `fetch`
+      // or `XMLHttpRequest` are observable. It reports method, path, and status only —
+      // never request or response bodies. See src/network-observer.ts.
+      matches: ["<all_urls>"],
+      js: ["src/network-observer.ts"],
+      run_at: "document_start",
+      world: "MAIN",
+    },
   ],
 };
 

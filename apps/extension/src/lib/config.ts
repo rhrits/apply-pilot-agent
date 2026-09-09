@@ -1,4 +1,15 @@
-const webAppUrl = (import.meta.env.VITE_WEB_APP_URL || "http://localhost:3000").replace(/\/$/, "");
+/**
+ * Where the extension sends API requests.
+ *
+ * The default is the production site, not localhost. A packaged build with no
+ * `VITE_WEB_APP_URL` previously fell back to `http://localhost:3000`, so every request
+ * failed with a bare "Failed to fetch" and suggestions appeared silently broken.
+ * Defaulting to production means a forgotten env var degrades to the right target
+ * instead of a dead one; local development sets the variable explicitly.
+ */
+export const PRODUCTION_WEB_APP_URL = "https://ap.coderscookies.com";
+
+const webAppUrl = (import.meta.env.VITE_WEB_APP_URL || PRODUCTION_WEB_APP_URL).replace(/\/$/, "");
 
 export const extensionConfig = {
   supabaseUrl: import.meta.env.VITE_SUPABASE_URL || "",

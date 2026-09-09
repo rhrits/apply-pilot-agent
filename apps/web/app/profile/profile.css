@@ -136,13 +136,29 @@
 .save-button:disabled{opacity:.6}
 .save-button.wide{width:100%;margin-top:12px}
 
+/* Extraction review queue */
+.review-queue{padding:18px 20px;margin-bottom:16px;border:1px solid var(--wine-border);border-radius:var(--radius);background:var(--wine-soft)}
+.review-queue .section-head{margin-bottom:4px}
+.review-queue h3{color:var(--wine)}
+.review-intro{display:block;margin:0 0 12px;font-size:11px;line-height:1.55}
+.review-list{list-style:none;display:grid;gap:8px;margin:0;padding:0}
+.review-item{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:11px 13px;border:1px solid var(--wine-border);border-radius:10px;background:var(--surface)}
+.review-item.needs_review{border-left:3px solid var(--wine)}
+.review-item.check{border-left:3px solid var(--purple)}
+.review-main{display:grid;gap:3px;min-width:0}
+.review-area{font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--purple)}
+.review-main strong{font-size:12px;line-height:1.4;overflow-wrap:anywhere}
+.review-main small{font-size:10px;line-height:1.5;color:var(--muted)}
+.review-item .ghost-button{flex-shrink:0;padding:6px 12px;font-size:11px}
+@media(max-width:620px){.review-item{flex-direction:column;align-items:stretch}}
+
 /* Sticky save bar */
 .save-bar{position:fixed;left:50%;bottom:24px;transform:translate(-50%,140%);display:flex;align-items:center;gap:20px;padding:13px 16px 13px 20px;border-radius:14px;background:#24234a;color:#fff;box-shadow:0 16px 40px rgba(31,32,64,.28);transition:transform .22s ease;z-index:20}
 .save-bar.visible{transform:translate(-50%,0)}
 .save-bar span{font-size:12px}
 .save-bar div{display:flex;align-items:center;gap:14px}
 .save-bar .text-link{color:#b9b8d1}
-.save-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);padding:12px 20px;border-radius:14px;background:var(--green);color:#fff;font-size:12px;font-weight:700;box-shadow:0 16px 40px rgba(16,153,106,.28);z-index:20}
+.save-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);padding:12px 20px;border-radius:14px;background:var(--success);color:#fff;font-size:12px;font-weight:700;box-shadow:0 16px 40px rgba(85,70,217,.28);z-index:20}
 
 @media(max-width:1000px){.field-grid{grid-template-columns:1fr 1fr}.profile-columns,.document-split{grid-template-columns:1fr}}
 .section-head.secondary-head{margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}

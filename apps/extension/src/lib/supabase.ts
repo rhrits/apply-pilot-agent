@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
-import type { ExtensionAuthStatus, PageSummary, UserProfile } from "@uplyfox/shared";
+import type { ApplicationVerdict, ExtensionAuthStatus, PageSummary, UserProfile } from "@uplyfox/shared";
 import { extensionConfig, isExtensionConfigured } from "./config";
 
 const chromeStorage = {
@@ -188,6 +188,66 @@ export async function saveJobToSupabase(job: PageSummary): Promise<{ ok: boolean
   const { error: applicationError } = await supabase.from("applications").insert({ user_id: user.id, job_id: savedJob.id, status: "saved" });
   if (applicationError) return { ok: false, error: applicationError.message };
   return { ok: true };
+}
+
+/**
+ * Moves a tracked opportunity to "applied" after the detector observed a real
+ * submission, saving the job first if it was never tracked.
+ *
+ * Only forward transitions from "saved"/"applying" are made: if the candidate has
+ * already recorded an interview or an offer, an automatic signal must never regress it.
+ */
+export async function markApplicationApplied(job: PageSummary, verdict?: ApplicationVerdict): Promise<{ ok: boolean; error?: string; changed?: boolean }> {
+  const supabase = getExtensionSupabase();
+  if (!supabase) return { ok: false, error: "Extension setup is missing." };
+  const user = await getExtensionUser();
+  if (!user) return { ok: false, error: "Sign in to track applications." };
+
+  const normalizedUrl = job.url.replace(/[?#].*$/, "").replace(/\/$/, "");
+  let { data: existing } = await supabase.from("jobs").select("id").eq("user_id", user.id).in("url", [job.url, normalizedUrl]).limit(1).maybeSingle();
+
+  if (!existing) {
+    const saved = await saveJobToSupabase(job);
+    if (!saved.ok) return { ok: false, error: saved.error };
+    const { data: created } = await supabase.from("jobs").select("id").eq("user_id", user.id).in("url", [job.url, normalizedUrl]).limit(1).maybeSingle();
+    existing = created ?? null;
+  }
+  if (!existing) return { ok: false, error: "Could not locate the tracked job." };
+
+  const { data: application } = await supabase
+    .from("applications").select("id,status").eq("user_id", user.id).eq("job_id", existing.id).limit(1).maybeSingle();
+
+  // Stored so the automatic decision stays auditable after the fact.
+  const evidence = {
+    detection_signals: verdict ? verdict.signals : null,
+    detection_confidence: verdict ? verdict.confidence : null,
+  };
+
+  if (!application) {
+    const { error } = await supabase.from("applications").insert({ user_id: user.id, job_id: existing.id, status: "applied", ...evidence });
+    return error ? { ok: false, error: error.message } : { ok: true, changed: true };
+  }
+
+  if (!["saved", "applying"].includes(String(application.status))) return { ok: true, changed: false };
+
+  const { error } = await supabase.from("applications").update({ status: "applied", ...evidence }).eq("id", application.id);
+  return error ? { ok: false, error: error.message } : { ok: true, changed: true };
+}
+
+/** Reverts an automatic "applied" transition when the user presses Undo. */
+export async function undoApplicationApplied(url: string): Promise<{ ok: boolean; error?: string }> {
+  const supabase = getExtensionSupabase();
+  if (!supabase) return { ok: false, error: "Extension setup is missing." };
+  const user = await getExtensionUser();
+  if (!user) return { ok: false, error: "Sign in first." };
+
+  const normalizedUrl = url.replace(/[?#].*$/, "").replace(/\/$/, "");
+  const { data: job } = await supabase.from("jobs").select("id").eq("user_id", user.id).in("url", [url, normalizedUrl]).limit(1).maybeSingle();
+  if (!job) return { ok: true };
+
+  const { error } = await supabase
+    .from("applications").update({ status: "saved" }).eq("user_id", user.id).eq("job_id", job.id).eq("status", "applied");
+  return error ? { ok: false, error: error.message } : { ok: true };
 }
 
 export interface TrackedJob {

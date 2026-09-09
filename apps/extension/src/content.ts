@@ -1,5 +1,6 @@
 import { analyzeJobMatch, type ExtensionMessage, type PageSummary } from "@uplyfox/shared";
 import { answerForField, extractField } from "./lib/field-detector";
+import { currentApplicationVerdict, installApplicationDetector } from "./lib/application-signals";
 import { insertValue } from "./lib/insertion";
 import { getProfile } from "./lib/profile";
 import "./styles.css";
@@ -175,7 +176,41 @@ history.replaceState = function (...args) {
 };
 scheduleJobDetection();
 
+/**
+ * Application tracking. When enough independent signals agree that the user actually
+ * submitted an application, tell the worker so the tracked job moves to "applied".
+ * The page summary is re-read at that moment so the job is recorded even if the user
+ * never opened the side panel.
+ */
+installApplicationDetector(() => {
+  void (async () => {
+    const settings = await chrome.runtime.sendMessage({ type: "GET_SETTINGS" } satisfies ExtensionMessage).catch(() => null);
+    if (settings?.autoTrackJobs === false) return;
+    const job = await getPageSummary().catch(() => null);
+    if (!job) return;
+    chrome.runtime
+      .sendMessage({ type: "APPLICATION_SUBMITTED", job, verdict: currentApplicationVerdict() } satisfies ExtensionMessage)
+      .catch(() => undefined);
+  })();
+});
+
 const FORM_SELECTOR = "input, textarea, select, [contenteditable='true']";
+
+/**
+ * Query across open shadow roots as well as the light DOM.
+ *
+ * `document.querySelectorAll` stops at every shadow boundary, so application forms
+ * rendered as web components — increasingly common in modal "quick apply" flows — were
+ * completely invisible. Closed shadow roots remain unreachable by design.
+ */
+function queryDeep(selector: string, root: ParentNode = document): Element[] {
+  const found = Array.from(root.querySelectorAll(selector));
+  for (const element of Array.from(root.querySelectorAll("*"))) {
+    const shadow = (element as HTMLElement).shadowRoot;
+    if (shadow) found.push(...queryDeep(selector, shadow));
+  }
+  return found;
+}
 
 function visible(element: Element) {
   const rect = element.getBoundingClientRect();
@@ -184,7 +219,7 @@ function visible(element: Element) {
 }
 
 function collectFields() {
-  return Array.from(document.querySelectorAll(FORM_SELECTOR))
+  return queryDeep(FORM_SELECTOR)
     .filter(visible)
     .map((element) => ({ element, field: extractField(element) }))
     .filter((entry): entry is { element: Element; field: NonNullable<ReturnType<typeof extractField>> } => entry.field !== null);
@@ -218,7 +253,7 @@ function dataUrlToFile(dataUrl: string, fileName: string, mimeType: string) {
 }
 
 function attachResume(fileName: string, mimeType: string, dataUrl: string) {
-  const inputs = Array.from(document.querySelectorAll<HTMLInputElement>("input[type='file']")).filter(visible);
+  const inputs = (queryDeep("input[type='file']") as HTMLInputElement[]).filter(visible);
   const target = inputs.find((input) => !input.files?.length) ?? inputs[0];
   if (!target) return { ok: false, error: "No file upload field found on this page." };
   const transfer = new DataTransfer();

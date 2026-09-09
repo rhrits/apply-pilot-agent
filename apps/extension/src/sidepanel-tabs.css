@@ -3,7 +3,7 @@
 /* Icon buttons */
 .icon-button{display:inline-grid;place-items:center;flex-shrink:0;width:28px;height:28px;border:0;border-radius:7px;background:#eef2ff;color:#4338ca;cursor:pointer;text-decoration:none}
 .icon-button:hover{background:#e0e7ff}
-.icon-button.ok{background:#d1fae5;color:#047857}
+.icon-button.ok{background:#f4f2ff;color:#5546d9}
 
 /* Tracker */
 .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
@@ -17,8 +17,8 @@
 .job-row strong{display:block;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .job-row small{display:block;font-size:9px;color:#9a99ad;margin-top:2px}
 .job-status{flex-shrink:0;padding:4px 7px;border-radius:20px;background:#eef2ff;color:#4338ca;font:800 8px system-ui;text-transform:uppercase;letter-spacing:.04em}
-.job-match-score{flex-shrink:0;padding:4px 6px;border-radius:20px;background:#d1fae5;color:#047857;font:800 9px system-ui}
-.job-status.interview,.job-status.offer{background:#d1fae5;color:#047857}
+.job-match-score{flex-shrink:0;padding:4px 6px;border-radius:20px;background:#f4f2ff;color:#5546d9;font:800 9px system-ui}
+.job-status.interview,.job-status.offer{background:#f4f2ff;color:#5546d9}
 .job-status.rejected,.job-status.withdrawn{background:#fee2e2;color:#b91c1c}
 .job-status.applied,.job-status.applying,.job-status.assessment{background:#fef3c7;color:#92400e}
 .wide-link{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;padding:10px;border-radius:9px;background:#4f46e5;color:#fff;font:700 11px system-ui;text-decoration:none}
@@ -39,5 +39,5 @@
 
 /* Answer source tag */
 .source-tag{padding:3px 6px;border-radius:5px;background:#eef2ff;color:#4338ca;font-size:8px;font-weight:800;text-transform:uppercase}
-.source-tag.memory,.source-tag.profile{background:#d1fae5;color:#047857}
+.source-tag.memory,.source-tag.profile{background:#f4f2ff;color:#5546d9}
 .ready.off{background:#fef3c7;color:#92400e}

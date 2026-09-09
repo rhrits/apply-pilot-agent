@@ -77,8 +77,8 @@
 .autosave{display:flex;align-items:center;gap:7px;margin-top:12px;font-size:10px;font-weight:700;color:var(--muted)}
 .autosave-dot{width:6px;height:6px;border-radius:50%;background:#c9c8d8}
 .autosave.saving .autosave-dot{background:#efa73c}
-.autosave.saved{color:var(--green)}
-.autosave.saved .autosave-dot{background:var(--green)}
+.autosave.saved{color:var(--success)}
+.autosave.saved .autosave-dot{background:var(--success)}
 .autosave.error{color:#c0392b}
 .autosave.error .autosave-dot{background:#c0392b}
 

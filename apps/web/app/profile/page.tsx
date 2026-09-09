@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildProfileMarkdown,
+  buildReviewQueue,
+  describeReviewQueue,
   emptyProfile,
   groupProjects,
   mergeProfile,
@@ -24,6 +26,13 @@ import "./profile.css";
 
 type Tab = "overview" | "document" | "details" | "sources";
 type SaveState = "clean" | "dirty" | "saving" | "saved" | "error";
+
+const PROFILE_TABS: Array<[Tab, string]> = [
+  ["overview", "Overview"],
+  ["document", "Profile document"],
+  ["details", "Application details"],
+  ["sources", "Resume & sources"],
+];
 
 export default function ProfilePage() {
   return <AuthGate><ProfileWorkspace /></AuthGate>;
@@ -123,6 +132,40 @@ function ProfileWorkspace() {
 
   const markDirty = useCallback(() => { if (loaded.current) setSaveState("dirty"); }, []);
 
+  /**
+   * Fields that look mis-parsed. Recomputed as the profile is edited so an item
+   * disappears the moment it is corrected.
+   */
+  const reviewQueue = useMemo(() => buildReviewQueue(profile, sources), [profile, sources]);
+
+  /**
+   * Tab selection, mirrored into the URL hash.
+   *
+   * Without this the active tab is lost on reload and cannot be linked to, which is
+   * painful when pointing someone at a specific section (for example the review queue).
+   */
+  const selectTab = useCallback((next: Tab) => {
+    setTab(next);
+    if (typeof window !== "undefined") window.history.replaceState(null, "", `#${next}`);
+  }, []);
+
+  // Restore the tab named in the URL on first load.
+  useEffect(() => {
+    const hash = window.location.hash.replace("#", "") as Tab;
+    if (PROFILE_TABS.some(([key]) => key === hash)) setTab(hash);
+  }, []);
+
+  /** Arrow-key movement between tabs, as expected for a WAI-ARIA tablist. */
+  function onTabKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
+    const offset = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+    if (!offset) return;
+    event.preventDefault();
+    const index = PROFILE_TABS.findIndex(([key]) => key === tab);
+    const next = PROFILE_TABS[(index + offset + PROFILE_TABS.length) % PROFILE_TABS.length][0];
+    selectTab(next);
+    document.getElementById(`profile-tab-${next}`)?.focus();
+  }
+
   function updateField(field: keyof UserProfile, value: string) {
     setProfile((current) => ({ ...current, [field]: value }));
     setSources((current) => ({ ...current, [field]: "manual" }));
@@ -186,8 +229,24 @@ function ProfileWorkspace() {
     setNewSkill(""); markDirty();
   }
 
-  function removeSkill(name: string) {
-    setProfile((current) => ({ ...current, skills: (current.skills ?? []).filter((skill) => skill.name !== name) }));
+  /**
+   * Edits one skill row by position.
+   *
+   * Position, not name: rows are editable, so while a name is being typed several rows
+   * can share a value (or be blank) and a name-keyed update would edit the wrong row.
+   */
+  function updateSkill(index: number, patch: Partial<{ name: string; years: number | undefined; proficiency: string | undefined }>) {
+    setProfile((current) => ({
+      ...current,
+      skills: (current.skills ?? []).map((entry, position) => position === index ? { ...entry, ...patch } : entry),
+    }));
+    markDirty();
+  }
+
+  function removeSkill(index: number) {
+    // Remove by position. Filtering by name deleted every row sharing that name, so
+    // clearing one duplicate silently destroyed the others.
+    setProfile((current) => ({ ...current, skills: (current.skills ?? []).filter((_, position) => position !== index) }));
     markDirty();
   }
 
@@ -256,14 +315,42 @@ function ProfileWorkspace() {
       {completeness.missing.map((item) => <span key={item}>{item}</span>)}
     </div>}
 
-    <nav className="profile-tabs">
-      {([["overview", "Overview"], ["document", "Profile document"], ["details", "Application details"], ["sources", "Resume & sources"]] as Array<[Tab, string]>).map(([key, label]) =>
-        <button key={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>{label}</button>)}
+    <nav className="profile-tabs" role="tablist" aria-label="Profile sections">
+      {PROFILE_TABS.map(([key, label]) =>
+        <button
+          key={key}
+          role="tab"
+          id={`profile-tab-${key}`}
+          aria-selected={tab === key}
+          aria-controls={`profile-panel-${key}`}
+          tabIndex={tab === key ? 0 : -1}
+          className={tab === key ? "active" : ""}
+          onClick={() => selectTab(key)}
+          onKeyDown={onTabKeyDown}
+        >{label}</button>)}
     </nav>
 
     {notice && <p className="profile-notice">{notice}</p>}
 
-    {tab === "overview" && <div className="profile-stack">
+    {reviewQueue.length > 0 && <section className="review-queue" aria-labelledby="review-queue-heading">
+      <div className="section-head">
+        <h3 id="review-queue-heading">Needs your review <span className="count">{reviewQueue.length}</span></h3>
+        <span className="card-hint">{describeReviewQueue(reviewQueue)}</span>
+      </div>
+      <p className="card-hint review-intro">Resume parsing is not perfect. These values look wrong, and they would be sent to employers as-is.</p>
+      <ul className="review-list">
+        {reviewQueue.map((entry) => <li key={entry.id} className={`review-item ${entry.severity}`}>
+          <div className="review-main">
+            <span className="review-area">{entry.area} · {entry.label}</span>
+            <strong>{entry.value}</strong>
+            <small>{entry.reason}</small>
+          </div>
+          <button className="ghost-button" onClick={() => selectTab(entry.tab)}>Fix</button>
+        </li>)}
+      </ul>
+    </section>}
+
+    {tab === "overview" && <div className="profile-stack" role="tabpanel" id="profile-panel-overview" aria-labelledby="profile-tab-overview">
       <section className="card">
         <div className="section-head"><h3>Basics</h3><span className="card-hint">Used to fill identity fields automatically</span></div>
         <div className="field-grid">{BASIC_FIELDS.map(([field, label, type]) => <label key={field}>
@@ -284,17 +371,20 @@ function ProfileWorkspace() {
           <input
             value={skill.name}
             placeholder="Skill"
-            onChange={(event) => { setProfile((current) => ({ ...current, skills: (current.skills ?? []).map((entry, position) => position === index ? { ...entry, name: event.target.value } : entry) })); markDirty(); }}
+            aria-label={`Skill ${index + 1} name`}
+            onChange={(event) => updateSkill(index, { name: event.target.value })}
           />
           <input
             type="number" min={0} max={50} step={0.5}
             value={skill.years ?? ""}
             placeholder="Years"
-            onChange={(event) => { const years = event.target.value === "" ? undefined : Number(event.target.value); setProfile((current) => ({ ...current, skills: (current.skills ?? []).map((entry, position) => position === index ? { ...entry, years } : entry) })); markDirty(); }}
+            aria-label={`Years of ${skill.name || "this skill"}`}
+            onChange={(event) => updateSkill(index, { years: event.target.value === "" ? undefined : Number(event.target.value) })}
           />
           <select
             value={skill.proficiency ?? ""}
-            onChange={(event) => { const proficiency = event.target.value || undefined; setProfile((current) => ({ ...current, skills: (current.skills ?? []).map((entry, position) => position === index ? { ...entry, proficiency } : entry) })); markDirty(); }}
+            aria-label={`Proficiency in ${skill.name || "this skill"}`}
+            onChange={(event) => updateSkill(index, { proficiency: event.target.value || undefined })}
           >
             <option value="">Level</option>
             <option value="beginner">Beginner</option>
@@ -302,7 +392,7 @@ function ProfileWorkspace() {
             <option value="advanced">Advanced</option>
             <option value="expert">Expert</option>
           </select>
-          <button onClick={() => removeSkill(skill.name)} aria-label={`Remove ${skill.name}`}>×</button>
+          <button onClick={() => removeSkill(index)} aria-label={`Remove ${skill.name || `skill ${index + 1}`}`}>×</button>
         </div>)}
           {!profile.skills?.length && <p className="empty-state">No skills yet. Import a resume or add them below.</p>}
         </div>
@@ -387,7 +477,7 @@ function ProfileWorkspace() {
       </section>
     </div>}
 
-    {tab === "document" && <section className="card">
+    {tab === "document" && <section className="card" role="tabpanel" id="profile-panel-document" aria-labelledby="profile-tab-document">
       <div className="section-head">
         <h3>Profile document</h3>
         <div className="head-actions">
@@ -402,7 +492,7 @@ function ProfileWorkspace() {
       </div>
     </section>}
 
-    {tab === "details" && <div className="profile-stack">
+    {tab === "details" && <div className="profile-stack" role="tabpanel" id="profile-panel-details" aria-labelledby="profile-tab-details">
       <section className="card">
         <div className="section-head"><h3>Application details</h3><span className="card-hint">The questions almost every form asks</span></div>
         <div className="field-grid">{DETAIL_FIELDS.map(([field, label]) => <label key={field}>
@@ -426,7 +516,7 @@ function ProfileWorkspace() {
       </section>
     </div>}
 
-    {tab === "sources" && <div className="profile-stack">
+    {tab === "sources" && <div className="profile-stack" role="tabpanel" id="profile-panel-sources" aria-labelledby="profile-tab-sources">
       {storedResume && <section className="card">
         <div className="section-head"><h3>Stored resume</h3><span className="pill">Used by the extension</span></div>
         <p className="card-hint">This is the exact file the browser extension attaches to job-board upload fields.</p>

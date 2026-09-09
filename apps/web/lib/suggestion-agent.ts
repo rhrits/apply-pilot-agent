@@ -1,4 +1,4 @@
-import { buildSuggestionPrompts, groupProjects, isUsableSuggestion, normalizeSuggestionOutput, type DetectedField, type UserProfile } from "@uplyfox/shared";
+import { buildSuggestionPrompts, extractInsufficientReason, isUsableSuggestion, normalizeSuggestionOutput, retrieveFacts, type DetectedField, type UserProfile } from "@uplyfox/shared";
 import { generate, hasAiProvider, isFailure, type ProviderName } from "./ai-provider";
 
 export interface SuggestionAgentInput {
@@ -14,74 +14,46 @@ export interface SuggestionAgentResult {
   answer: string;
   mode: "short_form" | "behavioral" | "selected_context";
   provider: ProviderName;
+  coverage: number;
 }
 
 export interface SuggestionAgentFailure {
   error: string;
   throttled: boolean;
   mode?: "short_form" | "behavioral" | "selected_context";
+  /** What the profile was missing, when the model could say. */
+  missing?: string;
+  coverage?: number;
+  gaps?: string[];
 }
 
-function candidateFacts(profile: UserProfile): Record<string, unknown> {
-  const grouped = groupProjects(profile);
-  return {
-    identity: {
-      firstName: profile.firstName,
-      lastName: profile.lastName,
-      fullName: [profile.firstName, profile.lastName].filter(Boolean).join(" "),
-      email: profile.email,
-      phone: profile.phone,
-      location: profile.location,
-      linkedin: profile.linkedin,
-      github: profile.github,
-      portfolio: profile.portfolio,
-    },
-    applicationFields: {
-      currentTitle: profile.currentTitle,
-      summary: profile.summary,
-      noticePeriod: profile.noticePeriod,
-      currentSalary: profile.currentSalary,
-      expectedSalary: profile.expectedSalary,
-      totalExperience: profile.totalExperience,
-      willingToRelocate: profile.willingToRelocate,
-      workAuthorization: profile.workAuthorization,
-      availability: profile.availability,
-    },
-    skills: (profile.skills ?? []).slice(0, 80),
-    experiences: (profile.experiences ?? []).slice(0, 8).map((role) => ({
-      company: role.company,
-      title: role.title,
-      period: role.period,
-      location: role.location,
-      summary: role.summary,
-      achievements: (role.achievements ?? []).slice(0, 8),
-      technologies: (role.skills ?? []).slice(0, 30),
-    })),
-    projects: [...grouped.primary, ...grouped.secondary].slice(0, 12).map((project) => ({
-      name: project.name,
-      description: project.description,
-      impact: project.impact,
-      role: project.role,
-      period: project.period,
-      technologies: project.technologies,
-      url: project.url,
-      source: project.source ?? "resume",
-    })),
-    education: (profile.education ?? []).slice(0, 8),
-    customAnswers: (profile.customFields ?? []).slice(0, 60).map((field) => ({ question: field.label, answer: field.value })),
-  };
+/**
+ * Groups the retrieved facts for the prompt.
+ *
+ * Only the facts that ranked highest for this question are included, ordered by
+ * relevance, so the answer-bearing fact is never buried behind dozens of unrelated ones.
+ */
+function retrievedFacts(question: string, profile: UserProfile) {
+  const retrieval = retrieveFacts(question, profile);
+  const grouped: Record<string, string[]> = {};
+  for (const fact of retrieval.facts) {
+    (grouped[fact.category] ??= []).push(fact.text);
+  }
+  return { payload: grouped as Record<string, unknown>, coverage: retrieval.coverage, gaps: retrieval.gaps };
 }
 
 export async function runSuggestionAgent(input: SuggestionAgentInput): Promise<SuggestionAgentResult | SuggestionAgentFailure> {
   if (!hasAiProvider()) return { error: "No AI provider is configured on the server.", throttled: false };
 
+  const { payload, coverage, gaps } = retrievedFacts(input.question, input.profile);
   const prompts = buildSuggestionPrompts({
     question: input.question,
     field: input.field,
     selectedText: input.selectedText,
     page: input.page,
-    candidateFacts: candidateFacts(input.profile),
+    candidateFacts: payload,
     relatedSavedAnswers: input.relatedSavedAnswers,
+    coverage,
   });
   const result = await generate({
     system: prompts.system,
@@ -89,9 +61,19 @@ export async function runSuggestionAgent(input: SuggestionAgentInput): Promise<S
     temperature: 0.25,
     maxTokens: prompts.mode === "behavioral" ? 360 : 180,
   });
-  if (isFailure(result)) return { ...result, mode: prompts.mode };
+  if (isFailure(result)) return { ...result, mode: prompts.mode, coverage };
 
   const answer = normalizeSuggestionOutput(result.text);
-  if (!isUsableSuggestion(answer)) return { error: "The candidate profile does not support a truthful answer.", throttled: false, mode: prompts.mode };
-  return { answer, mode: prompts.mode, provider: result.provider };
+  if (!isUsableSuggestion(answer)) {
+    return {
+      error: "The candidate profile does not support a truthful answer.",
+      throttled: false,
+      mode: prompts.mode,
+      // The model names the missing detail, so the user learns what to add.
+      missing: extractInsufficientReason(answer),
+      coverage,
+      gaps,
+    };
+  }
+  return { answer, mode: prompts.mode, provider: result.provider, coverage };
 }

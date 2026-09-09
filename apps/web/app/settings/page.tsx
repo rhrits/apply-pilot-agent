@@ -22,20 +22,24 @@ function SettingsWorkspace() {
   const [busy, setBusy] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [showDelete, setShowDelete] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
-    if (!supabase) return;
+    if (!supabase) { setLoading(false); return; }
     void supabase.auth.getUser().then(async ({ data }) => {
       const user = data.user;
-      if (!user) return;
+      if (!user) { setLoading(false); return; }
       setEmail(user.email ?? "");
       setMemberSince(user.created_at ? new Date(user.created_at).toLocaleDateString() : "");
-      const { data: row } = await supabase.from("profiles").select("first_name,last_name").eq("id", user.id).maybeSingle();
+      const { data: row, error } = await supabase.from("profiles").select("first_name,last_name").eq("id", user.id).maybeSingle();
+      // A failed read must not look like an empty name: saving then would blank it.
+      if (error) { setNotice("Could not load your account details. Reload to try again."); setLoading(false); return; }
       const profile = (row ?? {}) as { first_name?: string; last_name?: string };
       const name = [profile.first_name, profile.last_name].filter(Boolean).join(" ");
       setDisplayName(name);
       setInitialName(name);
+      setLoading(false);
     });
   }, []);
 

@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AuthGate } from "../../components/auth-gate";
+import { buildReviewQueue, emptyProfile, type ProfileSources } from "@uplyfox/shared";
 import { getSupabaseBrowserClient } from "../../lib/supabase";
+import { applicationVelocity, nextActions, staleApplications, type ApplicationRecord } from "../../lib/application-insights";
 import "../dashboard.css";
 
 interface WorkspaceData {
@@ -21,11 +23,13 @@ interface WorkspaceData {
   jobCount: number;
   answerCount: number;
   statusCounts: Record<string, number>;
+  applications: ApplicationRecord[];
+  reviewCount: number;
 }
 
 const EMPTY: WorkspaceData = {
   email: "", firstName: "", lastName: "", currentTitle: "", location: "", summary: "", skills: [],
-  onboardingCompletedAt: null, resumeCount: 0, skillCount: 0, experienceCount: 0, jobCount: 0, answerCount: 0, statusCounts: {},
+  onboardingCompletedAt: null, resumeCount: 0, skillCount: 0, experienceCount: 0, jobCount: 0, answerCount: 0, statusCounts: {}, applications: [], reviewCount: 0,
 };
 
 export default function Dashboard() { return <AuthGate><DashboardContent /></AuthGate>; }
@@ -56,17 +60,25 @@ function DashboardContent() {
       const userId = user.id;
 
       const [profileResult, skillsResult, experiencesResult, resumesResult, jobsResult, applicationsResult, answersResult] = await Promise.all([
-        supabase.from("profiles").select("first_name,last_name,current_title,location,summary,onboarding_completed_at").eq("id", userId).maybeSingle(),
+        supabase.from("profiles").select("first_name,last_name,current_title,location,summary,onboarding_completed_at,email,phone,linkedin_url,github_url,portfolio_url,current_salary,expected_salary,work_authorization,notice_period,profile_sources").eq("id", userId).maybeSingle(),
         supabase.from("skills").select("name").eq("user_id", userId).order("name"),
-        supabase.from("experiences").select("id", { count: "exact", head: true }).eq("user_id", userId),
+        supabase.from("experiences").select("company,job_title,start_date,end_date").eq("user_id", userId),
         supabase.from("resumes").select("id", { count: "exact", head: true }).eq("user_id", userId),
         supabase.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", userId),
-        supabase.from("applications").select("status").eq("user_id", userId),
+        supabase.from("applications").select("status,created_at,updated_at,applied_at,job:jobs(company,title)").eq("user_id", userId),
         supabase.from("answer_library").select("id", { count: "exact", head: true }).eq("user_id", userId),
       ]);
 
       const statusCounts: Record<string, number> = {};
       for (const row of applicationsResult.data ?? []) statusCounts[row.status] = (statusCounts[row.status] ?? 0) + 1;
+
+      // Supabase returns an embedded one-to-one relation as an array; flatten it so the
+      // insight helpers can stay unaware of the query shape.
+      const applications: ApplicationRecord[] = (applicationsResult.data ?? []).map((row) => {
+        const related = row as unknown as { job?: Array<{ company?: string | null; title?: string | null }> | { company?: string | null; title?: string | null } | null };
+        const job = Array.isArray(related.job) ? related.job[0] ?? null : related.job ?? null;
+        return { status: row.status, created_at: row.created_at, updated_at: row.updated_at, applied_at: row.applied_at, job };
+      });
 
       setData({
         email: user.email ?? "",
@@ -79,10 +91,33 @@ function DashboardContent() {
         onboardingCompletedAt: profileResult.data?.onboarding_completed_at ?? null,
         resumeCount: resumesResult.count ?? 0,
         skillCount: skillsResult.data?.length ?? 0,
-        experienceCount: experiencesResult.count ?? 0,
+        experienceCount: experiencesResult.data?.length ?? 0,
         jobCount: jobsResult.count ?? 0,
         answerCount: answersResult.count ?? 0,
         statusCounts,
+        applications,
+        // Enough of the profile to detect mis-parsed resume values, without loading
+        // the whole record just to render a count.
+        reviewCount: buildReviewQueue({
+          ...emptyProfile(),
+          firstName: profileResult.data?.first_name ?? "",
+          email: profileResult.data?.email ?? "",
+          phone: profileResult.data?.phone ?? "",
+          linkedin: profileResult.data?.linkedin_url ?? "",
+          github: profileResult.data?.github_url ?? "",
+          portfolio: profileResult.data?.portfolio_url ?? "",
+          currentSalary: profileResult.data?.current_salary ?? "",
+          expectedSalary: profileResult.data?.expected_salary ?? "",
+          workAuthorization: profileResult.data?.work_authorization ?? "",
+          noticePeriod: profileResult.data?.notice_period ?? "",
+          skills: (skillsResult.data ?? []).map((row) => ({ name: row.name })),
+          experiences: (experiencesResult.data ?? []).map((row) => ({
+            company: row.company ?? "",
+            title: row.job_title ?? "",
+            period: [row.start_date, row.end_date].filter(Boolean).join(" – "),
+            summary: "", achievements: [], skills: [],
+          })),
+        }, (profileResult.data?.profile_sources ?? {}) as ProfileSources).length,
       });
       setLoading(false);
     });
@@ -117,8 +152,21 @@ function DashboardContent() {
     return { stages, responseRate, applied };
   }, [data.statusCounts, totalApplications]);
 
-  const checklist = [
-    { done: Boolean(data.onboardingCompletedAt), label: "Complete onboarding", detail: "Your account and initial profile", href: "/onboarding" },
+  const velocity = useMemo(() => applicationVelocity(data.applications), [data.applications]);
+  const stale = useMemo(() => staleApplications(data.applications), [data.applications]);
+  const velocityTotal = useMemo(() => velocity.reduce((total, bucket) => total + bucket.count, 0), [velocity]);
+  const velocityPeak = useMemo(() => Math.max(1, ...velocity.map((bucket) => bucket.count)), [velocity]);
+  const actions = useMemo(() => nextActions({
+    onboardingCompleted: Boolean(data.onboardingCompletedAt),
+    resumeCount: data.resumeCount,
+    answerCount: data.answerCount,
+    jobCount: data.jobCount,
+    reviewCount: data.reviewCount,
+    staleCount: stale.length,
+    savedCount: data.statusCounts.saved ?? 0,
+  }), [data, stale.length]);
+
+  const checklist = [    { done: Boolean(data.onboardingCompletedAt), label: "Complete onboarding", detail: "Your account and initial profile", href: "/onboarding" },
     { done: data.resumeCount > 0, label: "Import a resume", detail: `${data.resumeCount} resume${data.resumeCount === 1 ? "" : "s"} on file`, href: "/profile" },
     { done: data.answerCount > 0, label: "Build your answer library", detail: `${data.answerCount} reusable answer${data.answerCount === 1 ? "" : "s"} saved`, href: "/answer-library" },
     { done: data.jobCount > 0, label: "Track your first opportunity", detail: `${data.jobCount} job${data.jobCount === 1 ? "" : "s"} tracked`, href: "/tracker" },
@@ -157,6 +205,45 @@ function DashboardContent() {
           <div className="funnel-bar"><span style={{ width: `${totalApplications ? Math.round((stage.value / totalApplications) * 100) : 0}%` }} /></div>
         </div>)}</div>}
     </section>
+
+    {actions.length > 0 && <section className="card next-actions" style={{ marginTop: 18 }}>
+      <div className="section-head"><h3>Do this next</h3><span className="card-hint">Ordered by what unblocks the most</span></div>
+      <ul className="action-list">
+        {actions.slice(0, 4).map((action, index) => <li key={action.id} className={index === 0 ? "primary" : ""}>
+          <div><strong>{action.label}</strong><small>{action.detail}</small></div>
+          <Link className="text-link" href={action.href}>Open</Link>
+        </li>)}
+      </ul>
+    </section>}
+
+    <div className="insight-grid">
+      <section className="card">
+        <div className="section-head"><h3>Last 30 days</h3><span className="card-hint">{velocityTotal} sent</span></div>
+        {velocityTotal === 0
+          ? <p className="empty-snapshot">No applications sent in the last 30 days.</p>
+          : <div className="velocity" role="img" aria-label={`${velocityTotal} applications sent over the last 30 days`}>
+            {velocity.map((bucket) => <span
+              key={bucket.date}
+              className={bucket.count ? "on" : ""}
+              // Empty days keep a visible baseline so gaps read as gaps, not as absence.
+              style={{ height: `${bucket.count ? Math.max(12, (bucket.count / velocityPeak) * 100) : 4}%` }}
+              title={`${bucket.date}: ${bucket.count}`}
+            />)}
+          </div>}
+      </section>
+
+      <section className="card">
+        <div className="section-head"><h3>Gone quiet</h3>{stale.length > 0 && <Link className="text-link" href="/tracker">Open tracker</Link>}</div>
+        {stale.length === 0
+          ? <p className="empty-snapshot">Nothing is overdue. Anything waiting more than 14 days appears here.</p>
+          : <ul className="stale-list">
+            {stale.slice(0, 5).map((entry, index) => <li key={`${entry.label}-${index}`}>
+              <div><strong>{entry.label}</strong><small>{entry.status}</small></div>
+              <span className="stale-days">{entry.days}d</span>
+            </li>)}
+          </ul>}
+      </section>
+    </div>
 
     <section className="card" style={{ marginTop: 18 }}><div className="section-head"><h3>Profile snapshot</h3><Link className="text-link" href="/profile">Edit profile</Link></div>{data.firstName || data.currentTitle ? <div className="profile-list"><div className="profile-item"><span>Name</span><strong>{[data.firstName, data.lastName].filter(Boolean).join(" ") || "Not set"}</strong></div><div className="profile-item"><span>Focus</span><strong>{data.currentTitle || "Not set"}</strong></div><div className="profile-item"><span>Core skills</span><strong>{data.skills.slice(0, 3).join(" · ") || "Add skills on your profile"}</strong></div></div> : <p className="empty-snapshot">Your profile is empty. <Link href="/onboarding">Run onboarding</Link> to build it from your resume and links.</p>}</section>
   </main></div>;

@@ -10,17 +10,11 @@ import "./tracker.css";
 const statuses: Array<{ value: ApplicationStatus; label: string; accent: string }> = [
   { value: "saved", label: "Saved", accent: "#8b7cf6" },
   { value: "applying", label: "Applying", accent: "#f09c73" },
-  { value: "applied", label: "Applied", accent: "#22a879" },
+  { value: "applied", label: "Applied", accent: "#5546d9" },
   { value: "assessment", label: "Assessment", accent: "#7c6ce0" },
   { value: "interview", label: "Interview", accent: "#2b8ed6" },
   { value: "offer", label: "Offer", accent: "#d39a25" },
   { value: "rejected", label: "Closed", accent: "#a0a3b8" },
-];
-
-const samples: JobApplication[] = [
-  { id: "sample-1", company: "Tario", title: "AI Product Engineer", url: "https://example.com/jobs/tario", location: "Remote", workMode: "remote", employmentType: "full-time", salary: "$140k–$175k", status: "interview", priority: "high", nextStep: "Technical interview", nextStepDate: "2026-09-12", notes: "Highlight the AI application platform project.", source: "Company site", tasks: [{ id: "sample-task-1", title: "Review system design notes", done: false }], createdAt: "2026-09-01", updatedAt: "2026-09-08" },
-  { id: "sample-2", company: "Northstar Labs", title: "Senior Frontend Engineer", url: "https://example.com/jobs/northstar", location: "New York / Hybrid", workMode: "hybrid", employmentType: "full-time", salary: "$155k–$190k", status: "applied", priority: "medium", nextStep: "Follow up with recruiter", nextStepDate: "2026-09-15", notes: "Resume v3 submitted.", source: "LinkedIn", tasks: [], createdAt: "2026-08-28", updatedAt: "2026-09-05" },
-  { id: "sample-3", company: "Orbit Health", title: "Full-stack Developer", url: "https://example.com/jobs/orbit", location: "Remote - US", workMode: "remote", employmentType: "contract", salary: "$85/hr", status: "saved", priority: "low", nextStep: "Tailor resume", nextStepDate: "2026-09-18", notes: "Check healthcare domain requirements.", source: "Simplify", tasks: [], createdAt: "2026-09-06", updatedAt: "2026-09-06" },
 ];
 
 const blankJob: Omit<JobApplication, "id" | "createdAt" | "updatedAt"> = { company: "", title: "", url: "", location: "", workMode: "unknown", employmentType: "full-time", salary: "", status: "saved", priority: "medium", nextStep: "", nextStepDate: "", notes: "", contactName: "", source: "Manual", tasks: [] };
@@ -28,7 +22,9 @@ const blankJob: Omit<JobApplication, "id" | "createdAt" | "updatedAt"> = { compa
 export default function TrackerPage() { return <AuthGate><TrackerWorkspace /></AuthGate>; }
 
 function TrackerWorkspace() {
-  const [jobs, setJobs] = useState<JobApplication[]>(samples);
+  // Starts empty. Seeding the board with sample opportunities made a new account look
+  // like it already had a pipeline, and those rows were indistinguishable from real ones.
+  const [jobs, setJobs] = useState<JobApplication[]>([]);
   const [filter, setFilter] = useState<"all" | ApplicationStatus>("all");
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -44,9 +40,18 @@ function TrackerWorkspace() {
   // are the same object the board and autosave already track.
   const selected = useMemo(() => jobs.find((job) => job.id === selectedId) ?? null, [jobs, selectedId]);
 
+  // Escape closes the drawer. Without this the only way out is a mouse click, which
+  // traps keyboard users in a modal that also has no focus management.
+  useEffect(() => {
+    if (!selectedId) return;
+    function onKeyDown(event: KeyboardEvent) { if (event.key === "Escape") setSelectedId(null); }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedId]);
+
   useEffect(() => {
     const saved = localStorage.getItem("uplyfox-jobs") ?? localStorage.getItem("applypilot-jobs");
-    if (saved) { try { setJobs(JSON.parse(saved) as JobApplication[]); } catch { /* Keep sample data. */ } }
+    if (saved) { try { setJobs(JSON.parse(saved) as JobApplication[]); } catch { /* Ignore an unreadable board. */ } }
     const savedDraft = localStorage.getItem("uplyfox-job-draft") ?? localStorage.getItem("applypilot-job-draft");
     if (savedDraft) { try { setDraft(JSON.parse(savedDraft)); setShowForm(true); } catch { /* Ignore an unreadable draft. */ } }
     loaded.current = true;
@@ -214,12 +219,12 @@ function TrackerWorkspace() {
 
     <div className="tracker-toolbar">
       <div className="tracker-filters">
-        <button className={filter === "all" ? "filter active" : "filter"} onClick={() => setFilter("all")}>All <span>{jobs.length}</span></button>
-        {statuses.map((status) => <button key={status.value} className={filter === status.value ? "filter active" : "filter"} onClick={() => setFilter(status.value)}>
+        <button type="button" aria-pressed={filter === "all"} className={filter === "all" ? "filter active" : "filter"} onClick={() => setFilter("all")}>All <span>{jobs.length}</span></button>
+        {statuses.map((status) => <button key={status.value} type="button" aria-pressed={filter === status.value} className={filter === status.value ? "filter active" : "filter"} onClick={() => setFilter(status.value)}>
           {status.label} <span>{jobs.filter((job) => job.status === status.value).length}</span>
         </button>)}
       </div>
-      <input className="search-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search company, role, location…" />
+      <input className="search-input" type="search" aria-label="Search opportunities" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search company, role, location…" />
     </div>
 
     {saveState && <p className="autosave-note">{saveState}</p>}
@@ -260,6 +265,12 @@ function TrackerWorkspace() {
       <button className="save-button" onClick={addJob}>Save opportunity</button>
     </section>}
 
+    {jobs.length === 0 && <section className="card tracker-empty">
+      <h3>Your board is empty</h3>
+      <p>Save a job with the UplyFox extension and it appears here automatically — including the match score and, once you submit, the applied status.</p>
+      <button className="save-button" onClick={() => setShowForm(true)}>Add one manually</button>
+    </section>}
+
     <section className="tracker-board">{statuses.map((status) => {
       const column = visible.filter((job) => job.status === status.value);
       return <div
@@ -284,10 +295,17 @@ function TrackerWorkspace() {
             <div className="job-card-top">
               <span className={`priority-dot ${job.priority}`} />
               <small>{job.source || "Manual"}</small>
-              <button
-                aria-label="Move to the next stage"
-                onClick={(event) => { event.stopPropagation(); move(job, statuses[(statuses.findIndex((item) => item.value === job.status) + 1) % statuses.length].value); }}
-              >→</button>
+              {(() => {
+                const next = statuses[statuses.findIndex((item) => item.value === job.status) + 1];
+                // Hidden on the final stage: previously this wrapped around and silently
+                // moved a closed application back to Saved.
+                return next ? <button
+                  type="button"
+                  aria-label={`Move ${job.title || "this job"} to ${next.label}`}
+                  title={`Move to ${next.label}`}
+                  onClick={(event) => { event.stopPropagation(); move(job, next.value); }}
+                >→</button> : null;
+              })()}
             </div>
             <h3>{job.title}</h3>
             <strong className="company-name">{job.company}</strong>
@@ -305,10 +323,16 @@ function TrackerWorkspace() {
     })}</section>
 
     {selected && <div className="drawer-backdrop" onClick={() => setSelectedId(null)}>
-      <aside className="job-drawer" onClick={(event) => event.stopPropagation()}>
-        <button className="close-button" onClick={() => setSelectedId(null)}>×</button>
+      <aside
+        className="job-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="drawer-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button className="close-button" type="button" aria-label="Close details" onClick={() => setSelectedId(null)}>×</button>
         <span className="eyebrow">{selected.company}</span>
-        <h2>{selected.title}</h2>
+        <h2 id="drawer-title">{selected.title}</h2>
         <p className="drawer-meta">{[selected.location, selected.employmentType, selected.workMode].filter(Boolean).join(" · ")}</p>
 
         {selected.matchScore !== undefined && <section className={`match-panel ${selected.matchScore >= 75 ? "strong" : selected.matchScore >= 50 ? "medium" : "weak"}`}><strong>{selected.matchScore}% match</strong><span>{selected.matchAnalysis?.summary ?? "Match calculated from the saved job description."}</span>{(selected.matchAnalysis?.matchedSkills?.length ?? 0) > 0 && <small>Matched: {selected.matchAnalysis?.matchedSkills.join(", ")}</small>}{(selected.matchAnalysis?.missingSkills?.length ?? 0) > 0 && <small>Missing from profile: {selected.matchAnalysis?.missingSkills.join(", ")}</small>}</section>}

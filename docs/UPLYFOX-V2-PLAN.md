@@ -419,6 +419,18 @@ offer), response-rate, 30-day application velocity sparkline, stale-application 
 | AI could never fix a wrong heuristic | Replaced blanket heuristic precedence with field-level reconciliation: regex-extracted contact/links stay authoritative, while roles/education/projects go to whichever extraction carries more real content (`contentWeight`). Skills are unioned. | One bad split is no longer permanent. |
 | Web app had no tests | Added Vitest to `apps/web`; root `npm test` now runs both workspaces. | 42 tests total. |
 
+### P3 shipped — what changed
+
+| Gap | Fix | Evidence |
+|---|---|---|
+| Nothing knew an application was actually submitted | New `packages/shared/src/application-detector.ts` fuses five independent signals — `intent_click`, `form_submit`, `network_post`, `url_confirmation`, `dom_confirmation` — into a confidence score. A transition needs **≥2 distinct signal kinds and ≥0.6 confidence** inside a 90s window, so no single event can ever mark a job applied. | 12 fusion tests. |
+| XHR/`fetch` submissions invisible to the extension | `src/network-observer.ts` runs as a `world: "MAIN"` content script, because `fetch` in an isolated world is a different object from the page's. It patches `fetch` and `XMLHttpRequest` transparently and reports **method, path, and status only — never request or response bodies**; query strings are stripped since they carry tokens. | Privacy limits enforced in code, not policy. |
+| "Apply" buttons that only navigate | `isApplyIntentText()` checks a denylist *first*: "Apply on company site", "Save job", "Upload resume", and "Sign in" are rejected before the allowlist is consulted. Analytics, autosave, draft, and GraphQL endpoints are likewise filtered out of `network_post`. | 9 collection tests, incl. false-positive cases. |
+| Back-button and SPA false positives | Confirmation signals alone cannot cross the threshold, so re-visiting a confirmation URL is inert. `pushState`/`replaceState` are patched so SPA routes are still seen, and each page reports at most once. | "reports only once" test. |
+| A silent status change is untrustworthy | The side panel shows an undoable toast naming the job and the evidence (`describeApplicationSignals()`), and `UNDO_APPLICATION` reverts it. The whole feature respects the existing `autoTrackJobs` setting. | Never silent, always reversible. |
+| Automatic changes could clobber real progress | `markApplicationApplied()` only moves `saved`/`applying` forward; a job already at interview or offer is left untouched. Migration `202609090004` stores `applied_at`, `detection_signals`, and `detection_confidence` so every automatic decision stays auditable. | No regressions from automation. |
+
+
 
 ## 5. Schema changes required
 
