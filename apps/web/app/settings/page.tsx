@@ -102,14 +102,14 @@ function SettingsWorkspace() {
       <div className="section-head"><h3>Your account</h3></div>
       <label className="settings-field">
         <span>Display name</span>
-        <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Your name" />
+        <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder={loading ? "Loading…" : "Your name"} disabled={loading} />
       </label>
       <label className="settings-field">
         <span>Email</span>
         <input value={email} readOnly disabled />
       </label>
-      {memberSince && <p className="card-hint">Member since {memberSince}.</p>}
-      <button className="save-button" onClick={() => void saveName()} disabled={busy || displayName.trim() === initialName}>
+      <p className="card-hint">{memberSince ? `Member since ${memberSince}.` : "Your display name is used across UplyFox and in generated documents."}</p>
+      <button className="save-button" onClick={() => void saveName()} disabled={loading || busy || displayName.trim() === initialName}>
         {busy ? "Saving…" : "Save name"}
       </button>
     </section>

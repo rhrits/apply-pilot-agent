@@ -383,8 +383,8 @@ offer), response-rate, 30-day application velocity sparkline, stale-application 
 | **P0 — Unblock** ✅ *shipped* | `AuthGate` onboarding-redirect fix (2.3); resume storage + `resumes` row (2.1); accname reorder + generic denylist + ATS/Google-Forms adapters (2.4); render `notice` in overlay (2.5); current-page match card (2.6); `/settings` + real account deletion (2.9). | Rebuild wizard, extension resume attach, correct questions, explained non-answers, visible score, data rights. |
 | **P1 — Profile depth** ✅ *shipped* | Inline editors for experience/education/projects/skills, `position` migration + drag/keyboard reordering, free-text `period`/`location`/`role` round-trip, dashboard application funnel. | Full profile control. |
 | **P2 — Extraction quality** ✅ *shipped* | Layout-aware PDF rendering via a custom `pdf-parse` pagerender (no new dependency), gutter-based column reflow, repeated header/footer + page-number stripping, widened bullet and date grammars, and field-level AI/heuristic reconciliation. | Materially better parsing. |
-| **P3 — Action Detector** | MAIN-world network patch, click/submit/URL/DOM signals, fusion scoring, `saved → applied` transition with Undo, modal/Shadow-DOM field scanning. | Self-filling tracker; apply-popup support. |
-| **P4 — Intelligence** | Fact retrieval/ranking, confidence-aware prompting, missing-fact reporting, dashboard v2. | Higher answer quality and insight. |
+| **P3 — Action Detector** ✅ *shipped* | MAIN-world network patch, click/submit/URL/DOM signals, fusion scoring, `saved → applied` transition with Undo, modal/Shadow-DOM field scanning. | Self-filling tracker; apply-popup support. |
+| **P4 — Intelligence** ✅ *shipped* | Fact retrieval/ranking, confidence-aware prompting, missing-fact reporting, extraction review queue, dashboard v2 (velocity, stale alerts, next-action queue). | Higher answer quality and insight. |
 
 ### P0 shipped — what changed
 
@@ -432,7 +432,20 @@ offer), response-rate, 30-day application velocity sparkline, stale-application 
 
 
 
-## 5. Schema changes required
+### P4 shipped — what changed
+
+| Gap | Fix | Evidence |
+|---|---|---|
+| Answers said "insufficient context" even when the profile held the answer | The prompt serialised the **entire** profile — 80 skills, 8 roles × 8 achievements, 12 projects, 60 saved answers — so the one relevant fact was buried. New `packages/shared/src/fact-retrieval.ts` flattens the profile into individually rankable facts and scores them per question, blending lexical overlap with **intent affinity** (a question about "a challenge you overcame" shares almost no vocabulary with the achievement that answers it). | 11 tests, incl. the buried-achievement case. |
+| The model could not tell a thin profile from a rich one | Prompts are now confidence-aware (strong / partial / weak grounding), and `INSUFFICIENT_CONTEXT` must **name** the missing detail. | Notices now read "Your profile does not record security clearance". |
+| Coverage counted facts that were merely present | Every profile has a name and an email; those must not make a behavioral question look grounded. A relevance floor means only facts scoring above it add depth. | Caught by a failing test, not in review. |
+| The extension silently never answered | Four defects: a packaged build fell back to `http://localhost:3000`; `response.json()` threw on proxy HTML; no timeout; and one 403 hid five distinct causes. New `apps/extension/src/lib/api-client.ts` classifies each failure, the route returns distinct codes plus a `GET` health check, and the popup has **Check AI connection**. | 13 tests across api-client + config. |
+| "Review the highlighted values" highlighted nothing | New `packages/shared/src/extraction-review.ts` derives per-field confidence from the value itself — contact fields that fail their own format, "skills" that are really prose, roles missing a company or dates — and the profile page renders a review queue. Only resume-sourced fields are checked; typed values are never second-guessed. | 11 tests, incl. a date range mistaken for a phone number. |
+| Dashboard showed totals but never a next step | New `apps/web/lib/application-insights.ts` adds 30-day velocity, stale-application detection (>14 days, closed outcomes excluded), and a next-action queue ordered by what unblocks the most. | 14 tests. |
+| Green in a purple-and-wine product | Removed every green value across web and extension, including two references to an **undefined** `var(--green)` that were silently rendering as nothing. Added semantic tokens so status colours stop being hardcoded. | Palette now enforced by tokens. |
+| Tracker shipped with three fake jobs | A new account saw a populated pipeline indistinguishable from real data. The board now starts empty with a real empty state. | — |
+| `removeSkill` deleted every same-named row | Removal was keyed by name, so clearing one duplicate destroyed the others. Now keyed by position. | Data loss fixed. |
+
 
 ```sql
 -- ordering (P1)
