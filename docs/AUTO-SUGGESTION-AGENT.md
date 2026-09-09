@@ -20,6 +20,8 @@ The agent never submits a form. The user must review an answer and explicitly in
 
 Live AI suggestions are enabled by default when no preference exists. Users can turn them off from the extension popup; deterministic profile suggestions remain available either way.
 
+The separate onboarding-time profile answer agent, its 47-question catalog, batch strategy, and structured JSON contract are documented in [PROFILE-ANSWER-AGENT.md](PROFILE-ANSWER-AGENT.md).
+
 ## What was missing
 
 The previous implementation had a good three-layer idea, but the context was too lossy:
