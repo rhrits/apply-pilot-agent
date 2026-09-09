@@ -21,7 +21,10 @@ export function AuthGate({ children, requireOnboarding = true, requireAccess = t
       const data = sessionData.session ? { user: sessionData.session.user } : { user: null };
       const destination = `${pathname}${typeof window === "undefined" ? "" : window.location.search}`;
       if (!data.user) { router.replace(`/login?next=${encodeURIComponent(destination)}`); return; }
-      const profileResult = requireOnboarding || pathname === "/onboarding"
+      // Only the onboarding-enforcing gate needs the completion flag. Pages that opt out
+      // (the wizard itself) must be able to render for users who already onboarded so
+      // "Rebuild from the wizard" works instead of bouncing to /access.
+      const profileResult = requireOnboarding
         ? await supabase.from("profiles").select("onboarding_completed_at").eq("id", data.user.id).maybeSingle()
         : { data: null };
       const profileComplete = Boolean(profileResult.data?.onboarding_completed_at);
@@ -29,7 +32,7 @@ export function AuthGate({ children, requireOnboarding = true, requireAccess = t
         router.replace("/onboarding"); return;
       }
       const accessPath = `/access?next=${encodeURIComponent(pathname)}`;
-      if (pathname === "/onboarding" && profileComplete) {
+      if (requireOnboarding && pathname === "/onboarding" && profileComplete) {
         router.replace(`/access?next=${encodeURIComponent("/dashboard")}`); return;
       }
       if (requireAccess) {

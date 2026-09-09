@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">UplyFox mobile intro</title>
+  <desc id="desc">Transparent UplyFox face that winks once after entering the page.</desc>
+  <defs>
+    <filter id="face-shadow" x="-12%" y="-12%" width="124%" height="124%">
+      <feDropShadow dx="0" dy="10" stdDeviation="11" flood-color="#2b1022" flood-opacity=".24"/>
+    </filter>
+    <style>
+      .wink-eye{transform-box:fill-box;transform-origin:center;animation:wink-once 1s ease-in-out 3.45s 1 both}
+      @keyframes wink-once{0%,34%,100%{transform:scaleY(1)}48%,82%{transform:scaleY(.08)}}
+    </style>
+  </defs>
+  <g filter="url(#face-shadow)">
+    <path d="M64 164 120 64l112 78c16-4 32-6 48-6s32 2 48 6L440 64l8 136c0 122-83 205-168 248C195 405 112 322 112 200Z" fill="#fffdfb"/>
+    <path d="m64 164 112 48-56 34Z" fill="#ead7d2"/>
+    <path d="m448 164-112 48 56 34Z" fill="#e7d9e6"/>
+    <path d="M144 246 224 214l32 36-56 54-56-15Z" fill="#2b1022"/>
+    <path d="M368 246 288 214l-32 36 32 54 56-15Z" fill="#2b1022"/>
+    <g class="wink-eye"><rect x="197" y="250" width="18" height="18" rx="4" fill="#fffdfb"/><rect x="203" y="254" width="7" height="10" rx="2" fill="#2b1022"/></g>
+    <rect x="297" y="250" width="18" height="18" rx="4" fill="#fffdfb"/>
+    <rect x="302" y="254" width="7" height="10" rx="2" fill="#2b1022"/>
+    <path d="m216 367 40 30 40-30" fill="none" stroke="#2b1022" stroke-linecap="round" stroke-linejoin="round" stroke-width="12"/>
+  </g>
+</svg>
