@@ -10,7 +10,7 @@ export type FieldKind =
   | "experience"
   | "unknown";
 
-export type FieldElementType = "input" | "textarea" | "select" | "contenteditable" | "radiogroup" | "checkboxgroup";
+export type FieldElementType = "input" | "textarea" | "select" | "contenteditable" | "radiogroup" | "checkboxgroup" | "combobox";
 
 export type QuestionSource = "selected_text" | "nearby_text" | "label" | "aria_label" | "placeholder" | "name" | "id" | "unknown";
 
@@ -225,6 +225,10 @@ export type ExtensionMessage =
   | { type: "SCAN_PAGE" }
   | { type: "FILL_ALL" }
   | { type: "SCAN_PAGE_ALL_FRAMES"; tabId: number; fill: boolean }
+  | { type: "INSPECT_FORM_FRAME"; frameId: number }
+  | { type: "INSPECT_FORM_ALL_FRAMES"; tabId: number }
+  | { type: "ADVANCE_SAFE_STEP_FRAME" }
+  | { type: "ADVANCE_SAFE_STEP_ALL_FRAMES"; tabId: number }
   | { type: "GET_RESUME_FILE" }
   | { type: "ATTACH_RESUME"; fileName: string; mimeType: string; dataUrl: string }
   | { type: "GET_PAGE_SUMMARY" }
@@ -267,6 +271,7 @@ export interface ScannedField {
   needsReview: boolean;
   /** Which frame the field was found in, when the page embeds the application in an iframe. */
   frameId?: number;
+  fillOutcome?: "verified" | "already_filled" | "skipped_low_confidence" | "blocked_sensitive" | "unresolved" | "ambiguous_option" | "unsupported" | "disabled" | "invalid_format" | "out_of_range" | "no_option" | "write_failed" | "verification_failed";
 }
 
 export interface AnswerResponse {

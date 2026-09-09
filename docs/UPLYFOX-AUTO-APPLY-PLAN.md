@@ -1,6 +1,6 @@
 # UplyFox Auto-Apply Agent — Plan
 
-**Status:** proposal, not yet implemented
+**Status:** Phases A–C shipped; Phases D–E pending
 **Date:** 2026-09-09
 **Supersedes:** the "explicitly out of scope" line on auto-submission in [UPLYFOX-V2-PLAN.md](UPLYFOX-V2-PLAN.md) — see §2.
 
@@ -299,7 +299,7 @@ be clever.
 
 ## 6. Delivery phases
 
-### Phase A — Full-form scan and plan (no writes)
+### Phase A — Full-form scan and plan (no writes) ✅ shipped
 
 New `packages/shared/src/form-graph.ts`:
 
@@ -313,7 +313,25 @@ New `packages/shared/src/form-graph.ts`:
 Deliverable: side panel shows every field, what would fill it, its source, and what is unknown.
 **Nothing is written to the page.** This alone is useful and ships independently.
 
-### Phase B — Deterministic fill with confidence
+#### Phase A implementation — 2026-09-09
+
+- Added the pure, serializable form graph in `packages/shared/src/form-graph.ts`: field/options,
+  resolution source and confidence, validation errors, frames, blockers, navigation classification,
+  deterministic field signatures, and summary counters.
+- Added a read-only deep inspector in the extension content script. It scans native fields,
+  grouped radio/checkbox controls, ARIA choices, open Shadow DOM, mounted hidden fields, field
+  constraints, existing values, native/ARIA validation errors, alert banners, navigation controls,
+  and CAPTCHA markers. It does not dispatch input/click/change events.
+- Added background aggregation across every reachable frame. Inaccessible cross-origin or blocked
+  frames are preserved as explicit `unavailable_frame` blockers rather than silently discarded.
+- Added **Inspect application** to the side panel. It shows total/ready/unknown/blocked counts,
+  required unknowns, current and proposed values, profile source and confidence, options, detected
+  next/review/submit action, frame report, validation errors, and blockers.
+- Kept **Fill all** as the existing manual deterministic action; it is visually and architecturally
+  separate from the read-only inspector. Phase A itself performs no writes.
+- Added nine pure form-graph tests. Extension suite: 94 tests green at shipment.
+
+### Phase B — Deterministic fill with confidence ✅ shipped
 
 Extend [insertion.ts](../apps/extension/src/lib/insertion.ts) — the native-setter path is already
 correct — to cover:
@@ -328,13 +346,66 @@ correct — to cover:
 Then `packages/shared/src/field-resolution.ts`: library → profile facts → AI → unresolved, with the
 §5.5 hard-stop list applied before anything is written.
 
-### Phase C — Multi-step navigation
+#### Phase B implementation — 2026-09-09
+
+- Added `packages/shared/src/field-resolution.ts`, used by both inspection and filling so the plan
+  can no longer say “Ready” while Fill all follows a different confidence rule. Resolution order is
+  hard stop → unambiguous saved answer → structured profile engine → review-only AI → unknown.
+- Preserved real answer confidence from the profile engine instead of substituting question-detection
+  confidence. Existing page values are represented as `source=user`; saved answers preserve their
+  semantic-match confidence as `source=answer_library`.
+- Expanded the hard-stop policy to authorization, sponsorship, citizenship, compensation,
+  relocation, licensing, protected demographic data, criminal history, consent, and attestations.
+  Neither a saved answer nor an AI answer can bypass this check.
+- Added date, datetime-local, month, week, and time field detection. Writers accept only canonical,
+  browser-valid values; locale-ambiguous dates are rejected rather than guessed.
+- Added verified asynchronous writers for inputs, textareas, contenteditable fields, native selects,
+  native/ARIA radio and checkbox controls, and custom ARIA combobox/typeahead widgets. Every write is
+  read back after framework event handling; a React rerender that restores the old value is reported
+  as `verification_failed`, never “filled”.
+- Fixed native checkbox double-toggle (the old setter + events + click sequence could turn it on and
+  immediately back off). Disabled choices and ARIA widgets that ignore clicks now fail verification.
+- Native selects now match exact values first, then conservative option-label matching, while ignoring
+  disabled and placeholder options.
+- Custom comboboxes use a bounded sequence: focus → framework-safe input → wait for the controlled
+  listbox → match one option → click it → verify selected/value state. The writer never presses Enter,
+  because Enter without a proven open listbox can submit the surrounding form.
+- Fill all now reports verified, already-filled, skipped-low-confidence, blocked-sensitive,
+  unresolved, ambiguous-option, invalid-format, and verification-failed outcomes per field. AI answers
+  remain manual until the Phase D review gate exists.
+- Added 21 Phase B regression tests. Extension suite: 115 tests green at shipment.
+
+### Phase C — Multi-step navigation ✅ shipped
 
 `apps/extension/src/lib/application-session.ts` implementing §5.2, plus per-ATS adapters extending
 the existing ones with: next/review/submit selectors, validation selectors, step markers, success
 selectors, known custom widgets, and known-unsupported states.
 
 Bounded by max steps, wall-clock timeout, and a stall detector. A stall is reported, not retried.
+
+#### Phase C implementation — 2026-09-09
+
+- Added `apps/extension/src/lib/application-session.ts`, a persisted bounded session model with a
+  12-step maximum, five-minute wall-clock limit, six-second transition window, one click per step,
+  explicit blocked/stalled/timed-out/cancelled/complete states, and a transition predicate combining
+  URL, heading, field signature, and step marker changes.
+- Added a strict static ATS navigation allowlist for Workday, Greenhouse, Ashby, SmartRecruiters, and
+  iCIMS. Unknown portals remain inspect/fill-only. Eligibility requires an extension-owned selector,
+  a native enabled `button` whose effective type is exactly `button`, and a label with no
+  submit/apply/send/finish/complete/review wording.
+- Added one narrowly scoped `ADVANCE_SAFE_STEP_FRAME` capability. It accepts no page/LLM-provided
+  selector, has no submit variant, rejects current validation errors, and clicks exactly once.
+  Frames are tried sequentially so two embedded forms can never both advance.
+- Added **Run safe steps** and **Stop safe steps** to the side panel. The loop inspects, resolves,
+  verified-fills, reinspects conditional fields, stops on required unknowns/CAPTCHA/validation or
+  inaccessible frames, advances one allowlisted Next control, and waits for independent transition
+  proof. A stall is never retried automatically.
+- Final Review/Submit pages are filled and verified first, then treated as terminal observations.
+  Phase C contains no Submit message, handler, selector, requestSubmit call, or form-submit
+  capability. Closing the side panel safely pauses foreground orchestration; persisted session state,
+  current step, blockers, and terminal reason are restored when it reopens.
+- Added ten Phase C state-machine and navigation-policy tests. Extension suite: 125 tests green at
+  shipment.
 
 ### Phase D — Draft, review, approve
 

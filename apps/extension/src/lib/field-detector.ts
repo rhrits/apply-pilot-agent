@@ -1,6 +1,6 @@
 import { answerQuestion, type DetectedField, type FieldKind, type QuestionSource, type UserProfile } from "@uplyfox/shared";
 
-const TEXT_TYPES = new Set(["text", "email", "tel", "url", "number", "search", ""]);
+const TEXT_TYPES = new Set(["text", "email", "tel", "url", "number", "search", "date", "datetime-local", "month", "week", "time", ""]);
 
 function clean(value: string | null | undefined): string {
   return value?.replace(/\s+/g, " ").trim() ?? "";
@@ -191,7 +191,8 @@ function classify(text: string, inputType: string): { kind: FieldKind; confidenc
 }
 
 export function extractField(element: Element): DetectedField | null {
-  const isEditable = element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement || (element as HTMLElement).isContentEditable;
+  const isAriaCombobox = element.getAttribute("role") === "combobox";
+  const isEditable = element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement || (element as HTMLElement).isContentEditable || isAriaCombobox;
   if (!isEditable || element instanceof HTMLInputElement && !TEXT_TYPES.has(element.type)) return null;
 
   const html = element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
@@ -205,7 +206,7 @@ export function extractField(element: Element): DetectedField | null {
   const labelledBy = ariaLabelledByText(element);
   const preceding = precedingLabelText(element);
   const context = clean([adapted, label, ariaLabel, preceding, placeholder, name, id, nearby].filter(Boolean).join(" | "));
-  const inputType = element instanceof HTMLInputElement ? element.type : element instanceof HTMLSelectElement ? "select" : "textarea";
+  const inputType = element instanceof HTMLInputElement ? element.type : element instanceof HTMLSelectElement ? "select" : isAriaCombobox ? "combobox" : "textarea";
   const classification = classify(context, inputType);
   const options = element instanceof HTMLSelectElement ? Array.from(element.options).map((option) => clean(option.text)).filter(Boolean) : [];
 
@@ -233,7 +234,7 @@ export function extractField(element: Element): DetectedField | null {
 
   return {
     id: id || `uplyfox-${Math.random().toString(36).slice(2)}`,
-    elementType: element instanceof HTMLSelectElement ? "select" : (element as HTMLElement).isContentEditable ? "contenteditable" : element instanceof HTMLTextAreaElement ? "textarea" : "input",
+    elementType: element instanceof HTMLSelectElement ? "select" : isAriaCombobox && !(element instanceof HTMLInputElement) ? "combobox" : (element as HTMLElement).isContentEditable ? "contenteditable" : element instanceof HTMLTextAreaElement ? "textarea" : "input",
     inputType,
     label: adapted || label || ariaLabel || preceding || humanizeToken(name) || humanizeToken(id) || placeholder,
     question: question.value,

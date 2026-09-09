@@ -1,8 +1,23 @@
-import { analyzeJobMatch, type ExtensionMessage, type PageSummary } from "@uplyfox/shared";
-import { answerForField, extractField, extractGroupField, isSensitiveQuestion, matchOption } from "./lib/field-detector";
+import {
+  analyzeJobMatch,
+  blockersForFields,
+  canAutoFill,
+  classifyNavAction,
+  fieldSignature,
+  resolveField,
+  type ButtonDescriptor,
+  type ExtensionMessage,
+  type FieldDescriptor,
+  type FormValidationError,
+  type InspectedField,
+  type PageSummary,
+} from "@uplyfox/shared";
+import { answerForField, extractField, extractGroupField, labelForChoice, matchOption } from "./lib/field-detector";
 import { currentApplicationVerdict, installApplicationDetector } from "./lib/application-signals";
-import { insertValue, selectChoiceElement } from "./lib/insertion";
+import { fillComboboxVerified, insertValueVerified, selectChoiceVerified } from "./lib/insertion";
+import { getLocalMemory } from "./lib/memory";
 import { getProfile } from "./lib/profile";
+import { adapterForHost, isSafeNextElement } from "./lib/navigation-adapters";
 import "./styles.css";
 
 /**
@@ -63,9 +78,17 @@ function renderOverlay(element: Element, state: OverlayState) {
     if (noticeNode) noticeNode.textContent = noticeText;
   }
 
-  card.querySelector(".primary")?.addEventListener("click", () => {
-    if (hasAnswer) insertValue(element, state.text);
-    else chrome.runtime.sendMessage({ type: "OPEN_SIDE_PANEL" } satisfies ExtensionMessage);
+  card.querySelector(".primary")?.addEventListener("click", async () => {
+    if (hasAnswer) {
+      const write = element.getAttribute("role") === "combobox"
+        ? await fillComboboxVerified(element, state.text)
+        : await insertValueVerified(element, state.text);
+      if (!write.ok) {
+        const notice = card.querySelector(".answer") as HTMLElement | null;
+        if (notice) notice.textContent = `Could not verify the insert (${write.reason ?? "write failed"}). Copy the answer instead.`;
+        return;
+      }
+    } else chrome.runtime.sendMessage({ type: "OPEN_SIDE_PANEL" } satisfies ExtensionMessage);
     removeOverlay();
   });
   card.querySelector(".secondary")?.addEventListener("click", async () => {
@@ -208,7 +231,7 @@ if (isTopFrame) installApplicationDetector(() => {
   })();
 });
 
-const FORM_SELECTOR = "input, textarea, select, [contenteditable='true']";
+const FORM_SELECTOR = "input, textarea, select, [contenteditable='true'], [role='combobox']";
 
 /**
  * Query across open shadow roots as well as the light DOM.
@@ -246,9 +269,9 @@ function groupContainer(element: Element): Element {
  * mechanism), while unnamed native inputs and ARIA-only choices are grouped by their
  * nearest shared fieldset/group container instead.
  */
-function findChoiceGroups(): Array<{ container: Element; elements: Element[] }> {
-  const nativeChoices = (queryDeep("input[type='radio'], input[type='checkbox']") as HTMLInputElement[]).filter(visible);
-  const ariaChoices = queryDeep("[role='radio'], [role='checkbox']").filter(visible).filter((element) => !(element instanceof HTMLInputElement));
+function findChoiceGroups(includeHidden = false): Array<{ container: Element; elements: Element[] }> {
+  const nativeChoices = (queryDeep("input[type='radio'], input[type='checkbox']") as HTMLInputElement[]).filter((element) => includeHidden || visible(element));
+  const ariaChoices = queryDeep("[role='radio'], [role='checkbox']").filter((element) => includeHidden || visible(element)).filter((element) => !(element instanceof HTMLInputElement));
 
   const byName = new Map<string, HTMLInputElement[]>();
   const byContainer = new Map<Element, Element[]>();
@@ -282,13 +305,13 @@ type CollectedField =
   | { kind: "single"; element: Element; field: NonNullable<ReturnType<typeof extractField>> }
   | { kind: "group"; elements: Element[]; field: NonNullable<ReturnType<typeof extractGroupField>> };
 
-function collectFields(): CollectedField[] {
+function collectFields(includeHidden = false): CollectedField[] {
   const singles: CollectedField[] = queryDeep(FORM_SELECTOR)
-    .filter(visible)
+    .filter((element) => includeHidden || visible(element))
     .map((element) => ({ kind: "single" as const, element, field: extractField(element) }))
     .filter((entry): entry is { kind: "single"; element: Element; field: NonNullable<ReturnType<typeof extractField>> } => entry.field !== null);
 
-  const groups: CollectedField[] = findChoiceGroups()
+  const groups: CollectedField[] = findChoiceGroups(includeHidden)
     .map(({ container, elements }) => ({ kind: "group" as const, elements, field: extractGroupField(container, elements) }))
     .filter((entry): entry is { kind: "group"; elements: Element[]; field: NonNullable<ReturnType<typeof extractGroupField>> } => entry.field !== null);
 
@@ -300,35 +323,225 @@ function currentValue(element: Element) {
   return (element as HTMLElement).textContent ?? "";
 }
 
+function cssEscape(value: string): string {
+  return CSS.escape(value);
+}
+
+/** Stable selector within the element's own document or shadow root. */
+function selectorFor(element: Element): string {
+  if (element.id) return `#${cssEscape(element.id)}`;
+  const testId = element.getAttribute("data-testid") || element.getAttribute("data-automation-id") || element.getAttribute("data-qa");
+  if (testId) return `[${element.hasAttribute("data-testid") ? "data-testid" : element.hasAttribute("data-automation-id") ? "data-automation-id" : "data-qa"}="${cssEscape(testId)}"]`;
+  const name = element.getAttribute("name");
+  if (name) {
+    const candidate = `${element.tagName.toLowerCase()}[name="${cssEscape(name)}"]`;
+    const root = element.getRootNode() as Document | ShadowRoot;
+    if (root.querySelectorAll(candidate).length === 1) return candidate;
+  }
+  const segments: string[] = [];
+  let current: Element | null = element;
+  while (current && segments.length < 5) {
+    let segment = current.tagName.toLowerCase();
+    const parentElement: Element | null = current.parentElement;
+    if (parentElement) {
+      const siblings: Element[] = Array.from(parentElement.children).filter((sibling: Element) => sibling.tagName === current!.tagName);
+      if (siblings.length > 1) segment += `:nth-of-type(${siblings.indexOf(current) + 1})`;
+    }
+    segments.unshift(segment);
+    if (!parentElement || parentElement instanceof HTMLFormElement || parentElement.getAttribute("role") === "form") break;
+    current = parentElement;
+  }
+  return segments.join(" > ");
+}
+
+/** Selector for every host crossed while entering nested open Shadow DOM. */
+function shadowPathFor(element: Element): string[] {
+  const path: string[] = [];
+  let root = element.getRootNode();
+  while (root instanceof ShadowRoot) {
+    path.unshift(selectorFor(root.host));
+    root = root.host.getRootNode();
+  }
+  return path;
+}
+
+function roleFor(element: Element, inputType: string): string {
+  const explicit = element.getAttribute("role");
+  if (explicit) return explicit;
+  if (element instanceof HTMLSelectElement) return "combobox";
+  if (element instanceof HTMLTextAreaElement || (element as HTMLElement).isContentEditable) return "textbox";
+  if (element instanceof HTMLInputElement) {
+    if (inputType === "radio" || inputType === "checkbox") return inputType;
+    if (inputType === "file") return "button";
+    return "textbox";
+  }
+  return "";
+}
+
+function optionsForEntry(entry: CollectedField) {
+  if (entry.kind === "group") {
+    return entry.elements.map((element) => ({
+      label: labelForChoice(element),
+      value: element instanceof HTMLInputElement ? element.value : undefined,
+      selected: element instanceof HTMLInputElement ? element.checked : element.getAttribute("aria-checked") === "true",
+      disabled: element instanceof HTMLInputElement ? element.disabled : element.getAttribute("aria-disabled") === "true",
+    }));
+  }
+  if (entry.element instanceof HTMLSelectElement) {
+    return Array.from(entry.element.options).map((option) => ({ label: option.text.trim(), value: option.value, selected: option.selected, disabled: option.disabled }));
+  }
+  return [];
+}
+
+function descriptorFor(entry: CollectedField, frameId: number, index: number): FieldDescriptor {
+  const element = entry.kind === "single" ? entry.element : entry.elements[0];
+  const selector = entry.kind === "single" ? selectorFor(element) : `${selectorFor(groupContainer(element))}::group`;
+  const rawCurrent = entry.kind === "single" ? currentValue(element).trim() : entry.field.currentValue ?? "";
+  const input = element instanceof HTMLInputElement ? element : null;
+  return {
+    id: `f${frameId}:${selector}:${index}`,
+    selector,
+    shadowPath: shadowPathFor(element),
+    frameId,
+    elementType: entry.field.elementType,
+    inputType: entry.field.inputType,
+    role: roleFor(element, entry.field.inputType ?? ""),
+    label: entry.field.label,
+    question: entry.field.question,
+    questionSource: entry.field.questionSource ?? "unknown",
+    questionConfidence: entry.field.confidence,
+    kind: entry.field.kind,
+    name: entry.field.name,
+    placeholder: entry.field.placeholder,
+    ariaLabel: entry.field.ariaLabel,
+    nearbyText: entry.field.nearbyText,
+    currentValue: rawCurrent || null,
+    options: optionsForEntry(entry),
+    required: entry.field.required,
+    disabled: input ? input.disabled : element.getAttribute("aria-disabled") === "true",
+    visible: entry.kind === "single" ? visible(element) : entry.elements.some(visible),
+    format: input ? {
+      inputMode: input.inputMode || undefined,
+      pattern: input.pattern || undefined,
+      min: input.min || undefined,
+      max: input.max || undefined,
+      maxLength: input.maxLength >= 0 ? input.maxLength : undefined,
+    } : undefined,
+  };
+}
+
+function validationErrorsFor(fields: InspectedField[], frameId: number): FormValidationError[] {
+  const errors: FormValidationError[] = [];
+  const bySelector = new Map(fields.map((field) => [field.descriptor.selector.replace(/::group$/, ""), field.descriptor.id]));
+  const invalid = queryDeep("input:invalid, textarea:invalid, select:invalid, [aria-invalid='true']");
+  for (const [index, element] of invalid.entries()) {
+    const selector = selectorFor(element);
+    const nativeMessage = element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement ? element.validationMessage : "";
+    const describedBy = element.getAttribute("aria-describedby")?.split(/\s+/).map((id) => document.getElementById(id)?.textContent ?? "").join(" ") ?? "";
+    const message = [nativeMessage, describedBy].find((value) => value.trim()) || "This field is marked invalid.";
+    errors.push({ id: `validation:${frameId}:${index}`, fieldId: bySelector.get(selector), message: message.trim().slice(0, 300), source: element.getAttribute("aria-invalid") === "true" ? "aria_invalid" : "native_validity", severity: "error", frameId, selector });
+  }
+  for (const [index, alert] of queryDeep("[role='alert']").filter(visible).entries()) {
+    const message = ((alert as HTMLElement).innerText || alert.textContent || "").replace(/\s+/g, " ").trim();
+    if (message) errors.push({ id: `alert:${frameId}:${index}`, message: message.slice(0, 300), source: "role_alert", severity: "error", frameId, selector: selectorFor(alert) });
+  }
+  return errors;
+}
+
+function buttonsForFrame(frameId: number): ButtonDescriptor[] {
+  return queryDeep("button, input[type='submit'], input[type='button'], [role='button']")
+    .filter(visible)
+    .map((element) => ({
+      label: (element.getAttribute("aria-label") || (element instanceof HTMLInputElement ? element.value : (element as HTMLElement).innerText || element.textContent) || "").replace(/\s+/g, " ").trim().slice(0, 160),
+      selector: selectorFor(element),
+      frameId,
+      disabled: element instanceof HTMLButtonElement || element instanceof HTMLInputElement ? element.disabled : element.getAttribute("aria-disabled") === "true",
+      visible: true,
+      type: element.getAttribute("type") ?? undefined,
+      role: element.getAttribute("role") ?? undefined,
+    }))
+    .filter((button) => button.label);
+}
+
+function captchaBlocker(frameId: number) {
+  const challenge = queryDeep("iframe[src*='recaptcha'], iframe[src*='hcaptcha'], iframe[src*='turnstile'], .g-recaptcha, .h-captcha, [class*='cf-turnstile']")[0];
+  return challenge ? [{ kind: "captcha" as const, detail: "Human verification detected. Solve it manually before continuing.", frameId }] : [];
+}
+
+/** Phase A: inspect one frame completely without writing to the page. */
+async function inspectFormFrame(frameId: number) {
+  const profile = await getProfile().catch(() => null);
+  if (!profile) return { authenticated: false, fields: [], validationErrors: [], buttons: [], blockers: [], heading: "", url: location.href };
+  const memory = await getLocalMemory().catch(() => []);
+  const entries = collectFields(true);
+  const fields: InspectedField[] = entries.map((entry, index) => {
+    const descriptor = descriptorFor(entry, frameId, index);
+    return { descriptor, resolution: resolveField({ descriptor, profile, memory }) };
+  });
+  const validationErrors = validationErrorsFor(fields, frameId);
+  const blockers = [...blockersForFields(fields, validationErrors), ...captchaBlocker(frameId)];
+  const heading = queryDeep("h1, [role='heading'][aria-level='1'], h2").filter(visible).map((node) => ((node as HTMLElement).innerText || node.textContent || "").trim()).find(Boolean) ?? "";
+  return { authenticated: true, fields, validationErrors, buttons: buttonsForFrame(frameId), blockers, heading: heading.slice(0, 200), url: location.href, signature: fieldSignature(fields) };
+}
+
+/**
+ * Clicks one adapter-approved Next control — never Review or Submit.
+ *
+ * This function has no selector argument from an LLM, worker, or page. It derives the
+ * selector from a static extension-owned allowlist, requires a native button whose
+ * effective type is exactly `button`, rejects unsafe words again at the element level,
+ * checks current validation, and clicks at most once. Unknown portals cannot use it.
+ */
+function advanceSafeStepFrame() {
+  const adapter = adapterForHost(location.hostname);
+  if (!adapter) return { ok: false, reason: "unsupported_ats", detail: "Automatic step navigation is not enabled for this portal." };
+  const candidates = adapter.safeNextSelectors.flatMap((selector) => queryDeep(selector)).filter((element) => visible(element) && isSafeNextElement(element, adapter));
+  const unique = [...new Set(candidates)];
+  if (unique.length !== 1) return { ok: false, reason: unique.length ? "ambiguous_next" : "no_safe_next", detail: unique.length ? "More than one safe Next control was found." : "No allowlisted safe Next control was found." };
+  const invalid = queryDeep("input:invalid, textarea:invalid, select:invalid, [aria-invalid='true'], [role='alert']").filter(visible);
+  if (invalid.length) return { ok: false, reason: "validation_error", detail: "Fix the visible validation errors before continuing." };
+  const target = unique[0] as HTMLButtonElement;
+  const label = (target.getAttribute("aria-label") || target.innerText || target.textContent || "Next").trim();
+  const stepMarker = adapter.stepMarkerSelectors.flatMap((selector) => queryDeep(selector)).filter(visible).map((element) => ((element as HTMLElement).innerText || element.textContent || "").trim()).find(Boolean) ?? "";
+  target.click();
+  return { ok: true, clicked: true, adapterId: adapter.id, label, stepMarker, url: location.href };
+}
+
 async function scanPage(fill: boolean) {
   const profile = await getProfile().catch(() => null);
   if (!profile) return { authenticated: false, fields: [] };
+  const memory = await getLocalMemory().catch(() => []);
   const entries = collectFields();
-  const fields = entries.map((entry, index) => {
-    const answer = answerForField(entry.field, profile);
+  const fields = await Promise.all(entries.map(async (entry, index) => {
+    const descriptor = descriptorFor(entry, 0, index);
+    const resolution = resolveField({ descriptor, profile, memory });
     let filled = false;
-    let value = answer ?? "";
+    let value = Array.isArray(resolution.value) ? resolution.value.join(", ") : resolution.value ?? "";
+    let fillOutcome = resolution.state === "blocked" ? "blocked_sensitive" : resolution.state === "unknown" ? "unresolved" : descriptor.currentValue ? "already_filled" : "skipped_low_confidence";
 
-    if (entry.kind === "single") {
-      const alreadyFilled = currentValue(entry.element).trim().length > 0;
-      if (fill && answer && !alreadyFilled && entry.field.confidence >= 0.9) filled = insertValue(entry.element, answer);
-    } else {
-      // Radio/checkbox groups. Sensitive questions (EEO/demographic disclosures,
-      // "I certify"/"I agree" attestations) are never auto-selected, regardless of
-      // confidence — extractGroupField already caps their confidence, and this check
-      // is a second, independent guard against ever silently answering on the user's
-      // behalf for one of these.
-      const alreadyAnswered = Boolean(entry.field.currentValue);
-      const sensitive = isSensitiveQuestion(entry.field.question) || isSensitiveQuestion(entry.field.nearbyText ?? "");
-      if (fill && answer && !alreadyAnswered && !sensitive) {
-        const matched = matchOption(answer, entry.field.options);
+    if (fill && canAutoFill(resolution)) {
+      if (entry.kind === "single") {
+        const write = entry.field.elementType === "combobox" || entry.element.getAttribute("role") === "combobox"
+          ? await fillComboboxVerified(entry.element, value)
+          : await insertValueVerified(entry.element, value);
+        filled = write.ok && write.verified;
+        fillOutcome = filled ? "verified" : write.reason ?? "verification_failed";
+      } else {
+        const matched = matchOption(value, entry.field.options);
         const target = matched ? entry.elements[entry.field.options.indexOf(matched)] : undefined;
-        if (target) { filled = selectChoiceElement(target); value = matched ?? value; }
+        if (target) {
+          const write = await selectChoiceVerified(target);
+          filled = write.ok && write.verified;
+          fillOutcome = filled ? "verified" : write.reason ?? "verification_failed";
+          if (filled) value = matched ?? value;
+        } else {
+          fillOutcome = "ambiguous_option";
+        }
       }
     }
 
-    return { index, label: entry.field.label, question: entry.field.question, kind: entry.field.kind, value, filled, needsReview: Boolean(answer) && entry.field.confidence < 0.9 };
-  });
+    return { index, label: entry.field.label, question: entry.field.question, kind: entry.field.kind, value, filled, needsReview: resolution.needsReview, fillOutcome };
+  }));
   return { authenticated: true, fields };
 }
 
@@ -474,11 +687,26 @@ async function hasReadyAccess() {
 
 chrome.runtime.onMessage.addListener((message: ExtensionMessage, _sender, sendResponse) => {
   if (message.type === "INSERT_IN_ACTIVE_FIELD" && activeElement) {
-    hasReadyAccess().then((ready) => sendResponse(ready ? { ok: insertValue(activeElement!, message.value) } : { ok: false, error: "Complete sign-in and profile setup first." }));
+    hasReadyAccess().then(async (ready) => {
+      if (!ready) { sendResponse({ ok: false, error: "Complete sign-in and profile setup first." }); return; }
+      const target = activeElement!;
+      const write = target.getAttribute("role") === "combobox"
+        ? await fillComboboxVerified(target, message.value)
+        : await insertValueVerified(target, message.value);
+      sendResponse(write);
+    }).catch((error) => sendResponse({ ok: false, verified: false, error: String(error) }));
     return true;
   }
   if (message.type === "SCAN_PAGE" || message.type === "FILL_ALL") {
     scanPage(message.type === "FILL_ALL").then(sendResponse).catch((error) => sendResponse({ authenticated: false, fields: [], error: String(error) }));
+    return true;
+  }
+  if (message.type === "INSPECT_FORM_FRAME") {
+    inspectFormFrame(message.frameId).then(sendResponse).catch((error) => sendResponse({ authenticated: false, fields: [], validationErrors: [], buttons: [], blockers: [], heading: "", url: location.href, error: String(error) }));
+    return true;
+  }
+  if (message.type === "ADVANCE_SAFE_STEP_FRAME") {
+    hasReadyAccess().then((ready) => sendResponse(ready ? advanceSafeStepFrame() : { ok: false, reason: "not_ready", detail: "Complete sign-in and profile setup first." }));
     return true;
   }
   if (message.type === "ATTACH_RESUME") {

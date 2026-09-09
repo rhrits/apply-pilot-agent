@@ -3,6 +3,8 @@ export * from "./answer-engine";
 export * from "./application-detector";
 export * from "./fact-retrieval";
 export * from "./extraction-review";
+export * from "./form-graph";
+export * from "./field-resolution";
 export * from "./suggestion-agent";
 export * from "./job-match";
 export * from "./onboarding";

@@ -62,6 +62,20 @@ describe("field detector", () => {
     const field = extractField(document.querySelector("input")!);
     expect(field?.question).toBe("Current company");
   });
+
+  it("detects a native date field instead of silently dropping it", () => {
+    document.body.innerHTML = '<label for="start">Available start date</label><input id="start" type="date" min="2026-09-01" />';
+    const field = extractField(document.querySelector("input")!);
+    expect(field?.inputType).toBe("date");
+    expect(field?.question).toBe("Available start date");
+  });
+
+  it("detects a non-native ARIA combobox", () => {
+    document.body.innerHTML = '<label id="city-label">Current city</label><div role="combobox" aria-labelledby="city-label" aria-controls="cities"></div>';
+    const field = extractField(document.querySelector("[role=combobox]")!);
+    expect(field?.elementType).toBe("combobox");
+    expect(field?.question).toBe("Current city");
+  });
 });
 
 describe("radio and checkbox group detection", () => {

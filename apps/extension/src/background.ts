@@ -1,4 +1,4 @@
-import type { ActiveFieldPayload, ExtensionAuthStatus, ExtensionMessage, ExtensionSettings } from "@uplyfox/shared";
+import { classifyNavAction, fieldSignature, type ActiveFieldPayload, type ButtonDescriptor, type ExtensionAuthStatus, type ExtensionMessage, type ExtensionSettings, type FormBlocker, type FormStepSnapshot, type FormValidationError, type InspectedField } from "@uplyfox/shared";
 import { extensionConfig, isExtensionConfigured } from "./lib/config";
 import { checkConnection, postJson } from "./lib/api-client";
 import { clearExtensionSession, fetchAuthenticatedProfile, fetchResumeFile, fetchTracker, getExtensionAuthStatus, getExtensionSupabase, markApplicationApplied, saveJobToSupabase, undoApplicationApplied } from "./lib/supabase";
@@ -228,6 +228,85 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
 
       sendResponse({ authenticated, fields });
     })();
+    return true;
+  }
+
+  if (message.type === "INSPECT_FORM_ALL_FRAMES") {
+    (async () => {
+      await readyStatus();
+      const frameRecords = await chrome.webNavigation.getAllFrames({ tabId: message.tabId }).catch(() => null);
+      const frames = frameRecords?.length ? frameRecords : [{ frameId: 0, parentFrameId: -1, url: "" }];
+
+      const scans = await Promise.all(frames.map(async (frame) => {
+        try {
+          const result = await chrome.tabs.sendMessage(
+            message.tabId,
+            { type: "INSPECT_FORM_FRAME", frameId: frame.frameId } satisfies ExtensionMessage,
+            { frameId: frame.frameId },
+          );
+          return { frame, result, error: "" };
+        } catch (error) {
+          return { frame, result: null, error: error instanceof Error ? error.message : String(error) };
+        }
+      }));
+
+      const fields = scans.flatMap(({ result }) => (result?.fields ?? []) as InspectedField[]);
+      const validationErrors = scans.flatMap(({ result }) => (result?.validationErrors ?? []) as FormValidationError[]);
+      const buttons = scans.flatMap(({ result }) => (result?.buttons ?? []) as ButtonDescriptor[]);
+      const blockers: FormBlocker[] = [
+        ...scans.flatMap(({ result }) => (result?.blockers ?? []) as FormBlocker[]),
+        ...scans.filter(({ result }) => !result).map(({ frame, error }) => ({
+          kind: "unavailable_frame" as const,
+          detail: `Could not inspect embedded frame: ${frame.url || "unknown frame"}${error ? ` (${error})` : ""}`,
+          frameId: frame.frameId,
+        })),
+      ];
+      // A field/validation condition can be observed through more than one route; keep
+      // the panel readable by deduplicating blockers on their semantic identity.
+      const uniqueBlockers = [...new Map(blockers.map((blocker) => [`${blocker.kind}|${blocker.frameId}|${blocker.fieldId}|${blocker.detail}`, blocker])).values()];
+      const top = scans.find(({ frame }) => frame.frameId === 0)?.result;
+      const signature = fieldSignature(fields);
+      const snapshot: FormStepSnapshot = {
+        stepIndex: 0,
+        stepKey: `${message.tabId}:${signature}`,
+        heading: top?.heading || scans.map(({ result }) => result?.heading).find(Boolean) || undefined,
+        url: top?.url || frames.find((frame) => frame.frameId === 0)?.url || "",
+        frames: scans.map(({ frame, result, error }) => {
+          let origin = "";
+          try { origin = frame.url ? new URL(frame.url).origin : ""; } catch { /* Non-URL frames have no origin. */ }
+          return { frameId: frame.frameId, parentFrameId: frame.parentFrameId, url: frame.url, origin, status: result ? "scanned" as const : "unavailable" as const, fieldCount: result?.fields?.length ?? 0, error: error || undefined };
+        }),
+        fields,
+        fieldSignature: signature,
+        validationErrors,
+        navAction: classifyNavAction(buttons),
+        blockers: uniqueBlockers,
+        capturedAt: Date.now(),
+      };
+      sendResponse({ authenticated: true, snapshot });
+    })().catch((error) => sendResponse({ authenticated: false, error: error instanceof Error ? error.message : String(error) }));
+    return true;
+  }
+
+  if (message.type === "ADVANCE_SAFE_STEP_ALL_FRAMES") {
+    (async () => {
+      await readyStatus();
+      const frames = await chrome.webNavigation.getAllFrames({ tabId: message.tabId }).catch(() => null);
+      const frameIds = (frames?.length ? frames : [{ frameId: 0 }]).map((frame) => frame.frameId);
+      const failures: Array<{ frameId: number; reason?: string; detail?: string }> = [];
+      // Sequential by design. Promise.all could click two embedded application frames
+      // before either response arrives; Phase C permits exactly one click per step.
+      for (const frameId of frameIds) {
+        try {
+          const response = await chrome.tabs.sendMessage(message.tabId, { type: "ADVANCE_SAFE_STEP_FRAME" } satisfies ExtensionMessage, { frameId });
+          if (response?.ok && response?.clicked) { sendResponse({ ...response, frameId }); return; }
+          failures.push({ frameId, reason: response?.reason, detail: response?.detail });
+        } catch (error) {
+          failures.push({ frameId, reason: "unavailable_frame", detail: error instanceof Error ? error.message : String(error) });
+        }
+      }
+      sendResponse({ ok: false, reason: "no_safe_next", detail: "No tested, allowlisted Next control was found in a reachable application frame.", failures });
+    })().catch((error) => sendResponse({ ok: false, reason: "navigation_error", detail: error instanceof Error ? error.message : String(error) }));
     return true;
   }
 

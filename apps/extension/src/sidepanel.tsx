@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { describeApplicationSignals, type ActiveFieldPayload, type AnswerResponse, type ApplicationVerdict, type ExtensionAccessState, type ExtensionMessage, type PageSummary, type ScannedField, type UserProfile } from "@uplyfox/shared";
+import { describeApplicationSignals, summarizeFormPlan, type ActiveFieldPayload, type AnswerResponse, type ApplicationVerdict, type ExtensionAccessState, type ExtensionMessage, type FormStepSnapshot, type PageSummary, type ScannedField, type UserProfile } from "@uplyfox/shared";
 import { extensionConfig } from "./lib/config";
 import type { TrackerSnapshot } from "./lib/supabase";
 import { CopyButton, DictationControl, ExternalIcon, InsertIcon, SaveIcon, SyncIcon } from "./components/ui";
+import { createApplicationSession, didStepTransition, sessionCanContinue, snapshotIdentity, stopReasonForSnapshot, SESSION_LIMITS, type ApplicationSession } from "./lib/application-session";
 import "./sidepanel.css";
 import "./sidepanel-layout.css";
 import "./sidepanel-auth.css";
 import "./sidepanel-tabs.css";
 import "./brand-overrides.css";
 import "./sidepanel-fox.css";
+import "./form-plan.css";
 
 const API_URL = extensionConfig.aiApiUrl;
 type Tab = "assistant" | "profile" | "fields" | "tracker";
@@ -109,6 +111,9 @@ function SidePanel() {
   const [accountEmail, setAccountEmail] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [fields, setFields] = useState<ScannedField[]>([]);
+  const [formPlan, setFormPlan] = useState<FormStepSnapshot | null>(null);
+  const [applicationSession, setApplicationSession] = useState<ApplicationSession | null>(null);
+  const sessionCancelled = useRef(false);
   const [tracker, setTracker] = useState<TrackerSnapshot | null>(null);
   const [pageMatch, setPageMatch] = useState<PageSummary | null>(null);
   const [appliedToast, setAppliedToast] = useState<{ title: string; url: string; reason: string } | null>(null);
@@ -160,6 +165,19 @@ function SidePanel() {
       }
     });
     return () => port.disconnect();
+  }, []);
+
+  useEffect(() => {
+    void chrome.tabs.query({ active: true, currentWindow: true }).then(async ([tabInfo]) => {
+      if (!tabInfo?.id) return;
+      const key = `applicationSession:${tabInfo.id}`;
+      const stored = await chrome.storage.session.get(key);
+      const session = stored[key] as ApplicationSession | undefined;
+      if (session) {
+        setApplicationSession(session);
+        if (session.currentStep) setFormPlan(session.currentStep);
+      }
+    }).catch(() => undefined);
   }, []);
 
   async function loadTracker() {
@@ -250,6 +268,145 @@ function SidePanel() {
     setStatus(result?.item ? "Saved. This question now answers instantly, with no AI call." : result?.error ?? "Could not save answer memory.");
   }
 
+  async function fetchInspection(id: number): Promise<FormStepSnapshot> {
+    const result = await chrome.runtime.sendMessage({ type: "INSPECT_FORM_ALL_FRAMES", tabId: id } satisfies ExtensionMessage);
+    if (!result?.authenticated || !result.snapshot) throw new Error(result?.error || "Sign in before inspecting this application.");
+    return result.snapshot as FormStepSnapshot;
+  }
+
+  async function inspectApplication() {
+    const id = await activeTabId();
+    if (!id) return;
+    beginPanelWork();
+    setStatus("Inspecting every reachable frame without changing the page…");
+    try {
+      const snapshot = await fetchInspection(id);
+      setFormPlan(snapshot);
+      setTab("fields");
+      const summary = summarizeFormPlan(snapshot.fields);
+      setStatus(`Inspected ${summary.total} fields across ${snapshot.frames.length} frame${snapshot.frames.length === 1 ? "" : "s"}. Nothing was changed.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not inspect this application.");
+    } finally {
+      endPanelWork();
+    }
+  }
+
+  function delay(milliseconds: number) {
+    return new Promise((resolve) => setTimeout(resolve, milliseconds));
+  }
+
+  async function publishSession(session: ApplicationSession) {
+    setApplicationSession({ ...session });
+    await chrome.storage.session.set({ [`applicationSession:${session.tabId}`]: session });
+  }
+
+  /**
+   * Phase C orchestration. There is intentionally no Submit command anywhere in this
+   * loop: it can only call the static allowlisted safe-next capability. A review or
+   * submit control is a terminal observation and returns control to the user.
+   */
+  async function runSafeSteps() {
+    const tabId = await activeTabId();
+    if (!tabId) return;
+    sessionCancelled.current = false;
+    let session = createApplicationSession(tabId);
+    setTab("fields");
+    setStatus("Starting safe multi-step mode…");
+    await publishSession(session);
+
+    try {
+      while (!sessionCancelled.current) {
+        const budget = sessionCanContinue(session);
+        if (!budget.ok) {
+          session = { ...session, status: budget.status, terminalReason: budget.reason };
+          await publishSession(session); setStatus(budget.reason); return;
+        }
+
+        session = { ...session, status: "observing" };
+        await publishSession(session);
+        const beforeFill = await fetchInspection(tabId);
+        setFormPlan(beforeFill);
+        // At the start of a step, only blockers/validation should stop filling. A
+        // Review or Submit button means this is the final page, but its fields still
+        // need to be filled and verified before control returns to the user.
+        const initialStop = stopReasonForSnapshot({ ...beforeFill, navAction: { kind: "next", label: "Next", confidence: 1 } });
+        if (initialStop) {
+          session = { ...session, status: "awaiting_user", currentStep: beforeFill, steps: [...session.steps, beforeFill], blockers: beforeFill.blockers, terminalReason: initialStop };
+          await publishSession(session); setStatus(initialStop); return;
+        }
+        if (beforeFill.navAction.kind === "none") {
+          const reason = "No next step was found. Review the page manually.";
+          session = { ...session, status: "awaiting_user", currentStep: beforeFill, blockers: beforeFill.blockers, terminalReason: reason };
+          await publishSession(session); setStatus(reason); return;
+        }
+
+        session = { ...session, status: "filling", currentStep: beforeFill };
+        await publishSession(session);
+        const fillResult = await chrome.runtime.sendMessage({ type: "SCAN_PAGE_ALL_FRAMES", tabId, fill: true } satisfies ExtensionMessage);
+        if (!fillResult?.authenticated) throw new Error("Could not fill the current step.");
+
+        // Reinspect after writes. Newly revealed conditional fields and validation
+        // errors must be handled before navigation is even considered.
+        const readyStep = await fetchInspection(tabId);
+        setFormPlan(readyStep);
+        const stop = stopReasonForSnapshot(readyStep);
+        if (stop) {
+          session = { ...session, status: readyStep.navAction.kind === "submit" || readyStep.navAction.kind === "review" ? "complete" : "awaiting_user", currentStep: readyStep, steps: [...session.steps, readyStep], blockers: readyStep.blockers, terminalReason: stop };
+          await publishSession(session); setStatus(stop); return;
+        }
+
+        const beforeIdentity = snapshotIdentity(readyStep);
+        session = { ...session, status: "waiting_for_transition", currentStep: readyStep, lastIdentity: beforeIdentity };
+        await publishSession(session);
+        const advance = await chrome.runtime.sendMessage({ type: "ADVANCE_SAFE_STEP_ALL_FRAMES", tabId } satisfies ExtensionMessage);
+        if (!advance?.ok) {
+          const reason = advance?.detail || "No tested safe Next control is available on this portal.";
+          session = { ...session, status: "blocked", blockers: [...readyStep.blockers, { kind: "unsupported_control", detail: reason }], terminalReason: reason };
+          await publishSession(session); setStatus(reason); return;
+        }
+        session.atsId = advance.adapterId ?? session.atsId;
+
+        const transitionDeadline = Date.now() + SESSION_LIMITS.transitionTimeoutMs;
+        let nextStep: FormStepSnapshot | null = null;
+        while (Date.now() < transitionDeadline && !sessionCancelled.current) {
+          await delay(SESSION_LIMITS.settleIntervalMs);
+          try {
+            const candidate = await fetchInspection(tabId);
+            if (didStepTransition(beforeIdentity, snapshotIdentity(candidate))) { nextStep = candidate; break; }
+          } catch {
+            // Full document navigation temporarily disconnects the content script. Keep
+            // observing within the bounded transition window; never click Next again.
+          }
+        }
+        if (sessionCancelled.current) break;
+        if (!nextStep) {
+          const reason = "The page did not change after the single Next click. Check validation messages; it was not clicked again.";
+          session = { ...session, status: "stalled", terminalReason: reason };
+          await publishSession(session); setStatus(reason); return;
+        }
+
+        session = { ...session, status: "observing", stepIndex: session.stepIndex + 1, steps: [...session.steps, readyStep], currentStep: nextStep, lastIdentity: snapshotIdentity(nextStep) };
+        await publishSession(session);
+        setFormPlan(nextStep);
+        setStatus(`Step ${session.stepIndex + 1} reached safely. Inspecting it now…`);
+      }
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "The application session failed.";
+      session = { ...session, status: "blocked", terminalReason: reason };
+      await publishSession(session); setStatus(reason);
+    } finally { /* Session state remains visible in the panel. */ }
+  }
+
+  function cancelSafeSteps() {
+    sessionCancelled.current = true;
+    if (applicationSession) {
+      const cancelled: ApplicationSession = { ...applicationSession, status: "cancelled", terminalReason: "Session cancelled by you." };
+      void publishSession(cancelled);
+    }
+    setStatus("Safe multi-step mode cancelled.");
+  }
+
   /**
    * Scans (or fills) every frame of the tab, not just the top document.
    *
@@ -269,8 +426,10 @@ function SidePanel() {
       const scanned: ScannedField[] = result.fields ?? [];
       setFields(scanned);
       setTab("fields");
-      const filledCount = scanned.filter((item) => item.filled).length;
-      setStatus(fill ? `Filled ${filledCount} of ${scanned.length} detected fields.` : `Detected ${scanned.length} fields on this page.`);
+      const filledCount = scanned.filter((item) => item.fillOutcome === "verified").length;
+      const blockedCount = scanned.filter((item) => item.fillOutcome === "blocked_sensitive").length;
+      const failedCount = scanned.filter((item) => ["verification_failed", "write_failed", "no_option", "ambiguous_option", "invalid_format", "out_of_range"].includes(item.fillOutcome ?? "")).length;
+      setStatus(fill ? `Verified ${filledCount} field${filledCount === 1 ? "" : "s"}; ${blockedCount} sensitive blocked; ${failedCount} failed verification.` : `Detected ${scanned.length} fields on this page.`);
     } catch { setStatus("Reload the page, then scan again."); }
     finally { endPanelWork(); }
   }
@@ -388,8 +547,11 @@ function SidePanel() {
     </section>}
 
     <div className="quick-actions">
-      <button onClick={() => scan(false)}>Scan page</button>
+      <button onClick={inspectApplication}>Inspect application</button>
       <button onClick={() => scan(true)}>Fill all</button>
+      {applicationSession && ["observing", "filling", "waiting_for_transition"].includes(applicationSession.status)
+        ? <button className="session-cancel" onClick={cancelSafeSteps}>Stop safe steps</button>
+        : <button className="session-start" onClick={runSafeSteps}>Run safe steps</button>}
       <button onClick={attachResume}>Attach resume</button>
       <button onClick={saveJob}>Save job</button>
       <button onClick={syncNow}><SyncIcon size={12} />Sync</button>
@@ -398,7 +560,7 @@ function SidePanel() {
     <nav className="tabs">
       <button className={tab === "assistant" ? "active" : ""} onClick={() => setTab("assistant")}>Assistant</button>
       <button className={tab === "profile" ? "active" : ""} onClick={() => setTab("profile")}>My data</button>
-      <button className={tab === "fields" ? "active" : ""} onClick={() => setTab("fields")}>Fields{fields.length ? ` (${fields.length})` : ""}</button>
+      <button className={tab === "fields" ? "active" : ""} onClick={() => setTab("fields")}>Fields{formPlan?.fields.length ? ` (${formPlan.fields.length})` : fields.length ? ` (${fields.length})` : ""}</button>
       <button className={tab === "tracker" ? "active" : ""} onClick={() => { setTab("tracker"); void loadTracker(); }}>Tracker{tracker?.total ? ` (${tracker.total})` : ""}</button>
     </nav>
 
@@ -422,12 +584,47 @@ function SidePanel() {
 
     {tab === "profile" && <ProfileTab profile={profile} />}
 
-    {tab === "fields" && <div className="tab-body">
-      {fields.length === 0 ? <p className="empty">Run “Scan page” to list every detected field.</p> : fields.map((field) => <div className="field-row" key={field.index}>
-        <div className="field-row-text">
-          <strong>{field.label || field.question || "Field"}</strong>
-          <small>{field.kind}{field.filled ? " · filled" : field.value ? " · ready" : " · no value"}</small>
-        </div>
+    {tab === "fields" && <div className="tab-body form-plan">
+      {formPlan ? (() => {
+        const summary = summarizeFormPlan(formPlan.fields);
+        return <>
+          {applicationSession && <div className={`session-status ${applicationSession.status}`}>
+            <div><small>Safe multi-step mode</small><strong>{applicationSession.status.replace(/_/g, " ")}</strong></div>
+            <span>Step {applicationSession.stepIndex + 1} / {applicationSession.maxSteps}</span>
+            {applicationSession.terminalReason && <p>{applicationSession.terminalReason}</p>}
+          </div>}
+          <div className="plan-summary">
+            <div><strong>{summary.total}</strong><span>Total</span></div>
+            <div className="resolved"><strong>{summary.resolved}</strong><span>Ready</span></div>
+            <div className="unknown"><strong>{summary.unknown}</strong><span>Unknown</span></div>
+            <div className="blocked"><strong>{summary.blocked}</strong><span>Blocked</span></div>
+          </div>
+          <div className="plan-step-meta">
+            <div><small>Current step</small><strong>{formPlan.heading || "Application form"}</strong></div>
+            <span className={`nav-kind ${formPlan.navAction.kind}`}>{formPlan.navAction.kind === "none" ? "No next action" : `${formPlan.navAction.kind}: ${formPlan.navAction.label}`}</span>
+          </div>
+          {summary.requiredUnknown > 0 && <p className="plan-warning">{summary.requiredUnknown} required field{summary.requiredUnknown === 1 ? "" : "s"} need an answer before this step can continue.</p>}
+          {formPlan.blockers.length > 0 && <details className="plan-blockers" open>
+            <summary>Blockers ({formPlan.blockers.length})</summary>
+            <ul>{formPlan.blockers.map((blocker, index) => <li key={`${blocker.kind}-${index}`}>{blocker.detail}</li>)}</ul>
+          </details>}
+          <h2>Field plan</h2>
+          {formPlan.fields.length === 0 && <p className="empty">No application fields were found in reachable frames.</p>}
+          {formPlan.fields.map(({ descriptor, resolution }) => <article className={`plan-field ${resolution.state}`} key={descriptor.id}>
+            <div className="plan-field-head">
+              <div><strong>{descriptor.question || descriptor.label || "Field"}{descriptor.required && <em>required</em>}</strong><small>{descriptor.elementType} · {descriptor.questionSource} · frame {descriptor.frameId}</small></div>
+              <span className={`resolution-badge ${resolution.state}`}>{resolution.state}</span>
+            </div>
+            {descriptor.currentValue && <div className="plan-value current"><small>On page</small><span>{Array.isArray(descriptor.currentValue) ? descriptor.currentValue.join(", ") : descriptor.currentValue}</span></div>}
+            {resolution.value && <div className="plan-value proposed"><small>Would use · {resolution.source} · {Math.round(resolution.confidence * 100)}%</small><span>{Array.isArray(resolution.value) ? resolution.value.join(", ") : resolution.value}</span></div>}
+            {descriptor.options.length > 0 && <div className="plan-options">{descriptor.options.slice(0, 8).map((option) => <span className={option.selected ? "selected" : ""} key={`${descriptor.id}-${option.label}`}>{option.label}</span>)}</div>}
+            {resolution.reason && <p>{resolution.reason}</p>}
+          </article>)}
+          <details className="frame-report"><summary>Frames inspected ({formPlan.frames.length})</summary>{formPlan.frames.map((frame) => <div key={frame.frameId}><span>{frame.status === "scanned" ? "✓" : "!"} Frame {frame.frameId}</span><small>{frame.fieldCount} fields · {frame.origin || frame.url || "embedded frame"}</small></div>)}</details>
+          <small className="readonly-note">Read-only inspection · no fields were changed</small>
+        </>;
+      })() : fields.length === 0 ? <p className="empty">Run “Inspect application” to build a complete read-only field plan.</p> : fields.map((field) => <div className="field-row" key={field.index}>
+        <div className="field-row-text"><strong>{field.label || field.question || "Field"}</strong><small>{field.kind} · {(field.fillOutcome ?? (field.filled ? "verified" : field.value ? "ready" : "no value")).replace(/_/g, " ")}</small></div>
         {field.value && <CopyButton value={field.value} label="Copy value" />}
       </div>)}
     </div>}
