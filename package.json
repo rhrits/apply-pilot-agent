@@ -1,5 +1,5 @@
 {
-  "name": "applypilot",
+  "name": "uplyfox",
   "private": true,
   "version": "0.1.0",
   "description": "Open-source AI job-application copilot with resume-grounded answers, Chrome autofill, copy/insert fallbacks, and a privacy-conscious job tracker.",

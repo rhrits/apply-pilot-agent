@@ -1,8 +1,8 @@
-# ApplyPilot Product Strategy and Implementation Plan
+# UplyFox Product Strategy and Implementation Plan
 
 ## Product position
 
-ApplyPilot is an authenticated, user-controlled job-application copilot:
+UplyFox is an authenticated, user-controlled job-application copilot:
 
 > Build a verified profile once; understand every application page; prepare a complete draft; let the user review and explicitly confirm before anything is submitted.
 

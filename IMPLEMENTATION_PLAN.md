@@ -2,7 +2,7 @@
 
 ## Non-negotiable product contract
 
-> ApplyPilot works across the web as an assistant. Autofill is best-effort; copy, manual question mode, and the Side Panel are the guaranteed fallback.
+> UplyFox works across the web as an assistant. Autofill is best-effort; copy, manual question mode, and the Side Panel are the guaranteed fallback.
 
 ## Milestone 1 — Vertical slice (done in this scaffold)
 

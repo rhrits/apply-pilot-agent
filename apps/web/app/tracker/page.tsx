@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ApplicationStatus, JobApplication, TrackerTask } from "@applypilot/shared";
+import type { ApplicationStatus, JobApplication, TrackerTask } from "@uplyfox/shared";
 import { getSupabaseBrowserClient } from "../../lib/supabase";
 import { AuthGate } from "../../components/auth-gate";
 import "./tracker.css";
@@ -45,9 +45,9 @@ function TrackerWorkspace() {
   const selected = useMemo(() => jobs.find((job) => job.id === selectedId) ?? null, [jobs, selectedId]);
 
   useEffect(() => {
-    const saved = localStorage.getItem("applypilot-jobs");
+    const saved = localStorage.getItem("uplyfox-jobs") ?? localStorage.getItem("applypilot-jobs");
     if (saved) { try { setJobs(JSON.parse(saved) as JobApplication[]); } catch { /* Keep sample data. */ } }
-    const savedDraft = localStorage.getItem("applypilot-job-draft");
+    const savedDraft = localStorage.getItem("uplyfox-job-draft") ?? localStorage.getItem("applypilot-job-draft");
     if (savedDraft) { try { setDraft(JSON.parse(savedDraft)); setShowForm(true); } catch { /* Ignore an unreadable draft. */ } }
     loaded.current = true;
   }, []);
@@ -107,15 +107,15 @@ function TrackerWorkspace() {
   // Autosave: every change to the board or the in-progress form is persisted immediately.
   useEffect(() => {
     if (!loaded.current) return;
-    localStorage.setItem("applypilot-jobs", JSON.stringify(jobs));
+    localStorage.setItem("uplyfox-jobs", JSON.stringify(jobs));
     setSaveState(`Saved ${new Date().toLocaleTimeString()}`);
   }, [jobs]);
 
   useEffect(() => {
     if (!loaded.current) return;
     const hasContent = Boolean(draft.company.trim() || draft.title.trim() || draft.notes?.trim());
-    if (hasContent) localStorage.setItem("applypilot-job-draft", JSON.stringify(draft));
-    else localStorage.removeItem("applypilot-job-draft");
+    if (hasContent) localStorage.setItem("uplyfox-job-draft", JSON.stringify(draft));
+    else localStorage.removeItem("uplyfox-job-draft");
   }, [draft]);
 
   const visible = useMemo(() => jobs.filter((job) => {
@@ -164,7 +164,7 @@ function TrackerWorkspace() {
     setJobs((current) => [created, ...current]);
     void syncJob(created).then((remoteId) => { if (remoteId) setJobs((current) => current.map((item) => item.id === created.id ? { ...item, remoteId } : item)); });
     setDraft(blankJob); setShowForm(false);
-    localStorage.removeItem("applypilot-job-draft");
+    localStorage.removeItem("uplyfox-job-draft");
   }
 
   function removeJob(id: string) {

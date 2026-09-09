@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { LinkEnrichment } from "@applypilot/shared";
+import type { LinkEnrichment } from "@uplyfox/shared";
 
 export const runtime = "nodejs";
 
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
   const timeout = setTimeout(() => controller.abort(), 12_000);
   let response: Response;
   try {
-    response = await fetch(validation.url, { signal: controller.signal, redirect: "follow", headers: { "User-Agent": "ApplyPilot/1.0 (+profile enrichment; respects robots)", Accept: "text/html,application/xhtml+xml" } });
+    response = await fetch(validation.url, { signal: controller.signal, redirect: "follow", headers: { "User-Agent": "UplyFox/1.0 (+profile enrichment; respects robots)", Accept: "text/html,application/xhtml+xml" } });
   } catch {
     clearTimeout(timeout);
     return NextResponse.json({ error: "Could not reach that link. Check the URL or paste the details manually." }, { status: 502, headers });

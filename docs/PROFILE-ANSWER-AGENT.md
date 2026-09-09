@@ -2,7 +2,7 @@
 
 ## Purpose
 
-After onboarding builds and the user reviews a profile, ApplyPilot generates a reusable answer library. The agent receives the complete verified profile context and a fixed catalog of general application questions. It processes the catalog in bounded batches and returns strict structured JSON.
+After onboarding builds and the user reviews a profile, UplyFox generates a reusable answer library. The agent receives the complete verified profile context and a fixed catalog of general application questions. It processes the catalog in bounded batches and returns strict structured JSON.
 
 ## Pipeline
 

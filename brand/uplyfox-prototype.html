@@ -1,0 +1,1147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UplyFox · Brand, Light Theme & UI Prototypes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Base light theme from ApplyPilot globals */
+      --bg-page: #fbfaff;
+      --bg-card: #ffffff;
+      --bg-lavender: #f0efff;
+      --bg-lavender-subtle: #faf9ff;
+      --border-line: #e8e6f5;
+      --border-line-hover: #cfcaf0;
+      --ink: #1f2040;
+      --ink-muted: #6e6d87;
+      --ink-subtle: #9998b0;
+
+      /* Signature Purple & Navy */
+      --purple: #5546d9;
+      --purple-hover: #4536cb;
+      --purple-dark: #24234a;
+      --purple-glow: rgba(85, 70, 217, 0.22);
+
+      /* Logo 05 Pixel Mark Orange Gradient */
+      --fox-orange-start: #ff944d;
+      --fox-orange-mid: #f97316;
+      --fox-orange-end: #d9480f;
+      --fox-gradient: linear-gradient(135deg, #ff944d 0%, #f97316 48%, #d9480f 100%);
+      --fox-gradient-hover: linear-gradient(135deg, #ffa366 0%, #fb8532 48%, #e4551c 100%);
+      --fox-orange-glow: 0 10px 25px -4px rgba(249, 115, 22, 0.38);
+      --fox-tint: #fff4ed;
+      --fox-tint-border: #fed7aa;
+
+      /* Success Emerald */
+      --green: #10996a;
+      --green-tint: #dff8eb;
+
+      /* Typography */
+      --font-display: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+      --font-body: 'DM Sans', system-ui, -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg-page);
+      color: var(--ink);
+      font-family: var(--font-body);
+      line-height: 1.5;
+      overflow-x: hidden;
+      padding-bottom: 120px;
+    }
+
+    /* Ambient soft background radial gradients */
+    .ambient-glow {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(circle at 12% 15%, rgba(85, 70, 217, 0.08) 0%, transparent 45%),
+        radial-gradient(circle at 88% 22%, rgba(249, 115, 22, 0.09) 0%, transparent 40%),
+        radial-gradient(circle at 50% 85%, rgba(85, 70, 217, 0.05) 0%, transparent 50%);
+    }
+
+    .container {
+      width: min(1240px, calc(100% - 48px));
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Top Sticky Navigation */
+    .top-nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(251, 250, 255, 0.88);
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--border-line);
+    }
+    .top-nav-inner {
+      height: 74px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+    .brand-lockup {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      color: var(--ink);
+    }
+    .brand-lockup img {
+      width: 38px;
+      height: 38px;
+      border-radius: 11px;
+      box-shadow: 0 4px 14px rgba(249, 115, 22, 0.28);
+    }
+    .brand-lockup span strong {
+      background: var(--fox-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .nav-tabs {
+      display: flex;
+      gap: 6px;
+    }
+    .nav-link {
+      padding: 9px 16px;
+      border-radius: 10px;
+      color: var(--ink-muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+    .nav-link:hover, .nav-link.active {
+      color: var(--purple);
+      background: var(--bg-lavender);
+    }
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .btn-signin {
+      padding: 9px 16px;
+      color: var(--ink-muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .btn-signin:hover { color: var(--purple); }
+
+    /* Section Headings */
+    .section-intro {
+      margin: 80px 0 32px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-line);
+      padding-bottom: 18px;
+    }
+    .section-intro h2 {
+      font-size: 30px;
+      font-family: var(--font-display);
+      letter-spacing: -0.04em;
+      color: var(--ink);
+    }
+    .section-intro p {
+      color: var(--ink-muted);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    /* Badges */
+    .badge-purple {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: var(--bg-lavender);
+      color: var(--purple);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .badge-fox {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: var(--fox-tint);
+      color: var(--fox-orange-end);
+      border: 1px solid var(--fox-tint-border);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .badge-green {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--green-tint);
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    /* ---------------------------------------------------------------- */
+    /* HERO PROTOTYPE (THE PURPLE + WHITE + ORANGE GRADIENT HARMONY)   */
+    /* ---------------------------------------------------------------- */
+    .hero-container {
+      margin-top: 36px;
+      padding: 64px 48px;
+      border-radius: 28px;
+      background: linear-gradient(135deg, #ffffff 0%, #faf8ff 50%, #f4f2ff 100%);
+      border: 1px solid #e5e1f8;
+      box-shadow: 0 24px 60px rgba(85, 70, 217, 0.08);
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-orbit-accent {
+      position: absolute;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      border: 1px solid rgba(85, 70, 217, 0.12);
+      top: -120px;
+      right: -100px;
+      pointer-events: none;
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 48px;
+      align-items: center;
+      position: relative;
+      z-index: 2;
+    }
+    .hero-copy h1 {
+      font-family: var(--font-display);
+      font-size: clamp(38px, 4.8vw, 58px);
+      line-height: 1.06;
+      letter-spacing: -0.04em;
+      color: var(--ink);
+      margin: 18px 0 20px;
+    }
+    .hero-copy h1 .fox-text {
+      background: var(--fox-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-copy h1 .purple-text {
+      color: var(--purple);
+    }
+    .hero-copy p {
+      font-size: 17px;
+      line-height: 1.62;
+      color: var(--ink-muted);
+      max-width: 540px;
+      margin-bottom: 34px;
+    }
+    .hero-cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 36px;
+    }
+
+    /* Primary Orange Gradient Button (The Fox Button) */
+    .btn-fox-orange {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 15px 28px;
+      border-radius: 13px;
+      background: var(--fox-gradient);
+      color: #ffffff;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 15px;
+      text-decoration: none;
+      border: 0;
+      box-shadow: var(--fox-orange-glow);
+      cursor: pointer;
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .btn-fox-orange:hover {
+      background: var(--fox-gradient-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 14px 30px -3px rgba(249, 115, 22, 0.45);
+    }
+    .btn-fox-orange:active { transform: translateY(0); }
+
+    /* Purple Primary Button */
+    .btn-purple-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 15px 26px;
+      border-radius: 13px;
+      background: var(--purple);
+      color: #ffffff;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 15px;
+      text-decoration: none;
+      border: 0;
+      box-shadow: 0 10px 24px -4px rgba(85, 70, 217, 0.35);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-purple-primary:hover {
+      background: var(--purple-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 14px 28px -3px rgba(85, 70, 217, 0.45);
+    }
+
+    /* Lavender Ghost Button */
+    .btn-lavender-ghost {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 22px;
+      border-radius: 13px;
+      background: #ffffff;
+      border: 1px solid var(--border-line-hover);
+      color: var(--purple);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+    .btn-lavender-ghost:hover {
+      background: var(--bg-lavender);
+      border-color: var(--purple);
+    }
+
+    /* Proof tags below Hero */
+    .hero-proof-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      color: var(--ink-muted);
+      font-size: 13px;
+      font-weight: 600;
+      border-top: 1px solid var(--border-line);
+      padding-top: 24px;
+    }
+    .hero-proof-list span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .proof-check {
+      display: inline-grid;
+      place-items: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--green-tint);
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    /* Hero Visual Showcase: Floating Extension UI Card */
+    .hero-visual-stage {
+      position: relative;
+    }
+    .hero-preview-window {
+      background: #ffffff;
+      border: 1px solid #dfdbee;
+      border-radius: 22px;
+      box-shadow: 0 25px 60px rgba(33, 26, 77, 0.12), 0 8px 18px rgba(33, 26, 77, 0.05);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .window-header {
+      padding: 14px 18px;
+      background: #faf9ff;
+      border-bottom: 1px solid #eeecf7;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .window-brand-lockup {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .window-brand-lockup img {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+    }
+    .window-body {
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Active Job Detected Banner */
+    .ats-detected-card {
+      padding: 12px 14px;
+      background: var(--fox-tint);
+      border: 1px solid var(--fox-tint-border);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .ats-detected-text strong {
+      display: block;
+      font-size: 12px;
+      color: var(--fox-orange-end);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .ats-detected-text span {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-top: 1px;
+    }
+
+    /* Floating Suggestion Popover */
+    .preview-suggestion-popover {
+      background: #ffffff;
+      border: 1px solid #d9d6f0;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 14px 35px rgba(85, 70, 217, 0.12);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .popover-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .popover-head strong {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--purple);
+      font-family: var(--font-display);
+    }
+    .popover-question {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink-muted);
+      border-left: 2px solid var(--purple);
+      padding-left: 8px;
+    }
+    .popover-answer {
+      background: var(--bg-lavender);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 1.55;
+      color: #2b2857;
+    }
+    .popover-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-popover-insert {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: var(--purple);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      border: 0;
+      cursor: pointer;
+    }
+    .btn-popover-copy {
+      padding: 8px 14px;
+      border-radius: 8px;
+      background: #ffffff;
+      border: 1px solid var(--border-line-hover);
+      color: var(--purple);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* Floating Match Radar Pill */
+    .hero-radar-badge {
+      position: absolute;
+      bottom: -18px;
+      left: -18px;
+      background: #ffffff;
+      padding: 12px 16px;
+      border-radius: 16px;
+      border: 1px solid #dcd7f2;
+      box-shadow: 0 16px 36px rgba(31, 24, 71, 0.12);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 5;
+    }
+    .radar-circle {
+      width: 44px;
+      height: 44px;
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+    .radar-circle svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+    .radar-number {
+      position: absolute;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 13px;
+      color: var(--ink);
+    }
+
+    /* ---------------------------------------------------------------- */
+    /* LOGO ASSET & ICON MATRIX SHOWCASE                                */
+    /* ---------------------------------------------------------------- */
+    .logo-hero-card {
+      background: #ffffff;
+      border: 1px solid var(--border-line);
+      border-radius: 24px;
+      padding: 36px;
+      box-shadow: 0 14px 40px rgba(31, 24, 71, 0.05);
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 40px;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .logo-hero-preview {
+      display: grid;
+      place-items: center;
+      background: #faf8ff;
+      border: 1px solid #e7e3f8;
+      border-radius: 20px;
+      padding: 24px;
+      aspect-ratio: 1;
+    }
+    .logo-hero-preview img {
+      width: 180px;
+      height: 180px;
+      filter: drop-shadow(0 14px 28px rgba(249, 115, 22, 0.28));
+    }
+    .logo-hero-details h3 {
+      font-size: 24px;
+      font-family: var(--font-display);
+      margin-bottom: 8px;
+    }
+    .logo-hero-details p {
+      color: var(--ink-muted);
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    .icon-scale-grid {
+      display: flex;
+      align-items: flex-end;
+      gap: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-line);
+    }
+    .icon-scale-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .icon-scale-col small {
+      font-size: 10px;
+      color: var(--ink-subtle);
+      font-weight: 700;
+    }
+
+    /* ---------------------------------------------------------------- */
+    /* BUTTON SYSTEM DEMO BOARD                                         */
+    /* ---------------------------------------------------------------- */
+    .button-demo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 24px;
+    }
+    .button-card {
+      background: #ffffff;
+      border: 1px solid var(--border-line);
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 10px 25px rgba(31, 24, 71, 0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .button-card h4 {
+      font-size: 16px;
+      font-family: var(--font-display);
+      color: var(--ink);
+    }
+    .button-card p {
+      font-size: 13px;
+      color: var(--ink-muted);
+      line-height: 1.5;
+    }
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    /* Action Trigger Pill for In-page Autofill */
+    .btn-smart-autofill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 22px;
+      border-radius: 999px;
+      background: var(--purple-dark);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(36, 35, 74, 0.25);
+      transition: all 0.2s ease;
+    }
+    .btn-smart-autofill:hover {
+      background: #312e61;
+      transform: translateY(-1px);
+    }
+    .btn-smart-autofill .fox-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      background: var(--fox-gradient);
+      display: grid;
+      place-items: center;
+      font-size: 10px;
+    }
+
+    /* Filter & Status Pills */
+    .filter-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 999px;
+      background: #ffffff;
+      border: 1px solid var(--border-line);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .filter-pill:hover {
+      border-color: var(--purple);
+      color: var(--purple);
+    }
+    .filter-pill.active {
+      background: var(--bg-lavender);
+      border-color: var(--purple);
+      color: var(--purple);
+    }
+    .filter-pill.fox-active {
+      background: var(--fox-tint);
+      border-color: var(--fox-orange-mid);
+      color: var(--fox-orange-end);
+    }
+
+    /* ---------------------------------------------------------------- */
+    /* UI COMPONENT PROTOTYPES (LIGHT MODE)                             */
+    /* ---------------------------------------------------------------- */
+    .ui-components-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 24px;
+    }
+    .component-box {
+      background: #ffffff;
+      border: 1px solid var(--border-line);
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 10px 30px rgba(31, 24, 71, 0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .component-box h4 {
+      font-size: 16px;
+      font-family: var(--font-display);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Job Match Radar in Light Mode */
+    .light-match-card {
+      background: #faf9ff;
+      border: 1px solid #e7e3f8;
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .light-match-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .big-radar-gauge {
+      width: 58px;
+      height: 58px;
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+    .big-radar-gauge svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+    .big-radar-gauge span {
+      position: absolute;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 16px;
+      color: var(--ink);
+    }
+    .skill-pills-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .spill-match {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--green-tint);
+      color: var(--green);
+    }
+    .spill-missing {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #ffebe9;
+      color: #cf3b2b;
+    }
+
+    @media (max-width: 900px) {
+      .hero-grid, .logo-hero-card { grid-template-columns: 1fr; }
+      .hero-container { padding: 40px 24px; }
+      .hero-radar-badge { position: static; margin-top: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="ambient-glow"></div>
+
+  <!-- STICKY TOP NAV -->
+  <nav class="top-nav">
+    <div class="container top-nav-inner">
+      <a href="#" class="brand-lockup">
+        <img src="uplyfox-pixel-logo.svg" alt="UplyFox Pixel Logo" />
+        <span>Uply<strong>Fox</strong></span>
+      </a>
+
+      <div class="nav-tabs">
+        <a href="#hero" class="nav-link active">Hero Showcase</a>
+        <a href="#logo-showcase" class="nav-link">Pixel Logo (05)</a>
+        <a href="#buttons" class="nav-link">Buttons & CTAs</a>
+        <a href="#ui-hud" class="nav-link">UI Components</a>
+      </div>
+
+      <div class="nav-actions">
+        <a href="#hero" class="btn-signin">Sign in</a>
+        <a href="#buttons" class="btn-fox-orange" style="padding: 10px 18px; font-size: 13px;">Get UplyFox Free</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container">
+
+    <!-- ============================================================== -->
+    <!-- SECTION 1: HERO SHOWCASE (PURPLE & WHITE LIGHT MODE + ORANGE) -->
+    <!-- ============================================================== -->
+    <section id="hero" class="hero-container">
+      <div class="hero-orbit-accent"></div>
+
+      <div class="hero-grid">
+        <!-- Copy Side -->
+        <div class="hero-copy">
+          <span class="badge-purple">✦ The Smart Job Application Copilot</span>
+          <h1>Outfox the hiring grind with <span class="fox-text">clever precision.</span></h1>
+          <p>
+            Build one verified profile from your resume and projects. UplyFox detects real job pages, benchmarks your skill match in seconds, and autofills applications with truthful, review-ready answers.
+          </p>
+
+          <div class="hero-cta-row">
+            <button class="btn-fox-orange">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              <span>Add to Chrome — It’s Free</span>
+            </button>
+            <button class="btn-lavender-ghost">See How It Works →</button>
+          </div>
+
+          <div class="hero-proof-list">
+            <span><strong class="proof-check">✓</strong> 100% Grounded in your facts</span>
+            <span><strong class="proof-check">✓</strong> Never submits automatically</span>
+            <span><strong class="proof-check">✓</strong> Free & open-source</span>
+          </div>
+        </div>
+
+        <!-- Visual Stage Side: Extension Window Preview -->
+        <div class="hero-visual-stage">
+          <div class="hero-preview-window">
+            <!-- Window Topbar -->
+            <div class="window-header">
+              <div class="window-brand-lockup">
+                <img src="uplyfox-pixel-logo.svg" alt="UplyFox" />
+                <span>UplyFox Assistant</span>
+              </div>
+              <span class="badge-green">● SYNCED</span>
+            </div>
+
+            <div class="window-body">
+              <!-- Greenhouse Detected Job Card -->
+              <div class="ats-detected-card">
+                <div class="ats-detected-text">
+                  <strong>Greenhouse Job Detected</strong>
+                  <span>Staff Frontend Engineer · Linear</span>
+                </div>
+                <span class="badge-fox">94% Match</span>
+              </div>
+
+              <!-- Floating Suggestion Popover -->
+              <div class="preview-suggestion-popover">
+                <div class="popover-head">
+                  <strong>✦ UplyFox suggests</strong>
+                  <span class="badge-purple">Answer Memory</span>
+                </div>
+                <div class="popover-question">
+                  "Why do you want to work at Linear?"
+                </div>
+                <div class="popover-answer">
+                  "I'm drawn to Linear’s focus on craft, speed, and making complex product work feel effortless. In my previous roles scaling React and design systems, I prioritized that same simplicity..."
+                </div>
+                <div class="popover-actions">
+                  <button class="btn-popover-insert">Insert answer</button>
+                  <button class="btn-popover-copy">Copy</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Floating Radar Badge -->
+          <div class="hero-radar-badge">
+            <div class="radar-circle">
+              <svg viewBox="0 0 36 36">
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#eeecf7" stroke-width="3.5"/>
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="url(#radar-grad)" stroke-width="3.5" stroke-dasharray="94, 100" stroke-linecap="round"/>
+                <defs>
+                  <linearGradient id="radar-grad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#ff944d"/>
+                    <stop offset="100%" stop-color="#d9480f"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+              <span class="radar-number">94%</span>
+            </div>
+            <div>
+              <strong style="display:block; font-size:13px; color:var(--ink);">High Requirement Match</strong>
+              <small style="color:var(--green); font-weight:700; font-size:11px;">14 of 15 skills verified in profile</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- SECTION 2: PIXEL LOGO (05) WITH GRADIENT IN PURPLE THEME       -->
+    <!-- ============================================================== -->
+    <section id="logo-showcase">
+      <div class="section-intro">
+        <div>
+          <span class="badge-fox">Selected Mark</span>
+          <h2>Concept 05 · Pixel / Bold with Gradient</h2>
+          <p>The chosen mark: clean angular mask, high-contrast white geometry, and fiery orange gradient container.</p>
+        </div>
+      </div>
+
+      <div class="logo-hero-card">
+        <div class="logo-hero-preview">
+          <img src="uplyfox-pixel-logo.svg" alt="UplyFox Pixel Logo Hero" />
+        </div>
+        <div class="logo-hero-details">
+          <h3>Solid Orange Container + Geometric White Mask</h3>
+          <p>
+            This mark combines the warmth and clever agility of the fox with digital precision. The squircle container matches modern macOS and Chrome Web Store guidelines, while the angular white mask guarantees instant recognition even when scaled down to a tiny 16px browser favicon.
+          </p>
+
+          <div class="icon-scale-grid">
+            <div class="icon-scale-col">
+              <img src="uplyfox-pixel-logo.svg" style="width:64px; height:64px; border-radius:16px;" />
+              <small>64px (Store)</small>
+            </div>
+            <div class="icon-scale-col">
+              <img src="uplyfox-pixel-logo.svg" style="width:48px; height:48px; border-radius:12px;" />
+              <small>48px (Toolbar)</small>
+            </div>
+            <div class="icon-scale-col">
+              <img src="uplyfox-pixel-logo.svg" style="width:32px; height:32px; border-radius:8px;" />
+              <small>32px (App Nav)</small>
+            </div>
+            <div class="icon-scale-col">
+              <img src="uplyfox-pixel-logo.svg" style="width:24px; height:24px; border-radius:6px;" />
+              <small>24px (HUD)</small>
+            </div>
+            <div class="icon-scale-col">
+              <img src="uplyfox-pixel-logo.svg" style="width:16px; height:16px; border-radius:4px;" />
+              <small>16px (Favicon)</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lockup preview -->
+      <div style="background:#ffffff; border:1px solid var(--border-line); border-radius:18px; padding:20px 28px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
+        <div style="display:flex; align-items:center; gap:16px;">
+          <img src="uplyfox-lockup.svg" style="height:48px;" alt="UplyFox Wordmark Lockup" />
+          <span style="font-size:13px; color:var(--ink-muted); border-left:1px solid var(--border-line); padding-left:16px;">
+            Space Grotesk typography · Deep Indigo Ink + Fox Orange Gradient
+          </span>
+        </div>
+        <span class="badge-purple">Official Brand Lockup</span>
+      </div>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- SECTION 3: BUTTON SYSTEM PROTOTYPES (PURPLE + ORANGE HARMONY) -->
+    <!-- ============================================================== -->
+    <section id="buttons">
+      <div class="section-intro">
+        <div>
+          <span class="badge-purple">Design System</span>
+          <h2>UplyFox Button & Action Library</h2>
+          <p>Buttons tailored for web marketing, web workspace dashboard, and in-page extension overlays.</p>
+        </div>
+      </div>
+
+      <div class="button-demo-grid">
+        <!-- 1. The Fox Flame Gradient CTA -->
+        <div class="button-card">
+          <h4>1. Fox Flame Gradient (Primary CTA)</h4>
+          <p>High-conversion button for top hero conversions, extension downloads, and critical steps.</p>
+          <div class="button-row">
+            <button class="btn-fox-orange"><span>🦊</span> Add to Chrome Free</button>
+            <button class="btn-fox-orange" style="padding:10px 18px; font-size:13px;">Save Opportunity</button>
+          </div>
+        </div>
+
+        <!-- 2. Signature Purple Button -->
+        <div class="button-card">
+          <h4>2. Signature Brand Purple</h4>
+          <p>The established ApplyPilot purple used across the authenticated web workspace.</p>
+          <div class="button-row">
+            <button class="btn-purple-primary">Build Your Profile →</button>
+            <button class="btn-purple-primary" style="padding:10px 18px; font-size:13px;">Generate Answer</button>
+          </div>
+        </div>
+
+        <!-- 3. Smart Autofill Trigger -->
+        <div class="button-card">
+          <h4>3. Smart Autofill Trigger Pill</h4>
+          <p>Floating prompt when fields are detected on an application page.</p>
+          <div class="button-row">
+            <button class="btn-smart-autofill">
+              <span class="fox-dot">🦊</span>
+              <span>UplyFox Autofill</span>
+            </button>
+            <button class="btn-smart-autofill" style="background:#136246; border-color:#22c55e;">
+              <span style="color:#4ade80;">✓</span>
+              <span>7 Fields Filled</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 4. Secondary & Ghost Actions -->
+        <div class="button-card">
+          <h4>4. Lavender Ghost & Filter Pills</h4>
+          <p>Soft surfaces that live comfortably on clean light mode backgrounds.</p>
+          <div class="button-row">
+            <button class="btn-lavender-ghost">See How It Works</button>
+            <button class="filter-pill fox-active"><span>🎯</span> 94% Match</button>
+            <button class="filter-pill active">Applied (8)</button>
+            <button class="filter-pill">Interview (3)</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- SECTION 4: IN-PAGE & EXTENSION UI COMPONENTS                    -->
+    <!-- ============================================================== -->
+    <section id="ui-hud">
+      <div class="section-intro">
+        <div>
+          <span class="badge-fox">Component Library</span>
+          <h2>Interactive UI & Extension HUD</h2>
+          <p>Light mode components for live field suggestions, ATS detection, and job match radar.</p>
+        </div>
+      </div>
+
+      <div class="ui-components-grid">
+
+        <!-- 1. Floating In-Page Suggestion Card -->
+        <div class="component-box">
+          <h4>In-Page Question Suggestion <span class="badge-purple">Live Overlay</span></h4>
+          <p style="color:var(--ink-muted); font-size:13px;">Renders right below the active input on Greenhouse, Lever, or Workday forms.</p>
+
+          <div style="border:1px solid #d9d6f0; border-radius:18px; padding:18px; background:#fff; box-shadow:0 12px 35px rgba(31,24,71,0.08); display:flex; flex-direction:column; gap:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <img src="uplyfox-pixel-logo.svg" style="width:24px; height:24px; border-radius:6px;" />
+                <strong style="font-family:var(--font-display); font-size:14px; color:var(--purple);">UplyFox suggests</strong>
+              </div>
+              <span class="badge-green">Verified · 94%</span>
+            </div>
+
+            <div style="font-size:12px; color:var(--ink-muted); font-weight:600; border-left:2px solid var(--fox-orange-mid); padding-left:8px;">
+              "What is your expected compensation range?"
+            </div>
+
+            <div style="background:var(--bg-lavender); border-radius:10px; padding:11px 13px; font-size:13px; font-weight:600; color:var(--ink);">
+              $155,000 – $180,000 USD (based on verified profile)
+            </div>
+
+            <div style="display:flex; gap:8px; margin-top:4px;">
+              <button class="btn-fox-orange" style="flex:1; padding:9px 14px; font-size:12px; border-radius:9px;">Insert value</button>
+              <button class="btn-lavender-ghost" style="padding:9px 14px; font-size:12px; border-radius:9px;">Copy</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Light Match Radar -->
+        <div class="component-box">
+          <h4>Job Match Radar <span class="badge-fox">Simplify-style</span></h4>
+          <p style="color:var(--ink-muted); font-size:13px;">Description-first benchmark against user's skills and roles.</p>
+
+          <div class="light-match-card">
+            <div class="light-match-header">
+              <div class="big-radar-gauge">
+                <svg viewBox="0 0 36 36">
+                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e8e4f5" stroke-width="3.5"/>
+                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="url(#radar-grad-2)" stroke-width="3.5" stroke-dasharray="92, 100" stroke-linecap="round"/>
+                  <defs>
+                    <linearGradient id="radar-grad-2" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stop-color="#ff944d"/>
+                      <stop offset="100%" stop-color="#ea580c"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <span>92%</span>
+              </div>
+              <div>
+                <strong style="font-size:15px; color:var(--ink); display:block;">Strong Requirement Match</strong>
+                <small style="color:var(--green); font-weight:700; font-size:11px;">Top 5% candidate fit</small>
+              </div>
+            </div>
+
+            <div>
+              <small style="color:var(--ink-subtle); font-size:10px; font-weight:800; text-transform:uppercase;">Matched Requirements (12)</small>
+              <div class="skill-pills-row" style="margin-top:6px;">
+                <span class="spill-match">✓ TypeScript</span>
+                <span class="spill-match">✓ React / Next.js</span>
+                <span class="spill-match">✓ Python</span>
+                <span class="spill-match">✓ System Design</span>
+              </div>
+            </div>
+
+            <div>
+              <small style="color:var(--ink-subtle); font-size:10px; font-weight:800; text-transform:uppercase;">Missing from profile (1)</small>
+              <div class="skill-pills-row" style="margin-top:6px;">
+                <span class="spill-missing">✗ Kafka</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Smart Detection Notification Bar -->
+        <div class="component-box">
+          <h4>Job Page Auto-Draft Banner <span class="badge-purple">Automated</span></h4>
+          <p style="color:var(--ink-muted); font-size:13px;">Discreet notification bar when arriving on a recognized career posting.</p>
+
+          <div style="padding:14px 18px; border-radius:14px; background:linear-gradient(110deg, #fff4ed 0%, #ffffff 100%); border:1px solid #fed7aa; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <img src="uplyfox-pixel-logo.svg" style="width:34px; height:34px; border-radius:9px;" />
+              <div>
+                <strong style="font-size:13px; color:var(--ink); display:block;">Linear Job Posting Detected</strong>
+                <small style="color:var(--ink-muted); font-size:11px;">Senior Full-Stack Engineer · San Francisco (Hybrid)</small>
+              </div>
+            </div>
+            <button class="btn-fox-orange" style="padding:7px 14px; font-size:12px;">Auto-Draft Saved</button>
+          </div>
+
+          <div style="padding:14px 18px; border-radius:14px; background:var(--bg-lavender-subtle); border:1px solid var(--border-line); display:flex; align-items:center; justify-content:space-between; gap:12px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="width:32px; height:32px; border-radius:8px; background:var(--bg-lavender); color:var(--purple); display:grid; place-items:center; font-weight:800;">⚡</div>
+              <div>
+                <strong style="font-size:13px; color:var(--ink); display:block;">8 Fields Ready for Autofill</strong>
+                <small style="color:var(--ink-muted); font-size:11px;">Name, Email, Resume PDF, GitHub, LinkedIn</small>
+              </div>
+            </div>
+            <button class="btn-lavender-ghost" style="padding:7px 14px; font-size:12px;">Review & Fill</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+</body>
+</html>

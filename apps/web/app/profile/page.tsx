@@ -12,7 +12,7 @@ import {
   type ProjectSource,
   type ResumeAnalysis,
   type UserProfile,
-} from "@applypilot/shared";
+} from "@uplyfox/shared";
 import { getSupabaseBrowserClient } from "../../lib/supabase";
 import { commitProfile } from "../../lib/onboarding-store";
 import { AuthGate } from "../../components/auth-gate";

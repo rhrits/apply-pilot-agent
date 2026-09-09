@@ -1,0 +1,183 @@
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <defs>
+    <!--
+      UplyFox Precision Icon Language
+      - 24x24 uniform grid
+      - 1.75px clean stroke weight with round caps and joins
+      - Clean duotone accents: primary stroke in deep purple/ink, accent fills/strokes in wine/crimson
+      - Sharp, modern, minimal SaaS quality (Stripe/Linear/Apple level)
+    -->
+
+    <!-- 1. Fox (The signature mascot icon) -->
+    <symbol id="fox" viewBox="0 0 24 24">
+      <path d="M4 17.5C3.5 13.5 4 8 4 8L8.5 11L12 9.5L15.5 11L20 8C20 8 20.5 13.5 20 17.5C18.5 20.5 14.5 22 12 22C9.5 22 5.5 20.5 4 17.5Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M8.5 11L6.5 15.5C8 17.5 10.5 18 12 18C13.5 18 16 17.5 17.5 15.5L15.5 11" fill="none" stroke="#8b1e3f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="9" cy="14" r="1" fill="#8b1e3f"/>
+      <circle cx="15" cy="14" r="1" fill="#8b1e3f"/>
+      <path d="M11 16.5L12 17.2L13 16.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+
+    <!-- 2. Home / Dashboard -->
+    <symbol id="home" viewBox="0 0 24 24">
+      <path d="M3 10.5L12 3L21 10.5V20C21 20.5523 20.5523 21 20 21H4C3.44772 21 3 20.5523 3 20V10.5Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M9 21V14C9 13.4477 9.44772 13 10 13H14C14.5523 13 15 13.4477 15 14V21" fill="none" stroke="#8b1e3f" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+
+    <!-- 3. Profile / Identity -->
+    <symbol id="profile" viewBox="0 0 24 24">
+      <circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M4 20C4 16.6863 7.58172 14 12 14C16.4183 14 20 16.6863 20 20" fill="none" stroke="#8b1e3f" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+
+    <!-- 4. Resume / CV -->
+    <symbol id="resume" viewBox="0 0 24 24">
+      <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M14 2V8H20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M8 13H16M8 17H13" fill="none" stroke="#8b1e3f" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="8.5" cy="9" r="1" fill="#8b1e3f"/>
+    </symbol>
+
+    <!-- 5. Answers / Chat / Dialogue -->
+    <symbol id="answers" viewBox="0 0 24 24">
+      <path d="M21 12C21 16.4183 16.9706 20 12 20C10.45 20 8.99 19.65 7.72 19.03L3 20.5L4.56 16.74C3.59 15.37 3 13.76 3 12C3 7.58172 7.02944 4 12 4C16.9706 4 21 7.58172 21 12Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M8 11.5H16M8 14.5H13" fill="none" stroke="#8b1e3f" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+
+    <!-- 6. Tracker / Analytics -->
+    <symbol id="tracker" viewBox="0 0 24 24">
+      <path d="M3 3V21H21" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="7" y="13" width="3" height="5" rx="1" fill="none" stroke="#8b1e3f" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="12" y="8" width="3" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="17" y="5" width="3" height="13" rx="1" fill="none" stroke="#8b1e3f" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+
+    <!-- 7. Job / Opportunity -->
+    <symbol id="job" viewBox="0 0 24 24">
+      <rect x="3" y="7" width="18" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M8 7V5C8 3.89543 8.89543 3 10 3H14C15.1046 3 16 3.89543 16 5V7" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M3 12H21" fill="none" stroke="#8b1e3f" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M10 12V14H14V12" fill="none" stroke="#8b1e3f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+
+    <!-- 8. Scan / Focus Frame -->
+    <symbol id="scan" viewBox="0 0 24 24">
+      <path d="M4 8V5C4 4.44772 4.44772 4 5 4H8" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M16 4H19C19.5523 4 20 4.44772 20 5V8" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M20 16V19C20 19.5523 19.5523 20 19 20H16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M8 20H5C4.44772 20 4 19.5523 4 19V16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="4" y1="12" x2="20" y2="12" stroke="#8b1e3f" stroke-width="1.75" stroke-linecap="round" stroke-dasharray="2 3"/>
+    </symbol>
+
+    <!-- 9. Autofill / Magic Fill -->
+    <symbol id="autofill" viewBox="0 0 24 24">
+      <path d="M4 14H10M4 18H7" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M14.5 4.5L19.5 9.5L9 20H4V15L14.5 4.5Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M18.5 2.5L21.5 5.5" fill="none" stroke="#8b1e3f" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M13 6L18 11" fill="none" stroke="#8b1e3f" stroke-width="1.5" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- 10. Match / Target Accuracy -->
+    <symbol id="match" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="12" cy="12" r="5" fill="none" stroke="#8b1e3f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="12" cy="12" r="1.5" fill="#8b1e3f"/>
+    </symbol>
+
+    <!-- 11. Save / Memory Disk -->
+    <symbol id="save" viewBox="0 0 24 24">
+      <path d="M19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H16L21 8V19C21 20.1046 20.1046 21 19 21Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M17 21V13H7V21" fill="none" stroke="#8b1e3f" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M7 3V8H15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+
+    <!-- 12. Copy to Clipboard -->
+    <symbol id="copy" viewBox="0 0 24 24">
+      <rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M5 15H4C3.44772 15 3 14.5523 3 14V4C3 3.44772 3.44772 3 4 3H14C14.5523 3 15 3.44772 15 4V5" fill="none" stroke="#8b1e3f" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+
+    <!-- 13. Insert Into Field -->
+    <symbol id="insert" viewBox="0 0 24 24">
+      <path d="M12 3V15M12 15L7 10M12 15L17 10" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M4 18C4 19.1046 4.89543 20 6 20H18C19.1046 20 20 19.1046 20 18" fill="none" stroke="#8b1e3f" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+
+    <!-- 14. Sync / Refresh -->
+    <symbol id="sync" viewBox="0 0 24 24">
+      <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5V9H8" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M4 13A8.1 8.1 0 0 0 19.5 15M20 19V15H16" fill="none" stroke="#8b1e3f" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+
+    <!-- 15. Spark / AI Generation -->
+    <symbol id="spark" viewBox="0 0 24 24">
+      <path d="M12 2L13.8 8.2L20 10L13.8 11.8L12 18L10.2 11.8L4 10L10.2 8.2L12 2Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M19 15L20 18L23 19L20 20L19 23L18 20L15 19L18 18L19 15Z" fill="#8b1e3f" stroke="#8b1e3f" stroke-width="0.5"/>
+    </symbol>
+
+    <!-- 16. Voice / Microphone -->
+    <symbol id="voice" viewBox="0 0 24 24">
+      <rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M5 10C5 13.866 8.13401 17 12 17C15.866 17 19 13.866 19 10" fill="none" stroke="#8b1e3f" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="12" y1="17" x2="12" y2="21" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+      <line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- 17. Attach / File Upload -->
+    <symbol id="attach" viewBox="0 0 24 24">
+      <path d="M21.44 11.05L12.25 20.24C10.1 22.39 6.6 22.39 4.45 20.24C2.3 18.09 2.3 14.6 4.45 12.44L13.64 3.25C15.01 1.88 17.23 1.88 18.6 3.25C19.97 4.62 19.97 6.84 18.6 8.21L9.41 17.4C8.73 18.08 7.62 18.08 6.94 17.4C6.26 16.72 6.26 15.61 6.94 14.93L15.42 6.45" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+
+    <!-- 18. Calendar / Dates -->
+    <symbol id="calendar" viewBox="0 0 24 24">
+      <rect x="3" y="5" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="16" y1="3" x2="16" y2="7" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+      <line x1="8" y1="3" x2="8" y2="7" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+      <line x1="3" y1="10" x2="21" y2="10" stroke="#8b1e3f" stroke-width="1.75" stroke-linecap="round"/>
+      <circle cx="8" cy="14" r="1" fill="#8b1e3f"/>
+      <circle cx="12" cy="14" r="1" fill="#8b1e3f"/>
+      <circle cx="16" cy="14" r="1" fill="#8b1e3f"/>
+      <circle cx="8" cy="17.5" r="1" fill="currentColor"/>
+      <circle cx="12" cy="17.5" r="1" fill="currentColor"/>
+    </symbol>
+
+    <!-- 19. Interview / Stages -->
+    <symbol id="interview" viewBox="0 0 24 24">
+      <circle cx="9" cy="9" r="3.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M3 19C3 16 5.5 14 9 14C12.5 14 15 16 15 19" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+      <path d="M15 8C16.5 8 18 9 18 11M18 19V17C18 15.5 17 14.5 15.5 14" fill="none" stroke="#8b1e3f" stroke-width="1.75" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- 20. Offer / Contract -->
+    <symbol id="offer" viewBox="0 0 24 24">
+      <path d="M20 7H4C2.89543 7 2 7.89543 2 9V18C2 19.1046 2.89543 20 4 20H20C21.1046 20 22 19.1046 22 18V9C22 7.89543 21.1046 7 20 7Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M16 7V5C16 3.89543 15.1046 3 14 3H10C8.89543 3 8 3.89543 8 5V7" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M12 11V15M10 13H14" fill="none" stroke="#8b1e3f" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+
+    <!-- 21. Settings / Controls -->
+    <symbol id="settings" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="3" fill="none" stroke="#8b1e3f" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M19.4 15A1.65 1.65 0 0 0 19.73 16.82L20.15 17.55C20.47 18.1 20.12 18.8 19.51 18.96L18.66 19.19C18.06 19.35 17.62 19.86 17.58 20.48L17.52 21.36C17.48 22 16.88 22.46 16.26 22.31L15.42 22.1C14.83 21.95 14.22 22.25 13.98 22.81L13.64 23.6C13.39 24.18 12.67 24.38 12.15 24L11.5 23.5M4.6 9A1.65 1.65 0 0 0 4.27 7.18L3.85 6.45C3.53 5.9 3.88 5.2 4.49 5.04L5.34 4.81C5.94 4.65 6.38 4.14 6.42 3.52L6.48 2.64C6.52 2 7.12 1.54 7.74 1.69L8.58 1.9C9.17 2.05 9.78 1.75 10.02 1.19L10.36 0.4C10.61 -0.18 11.33 -0.38 11.85 0L12.5 0.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+
+    <!-- 22. Shield / Privacy Guard -->
+    <symbol id="shield" viewBox="0 0 24 24">
+      <path d="M12 2L20 5.5V11.5C20 16.5 16.5 20.8 12 22C7.5 20.8 4 16.5 4 11.5V5.5L12 2Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M9 12L11 14L15 10" fill="none" stroke="#8b1e3f" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+
+    <!-- 23. Lock / Auth -->
+    <symbol id="lock" viewBox="0 0 24 24">
+      <rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M8 11V7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7V11" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="12" cy="16" r="1.5" fill="#8b1e3f"/>
+    </symbol>
+
+    <!-- 24. Logout / Sign Out -->
+    <symbol id="logout" viewBox="0 0 24 24">
+      <path d="M9 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H9" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M16 17L21 12L16 7" fill="none" stroke="#8b1e3f" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="21" y1="12" x2="9" y2="12" stroke="#8b1e3f" stroke-width="1.75" stroke-linecap="round"/>
+    </symbol>
+  </defs>
+</svg>

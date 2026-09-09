@@ -1,4 +1,4 @@
-import type { ExtensionMessage, UserProfile } from "@applypilot/shared";
+import type { ExtensionMessage, UserProfile } from "@uplyfox/shared";
 
 export const demoProfile: UserProfile = {
   firstName: "Alex",

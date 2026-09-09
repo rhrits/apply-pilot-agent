@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">ApplyFox Zenith Ribbon Mark</title>
+  <desc id="desc">An elegant fluid continuous ribbon fox in warm golden amber and copper hues.</desc>
+  <defs>
+    <linearGradient id="zenith-gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fed7aa"/>
+      <stop offset="30%" stop-color="#f97316"/>
+      <stop offset="70%" stop-color="#ea580c"/>
+      <stop offset="100%" stop-color="#c2410c"/>
+    </linearGradient>
+    <linearGradient id="bg-zenith" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#181326"/>
+      <stop offset="100%" stop-color="#0a0810"/>
+    </linearGradient>
+    <filter id="zenith-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#ea580c" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="128" fill="url(#bg-zenith)"/>
+
+  <!-- Sun disk backdrop -->
+  <circle cx="256" cy="240" r="140" fill="url(#zenith-gold)" opacity="0.12"/>
+
+  <g filter="url(#zenith-shadow)">
+    <!-- Fluid Fox Silhouette / Ribbon Flow -->
+    <!-- Large sweeping tail that curls upward and cradles the body -->
+    <path d="M140 390 C120 330 140 250 200 210 C240 180 270 190 270 140 C270 110 240 90 220 80 C270 60 320 90 320 150 C320 190 290 220 270 240 C230 280 210 320 220 370 C230 420 300 430 350 390 C390 360 410 300 390 240 C386 226 398 214 412 218 C436 290 414 374 360 418 C290 472 170 470 140 390 Z"
+          fill="url(#zenith-gold)"/>
+
+    <!-- Sharp Fox Ears -->
+    <path d="M220 80 L204 40 L256 64 Z" fill="#ffedd5"/>
+    <path d="M280 72 L316 36 L310 92 Z" fill="#ea580c"/>
+
+    <!-- Fox Face / Snout Profile -->
+    <path d="M246 110 L160 168 C150 174 150 188 162 192 L228 206 C250 210 270 196 270 174 L270 130 Z"
+          fill="#ffffff"/>
+
+    <!-- Dark Nose Tip -->
+    <polygon points="160,168 152,174 162,180" fill="#0a0810"/>
+
+    <!-- Elegant eye slit -->
+    <path d="M206 156 Q218 152 226 158" stroke="#ea580c" stroke-width="4" stroke-linecap="round" fill="none"/>
+
+    <!-- Tail White Tip Accent -->
+    <path d="M140 390 C132 366 136 332 154 306 C166 324 180 344 190 360 C170 380 152 390 140 390 Z" fill="#ffffff" opacity="0.95"/>
+  </g>
+</svg>

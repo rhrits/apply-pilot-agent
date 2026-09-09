@@ -1,5 +1,5 @@
 {
-  "name": "@applypilot/extension",
+  "name": "@uplyfox/extension",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@applypilot/shared": "*",
+    "@uplyfox/shared": "*",
     "@supabase/supabase-js": "^2.109.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"

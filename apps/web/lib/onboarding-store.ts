@@ -8,7 +8,7 @@
  * last-write-wins; a failed write is reported but never blocks the wizard.
  */
 
-import type { RawSignal, UserProfile } from "@applypilot/shared";
+import type { RawSignal, UserProfile } from "@uplyfox/shared";
 import { getSupabaseBrowserClient } from "./supabase";
 
 export interface PersistResult { ok: boolean; error?: string }

@@ -2,7 +2,7 @@
 
 ## Product contract
 
-ApplyPilot should save a draft only when the active page looks like a real job posting. It must not turn every page visited into a tracker item. Detection is automatic, but application submission remains manual.
+UplyFox should save a draft only when the active page looks like a real job posting. It must not turn every page visited into a tracker item. Detection is automatic, but application submission remains manual.
 
 ## Implemented flow
 
@@ -82,7 +82,7 @@ The extension tracker shows a compact score badge. The web tracker shows:
 - score, summary, matched skills, and missing skills in the detail drawer;
 - the saved job description in a collapsible section.
 
-This follows the useful part of Simplify's workflow: analyze the listing before application, surface match percentage and missing keywords, and save the listing into a tracker. ApplyPilot keeps the calculation explainable and profile-grounded instead of hiding the score behind an opaque model.
+This follows the useful part of Simplify's workflow: analyze the listing before application, surface match percentage and missing keywords, and save the listing into a tracker. UplyFox keeps the calculation explainable and profile-grounded instead of hiding the score behind an opaque model.
 
 ## Popup stability
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSuggestionPrompts, isUsableSuggestion, normalizeSuggestionOutput } from "@applypilot/shared";
+import { buildSuggestionPrompts, isUsableSuggestion, normalizeSuggestionOutput } from "@uplyfox/shared";
 
 const field = {
   label: "Answer",

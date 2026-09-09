@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">ApplyFox Monogram Mark</title>
+  <desc id="desc">The letter A merged seamlessly with an agile fox and white-tipped brush tail.</desc>
+  <defs>
+    <linearGradient id="mono-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff7a1a"/>
+      <stop offset="60%" stop-color="#f54a00"/>
+      <stop offset="100%" stop-color="#cc2900"/>
+    </linearGradient>
+    <linearGradient id="bg-mono" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e182e"/>
+      <stop offset="100%" stop-color="#0c0914"/>
+    </linearGradient>
+    <filter id="mono-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#f54a00" flood-opacity="0.32"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="128" fill="url(#bg-mono)"/>
+
+  <!-- Subtle glow ring -->
+  <circle cx="256" cy="256" r="190" fill="none" stroke="#f54a00" stroke-width="2" stroke-opacity="0.15" stroke-dasharray="8 12"/>
+
+  <g filter="url(#mono-glow)">
+    <!-- Main 'A' Fox Body -->
+    <!-- Left leg of A rising into left ear -->
+    <path d="M110 420 L210 140 L256 70 L302 140 L402 420 L336 420 L300 316 L212 316 L176 420 Z" fill="url(#mono-grad)"/>
+
+    <!-- Left Ear notch / inner fold -->
+    <polygon points="210,140 240,110 232,180" fill="#ffd0a3"/>
+    <!-- Right Ear notch / inner fold -->
+    <polygon points="302,140 272,110 280,180" fill="#ffb076"/>
+
+    <!-- Fox Face Center Mask inside the triangle of the A -->
+    <path d="M256 160 L212 280 L300 280 Z" fill="#0c0914"/>
+
+    <!-- Fox Eyes inside the triangle -->
+    <path d="M232 232 Q240 228 244 238" stroke="#ff7a1a" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+    <path d="M280 232 Q272 228 268 238" stroke="#ff7a1a" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+
+    <!-- White-tipped Tail sweeping through the crossbar of the A -->
+    <path d="M160 330 C200 300 256 300 310 324 C344 338 382 334 410 306 C390 354 340 376 290 366 C236 354 196 358 160 330 Z" fill="#ffffff"/>
+
+    <!-- Tail Accent Flame -->
+    <path d="M350 326 C374 322 396 312 410 306 C396 338 370 352 344 354 Z" fill="#ff9947"/>
+
+    <!-- Snout & Nose at the apex center -->
+    <circle cx="256" cy="266" r="6" fill="#ffffff"/>
+  </g>
+</svg>

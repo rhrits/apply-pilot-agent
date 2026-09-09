@@ -1,0 +1,1281 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ApplyFox · Brand, UI & Hero Prototypes</title>
+  <style>
+    :root {
+      --bg: #0a0910;
+      --card-bg: rgba(22, 19, 32, 0.75);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(255, 122, 26, 0.4);
+      --fox-orange: #ff6600;
+      --fox-gradient: linear-gradient(135deg, #ff8a3d 0%, #ff5500 50%, #d83a00 100%);
+      --fox-glow: 0 10px 30px -5px rgba(255, 85, 0, 0.4);
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-body: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      line-height: 1.5;
+      padding-bottom: 120px;
+      overflow-x: hidden;
+    }
+
+    /* Ambient background mesh */
+    .ambient-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(255, 85, 0, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 15%, rgba(139, 92, 246, 0.12) 0%, transparent 45%),
+        radial-gradient(circle at 50% 80%, rgba(255, 122, 26, 0.08) 0%, transparent 50%);
+    }
+
+    .container {
+      width: min(1280px, calc(100% - 48px));
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Top Navigation bar */
+    .proto-nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(20px);
+      background: rgba(10, 9, 16, 0.82);
+      border-bottom: 1px solid var(--border);
+    }
+    .proto-nav-inner {
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 20px;
+      font-weight: 800;
+      font-family: var(--font-display);
+      letter-spacing: -0.03em;
+      color: #fff;
+    }
+    .brand-title img {
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+    }
+    .nav-links {
+      display: flex;
+      gap: 8px;
+    }
+    .nav-tab-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+    .nav-tab-btn:hover, .nav-tab-btn.active {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.06);
+      border-color: var(--border);
+    }
+
+    /* Section styling */
+    .section-header {
+      margin: 64px 0 32px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+    .section-header h2 {
+      font-size: 28px;
+      font-family: var(--font-display);
+      letter-spacing: -0.03em;
+    }
+    .section-header p {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255, 85, 0, 0.15);
+      color: #ff8a3d;
+      border: 1px solid rgba(255, 85, 0, 0.3);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* ------------------------------------------------------------- */
+    /* LOGOS GRID */
+    /* ------------------------------------------------------------- */
+    .logos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 20px;
+    }
+    .logo-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      backdrop-filter: blur(12px);
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    .logo-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-4px);
+      box-shadow: 0 16px 36px -10px rgba(0,0,0,0.5);
+    }
+    .logo-card.featured {
+      border-color: rgba(255, 85, 0, 0.5);
+      box-shadow: 0 0 0 1px rgba(255, 85, 0, 0.3), 0 20px 40px -15px rgba(255, 85, 0, 0.25);
+    }
+    .logo-preview-box {
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 18px;
+      border: 1px solid rgba(255,255,255,0.03);
+    }
+    .logo-preview-box img {
+      width: 100%;
+      height: 100%;
+      max-width: 140px;
+      max-height: 140px;
+      object-fit: contain;
+    }
+    .logo-info h3 {
+      font-size: 17px;
+      font-family: var(--font-display);
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .logo-info p {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    /* Small scale test bar inside card */
+    .scale-test-bar {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .scale-test-bar small {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .scale-item {
+      border-radius: 6px;
+      overflow: hidden;
+      display: inline-block;
+    }
+
+    /* ------------------------------------------------------------- */
+    /* BUTTON SYSTEM PROTOTYPES */
+    /* ------------------------------------------------------------- */
+    .buttons-board {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 24px;
+    }
+    .button-group-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px;
+    }
+    .button-group-card h3 {
+      font-size: 18px;
+      margin-bottom: 8px;
+      font-family: var(--font-display);
+    }
+    .button-group-card p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+    .buttons-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    /* Button Style 1: Primary Fox Flame */
+    .btn-fox-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 12px 24px;
+      border-radius: 12px;
+      background: var(--fox-gradient);
+      color: #fff;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: var(--fox-glow);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-fox-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 34px -5px rgba(255, 85, 0, 0.6);
+      filter: brightness(1.05);
+    }
+    .btn-fox-primary:active { transform: translateY(0); }
+
+    /* Button Style 2: Stealth Dark Glass */
+    .btn-fox-stealth {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 22px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      backdrop-filter: blur(12px);
+      transition: all 0.2s ease;
+    }
+    .btn-fox-stealth:hover {
+      background: rgba(255, 255, 255, 0.09);
+      border-color: rgba(255, 122, 26, 0.5);
+      box-shadow: 0 0 20px rgba(255, 102, 0, 0.2);
+    }
+
+    /* Button Style 3: AutoFill Action Pulse */
+    .btn-fox-autofill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 13px 26px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #1f1b2c 0%, #161222 100%);
+      color: #ff944d;
+      border: 1px solid rgba(255, 102, 0, 0.4);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      transition: all 0.2s ease;
+    }
+    .btn-fox-autofill:hover {
+      border-color: #ff6600;
+      box-shadow: 0 0 25px rgba(255, 102, 0, 0.35);
+      color: #fff;
+    }
+    .btn-fox-autofill .fox-sparkle {
+      color: #ff7a1a;
+      animation: pulse-sparkle 1.8s infinite;
+    }
+    @keyframes pulse-sparkle {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(1.25); opacity: 1; }
+    }
+
+    /* Pill buttons */
+    .btn-fox-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.04);
+      color: #e5e7eb;
+      transition: all 0.15s ease;
+    }
+    .btn-fox-pill:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .btn-fox-pill.active {
+      background: rgba(255, 85, 0, 0.15);
+      border-color: #ff6600;
+      color: #ff8a3d;
+    }
+
+    /* ------------------------------------------------------------- */
+    /* UI COMPONENT PROTOTYPES */
+    /* ------------------------------------------------------------- */
+    .components-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 24px;
+    }
+    .ui-showcase-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .ui-showcase-box h3 {
+      font-size: 17px;
+      font-family: var(--font-display);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* 1. In-page Floating Suggestion Card */
+    .af-suggestion-card {
+      background: #14111d;
+      border: 1px solid rgba(255, 102, 0, 0.3);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 102, 0, 0.15);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .af-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .af-fox-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      font-size: 13px;
+      color: #ff7a1a;
+      font-family: var(--font-display);
+    }
+    .af-fox-badge img {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+    }
+    .af-source-tag {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .af-question-text {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+      border-left: 2px solid rgba(255, 102, 0, 0.4);
+      padding-left: 8px;
+    }
+    .af-answer-preview {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #e5e7eb;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .af-action-bar {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    /* 2. Job Match Radar Card */
+    .af-match-radar {
+      background: #14111d;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .match-score-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .match-gauge-circle {
+      width: 64px;
+      height: 64px;
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+    .match-gauge-circle svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+    .match-gauge-number {
+      position: absolute;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 17px;
+      color: #fff;
+    }
+    .match-tags-block {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .skill-pills-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .skill-tag {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+    .skill-tag.matched {
+      background: rgba(16, 185, 129, 0.12);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+    .skill-tag.missing {
+      background: rgba(244, 63, 94, 0.12);
+      color: #fb7185;
+      border: 1px solid rgba(244, 63, 94, 0.25);
+    }
+
+    /* 3. Job Detection Notification Banner */
+    .af-detect-banner {
+      background: linear-gradient(90deg, rgba(255, 102, 0, 0.12) 0%, rgba(22, 19, 32, 0.9) 100%);
+      border: 1px solid rgba(255, 102, 0, 0.35);
+      border-radius: 14px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .af-detect-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .af-detect-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--fox-gradient);
+      display: grid;
+      place-items: center;
+      font-size: 16px;
+    }
+    .af-detect-text strong {
+      display: block;
+      font-size: 13px;
+      color: #fff;
+    }
+    .af-detect-text small {
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    /* ------------------------------------------------------------- */
+    /* HERO SECTION PROTOTYPES */
+    /* ------------------------------------------------------------- */
+    .hero-selector {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .hero-choice-btn {
+      flex: 1;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+    }
+    .hero-choice-btn strong {
+      display: block;
+      color: #fff;
+      font-size: 15px;
+      margin-bottom: 2px;
+    }
+    .hero-choice-btn.active {
+      background: rgba(255, 102, 0, 0.1);
+      border-color: #ff6600;
+      color: #ff8a3d;
+    }
+
+    .hero-frame-container {
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      overflow: hidden;
+      background: #08060d;
+      box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8);
+      position: relative;
+    }
+
+    /* HERO A: The Swift Hunter (Modern Dark Cyber/SaaS) */
+    .hero-a {
+      padding: 96px 48px;
+      background:
+        radial-gradient(ellipse at 50% -10%, rgba(255, 85, 0, 0.25) 0%, transparent 60%),
+        radial-gradient(circle at 80% 40%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+        #09070f;
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 48px;
+      align-items: center;
+    }
+    .hero-a-copy .kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(255, 102, 0, 0.15);
+      border: 1px solid rgba(255, 102, 0, 0.3);
+      color: #ff944d;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 24px;
+    }
+    .hero-a-copy h1 {
+      font-family: var(--font-display);
+      font-size: clamp(38px, 5vw, 62px);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+      margin-bottom: 20px;
+    }
+    .hero-a-copy h1 span {
+      background: linear-gradient(135deg, #fff 40%, #ff8a3d 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-a-copy p {
+      color: #94a3b8;
+      font-size: 17px;
+      line-height: 1.6;
+      max-width: 520px;
+      margin-bottom: 36px;
+    }
+    .hero-a-actions {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 32px;
+    }
+    .hero-a-stats {
+      display: flex;
+      gap: 28px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 24px;
+    }
+    .hero-a-stats div strong {
+      display: block;
+      font-size: 20px;
+      font-family: var(--font-display);
+      color: #fff;
+    }
+    .hero-a-stats div small {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    /* Hero A Visual Preview */
+    .hero-a-visual {
+      position: relative;
+    }
+    .mock-extension-window {
+      background: rgba(20, 17, 30, 0.95);
+      border: 1px solid rgba(255, 102, 0, 0.35);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(255, 102, 0, 0.15);
+      backdrop-filter: blur(20px);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .mock-ext-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 14px;
+    }
+    .mock-ext-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-family: var(--font-display);
+      font-size: 16px;
+    }
+    .mock-ext-brand img { width: 28px; height: 28px; border-radius: 7px; }
+    .status-pill-synced {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 800;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    /* HERO B: Clever Studio (Warm Editorial Light Mode) */
+    .hero-b {
+      padding: 88px 48px;
+      background: #faf8f5;
+      color: #1a1622;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      align-items: center;
+    }
+    .hero-b .kicker {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #d9480f;
+      margin-bottom: 16px;
+    }
+    .hero-b h1 {
+      font-family: var(--font-display);
+      font-size: clamp(36px, 4.8vw, 56px);
+      line-height: 1.08;
+      letter-spacing: -0.04em;
+      color: #0f0d15;
+      margin-bottom: 20px;
+    }
+    .hero-b p {
+      font-size: 17px;
+      color: #5c556b;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+    .hero-b .card-light {
+      background: #ffffff;
+      border: 1px solid #e7e2dc;
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 20px 45px rgba(30, 20, 10, 0.08);
+    }
+
+    /* HERO C: The Intelligent Cockpit */
+    .hero-c {
+      padding: 72px 48px;
+      background: #0e0c16;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 32px;
+    }
+    .hero-c h1 {
+      font-size: clamp(40px, 5.5vw, 68px);
+      font-family: var(--font-display);
+      letter-spacing: -0.04em;
+      max-width: 860px;
+      line-height: 1.05;
+    }
+    .hero-c p {
+      color: #9ca3af;
+      font-size: 18px;
+      max-width: 620px;
+    }
+    .cockpit-preview-grid {
+      width: 100%;
+      max-width: 960px;
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 20px;
+      text-align: left;
+    }
+
+    @media (max-width: 900px) {
+      .hero-a, .hero-b, .cockpit-preview-grid { grid-template-columns: 1fr; }
+      .hero-selector { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="ambient-bg"></div>
+
+  <!-- STICKY TOP NAV -->
+  <nav class="proto-nav">
+    <div class="container proto-nav-inner">
+      <div class="brand-title">
+        <img src="applyfox-origami-mark.svg" alt="ApplyFox Logo" />
+        <span>ApplyFox</span>
+        <span class="badge">Design System v1</span>
+      </div>
+      <div class="nav-links">
+        <a href="#logos" class="nav-tab-btn active">Logo Marks (10)</a>
+        <a href="#buttons" class="nav-tab-btn">Button System</a>
+        <a href="#components" class="nav-tab-btn">UI Components</a>
+        <a href="#hero-sections" class="nav-tab-btn">Hero Prototypes</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container">
+
+    <!-- ========================================================= -->
+    <!-- SECTION 1: LOGO MARKS (ALL 10 CONCEPTS) -->
+    <!-- ========================================================= -->
+    <section id="logos">
+      <div class="section-header">
+        <div>
+          <span class="badge">Branding & Identity</span>
+          <h2>Fox Logo & Icon Prototypes</h2>
+          <p>Ten distinct creative concepts tailored for browser extension icons (16-128px), favicon, and product branding.</p>
+        </div>
+      </div>
+
+      <div class="logos-grid">
+
+        <!-- 07: Origami (NEW) -->
+        <article class="logo-card featured">
+          <div class="logo-preview-box">
+            <img src="applyfox-origami-mark.svg" alt="Origami Fox Mark" />
+          </div>
+          <div class="logo-info">
+            <h3>07 · Origami / Apex <span class="badge">Featured</span></h3>
+            <p>Faceted geometric precision. Represents speed, intelligence, and engineered accuracy. Outstanding contrast at micro sizes.</p>
+          </div>
+          <div class="scale-test-bar">
+            <small>Icon Scale:</small>
+            <div class="scale-item" style="width:36px; height:36px;"><img src="applyfox-origami-mark.svg" /></div>
+            <div class="scale-item" style="width:24px; height:24px;"><img src="applyfox-origami-mark.svg" /></div>
+            <div class="scale-item" style="width:16px; height:16px;"><img src="applyfox-origami-mark.svg" /></div>
+          </div>
+        </article>
+
+        <!-- 08: Monogram 'A' (NEW) -->
+        <article class="logo-card featured">
+          <div class="logo-preview-box">
+            <img src="applyfox-monogram-mark.svg" alt="Monogram Fox Mark" />
+          </div>
+          <div class="logo-info">
+            <h3>08 · Monogram 'A' <span class="badge">Clever</span></h3>
+            <p>Dual-meaning lettermark. The letter 'A' merges with the fox's pointed ears and white-tipped brush tail sweeping the crossbar.</p>
+          </div>
+          <div class="scale-test-bar">
+            <small>Icon Scale:</small>
+            <div class="scale-item" style="width:36px; height:36px;"><img src="applyfox-monogram-mark.svg" /></div>
+            <div class="scale-item" style="width:24px; height:24px;"><img src="applyfox-monogram-mark.svg" /></div>
+            <div class="scale-item" style="width:16px; height:16px;"><img src="applyfox-monogram-mark.svg" /></div>
+          </div>
+        </article>
+
+        <!-- 09: Cyber-Neon (NEW) -->
+        <article class="logo-card">
+          <div class="logo-preview-box">
+            <img src="applyfox-neon-mark.svg" alt="Cyber Neon Mark" />
+          </div>
+          <div class="logo-info">
+            <h3>09 · Cyber Swift <span class="badge">Futuristic</span></h3>
+            <p>Luminous neon gradients and speed vectors on dark obsidian. Expresses automated copilot speed and high-tech precision.</p>
+          </div>
+          <div class="scale-test-bar">
+            <small>Icon Scale:</small>
+            <div class="scale-item" style="width:36px; height:36px;"><img src="applyfox-neon-mark.svg" /></div>
+            <div class="scale-item" style="width:24px; height:24px;"><img src="applyfox-neon-mark.svg" /></div>
+            <div class="scale-item" style="width:16px; height:16px;"><img src="applyfox-neon-mark.svg" /></div>
+          </div>
+        </article>
+
+        <!-- 10: Zenith Ribbon (NEW) -->
+        <article class="logo-card">
+          <div class="logo-preview-box">
+            <img src="applyfox-zenith-mark.svg" alt="Zenith Ribbon Mark" />
+          </div>
+          <div class="logo-info">
+            <h3>10 · Zenith Ribbon <span class="badge">Luxury</span></h3>
+            <p>Continuous golden copper fluid ribbon cradling the fox profile. High-end editorial feel reminiscent of premium design tools.</p>
+          </div>
+          <div class="scale-test-bar">
+            <small>Icon Scale:</small>
+            <div class="scale-item" style="width:36px; height:36px;"><img src="applyfox-zenith-mark.svg" /></div>
+            <div class="scale-item" style="width:24px; height:24px;"><img src="applyfox-zenith-mark.svg" /></div>
+            <div class="scale-item" style="width:16px; height:16px;"><img src="applyfox-zenith-mark.svg" /></div>
+          </div>
+        </article>
+
+        <!-- 01: Ember -->
+        <article class="logo-card">
+          <div class="logo-preview-box">
+            <img src="applyfox-ember-mark.svg" alt="Ember Mark" />
+          </div>
+          <div class="logo-info">
+            <h3>01 · Ember</h3>
+            <p>Friendly fox face with warm rounded cheeks, deep midnight backing, and punchy contrast.</p>
+          </div>
+        </article>
+
+        <!-- 02: Scout -->
+        <article class="logo-card">
+          <div class="logo-preview-box">
+            <img src="applyfox-scout-mark.svg" alt="Scout Mark" />
+          </div>
+          <div class="logo-info">
+            <h3>02 · Scout</h3>
+            <p>Fox silhouette with integrated emerald check mark symbolizing verified accuracy and job match.</p>
+          </div>
+        </article>
+
+        <!-- 03: Orbit -->
+        <article class="logo-card">
+          <div class="logo-preview-box">
+            <img src="applyfox-orbit-mark.svg" alt="Orbit Mark" />
+          </div>
+          <div class="logo-info">
+            <h3>03 · Orbit</h3>
+            <p>Geometric head enclosed by a planetary orbital ring and copilot application spark.</p>
+          </div>
+        </article>
+
+        <!-- 04: Aurora -->
+        <article class="logo-card">
+          <div class="logo-preview-box">
+            <img src="applyfox-aurora-mark.svg" alt="Aurora Mark" />
+          </div>
+          <div class="logo-info">
+            <h3>04 · Aurora</h3>
+            <p>Soft glowing multi-tone spectrum (sky blue, royal violet, fiery orange) for a serene workspace.</p>
+          </div>
+        </article>
+
+        <!-- 05: Pixel -->
+        <article class="logo-card">
+          <div class="logo-preview-box">
+            <img src="applyfox-pixel-mark.svg" alt="Pixel Mark" />
+          </div>
+          <div class="logo-info">
+            <h3>05 · Pixel / Bold</h3>
+            <p>Solid orange container with angular white mask. Clean, punchy, unyielding readability.</p>
+          </div>
+        </article>
+
+        <!-- 06: Lantern -->
+        <article class="logo-card">
+          <div class="logo-preview-box">
+            <img src="applyfox-lantern-mark.svg" alt="Lantern Mark" />
+          </div>
+          <div class="logo-info">
+            <h3>06 · Lantern</h3>
+            <p>Flame-shaped rising tail illuminating opportunities like a guiding lantern in the application hunt.</p>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- SECTION 2: BUTTON SYSTEM PROTOTYPES -->
+    <!-- ========================================================= -->
+    <section id="buttons">
+      <div class="section-header">
+        <div>
+          <span class="badge">Action States</span>
+          <h2>ApplyFox Button System</h2>
+          <p>Buttons designed for the web dashboard, extension popup, and in-page autofill action overlays.</p>
+        </div>
+      </div>
+
+      <div class="buttons-board">
+
+        <!-- Primary Actions -->
+        <div class="button-group-card">
+          <h3>Primary CTA Actions</h3>
+          <p>Rich fox gradient, subtle rim highlight, and responsive depth on hover.</p>
+          <div class="buttons-row">
+            <button class="btn-fox-primary"><span>🦊</span> Start Free With Resume</button>
+            <button class="btn-fox-primary" style="font-size:12px; padding:9px 18px;">Build Profile →</button>
+          </div>
+        </div>
+
+        <!-- Extension Autofill Triggers -->
+        <div class="button-group-card">
+          <h3>Smart Autofill & Assist</h3>
+          <p>Action triggers with micro-animations and status indicators for form completion.</p>
+          <div class="buttons-row">
+            <button class="btn-fox-autofill"><span class="fox-sparkle">✦</span> ApplyFox Autofill</button>
+            <button class="btn-fox-autofill" style="border-color:#34d399; color:#34d399;"><span style="color:#34d399;">✓</span> 7 Fields Filled</button>
+          </div>
+        </div>
+
+        <!-- Secondary & Stealth -->
+        <div class="button-group-card">
+          <h3>Stealth & Secondary</h3>
+          <p>Glassmorphic dark surfaces that don't compete with primary user actions.</p>
+          <div class="buttons-row">
+            <button class="btn-fox-stealth">View Match Breakdown</button>
+            <button class="btn-fox-stealth">Save to Tracker</button>
+          </div>
+        </div>
+
+        <!-- Quick Toolbar Action Pills -->
+        <div class="button-group-card">
+          <h3>Quick Action Pills</h3>
+          <p>Used inside the extension side panel and active field floating bar.</p>
+          <div class="buttons-row">
+            <button class="btn-fox-pill active"><span>🔍</span> Scan Page</button>
+            <button class="btn-fox-pill"><span>⚡</span> Fill All</button>
+            <button class="btn-fox-pill"><span>📎</span> Attach Resume</button>
+            <button class="btn-fox-pill"><span>🎯</span> 94% Match</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- SECTION 3: UI COMPONENT PROTOTYPES -->
+    <!-- ========================================================= -->
+    <section id="components">
+      <div class="section-header">
+        <div>
+          <span class="badge">Extension & App UI</span>
+          <h2>Interactive Component Prototypes</h2>
+          <p>Core user experience touchpoints: field detection, in-page suggestions, and job match radar.</p>
+        </div>
+      </div>
+
+      <div class="components-grid">
+
+        <!-- 1. Live Suggestion Overlay Card -->
+        <div class="ui-showcase-box">
+          <h3>In-Page Suggestion Card <span class="badge">Extension HUD</span></h3>
+          <p style="color:var(--text-muted); font-size:13px;">Pops up seamlessly when the user clicks or focuses any job question field.</p>
+
+          <div class="af-suggestion-card">
+            <div class="af-card-header">
+              <div class="af-fox-badge">
+                <img src="applyfox-origami-mark.svg" />
+                <span>ApplyFox Suggests</span>
+              </div>
+              <span class="af-source-tag">Answer Memory · 94%</span>
+            </div>
+
+            <div class="af-question-text">
+              "Why are you the right fit for this Senior Full-Stack role?"
+            </div>
+
+            <div class="af-answer-preview">
+              "Over 4 years building scalable TypeScript & Python services, I've led core backend migrations that reduced latency by 35%. I enjoy pairing high architectural rigor with rapid product delivery..."
+            </div>
+
+            <div class="af-action-bar">
+              <button class="btn-fox-primary" style="flex:1; padding:9px 12px; font-size:12px;">Insert Answer</button>
+              <button class="btn-fox-stealth" style="padding:9px 12px; font-size:12px;">Copy</button>
+              <button class="btn-fox-stealth" style="padding:9px 12px; font-size:12px;">Edit</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Job Match Radar -->
+        <div class="ui-showcase-box">
+          <h3>Job Match Breakdown <span class="badge">Simplify-style</span></h3>
+          <p style="color:var(--text-muted); font-size:13px;">Scans job description text to highlight keyword overlap and missing requirements.</p>
+
+          <div class="af-match-radar">
+            <div class="match-score-row">
+              <div class="match-gauge-circle">
+                <svg viewBox="0 0 36 36">
+                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="3"/>
+                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#ff6600" stroke-width="3" stroke-dasharray="92, 100" stroke-linecap="round"/>
+                </svg>
+                <span class="match-gauge-number">92%</span>
+              </div>
+              <div>
+                <strong style="font-size:15px; color:#fff; display:block;">Strong Skill Match</strong>
+                <small style="color:#34d399; font-weight:700;">Top 5% of candidate profiles</small>
+              </div>
+            </div>
+
+            <div class="match-tags-block">
+              <small style="color:var(--text-muted); font-size:11px; font-weight:700; text-transform:uppercase;">Matched Requirements (14)</small>
+              <div class="skill-pills-wrap">
+                <span class="skill-tag matched">✓ TypeScript</span>
+                <span class="skill-tag matched">✓ React / Next.js</span>
+                <span class="skill-tag matched">✓ Python</span>
+                <span class="skill-tag matched">✓ PostgreSQL</span>
+                <span class="skill-tag matched">✓ Cloud Architecture</span>
+              </div>
+            </div>
+
+            <div class="match-tags-block">
+              <small style="color:var(--text-muted); font-size:11px; font-weight:700; text-transform:uppercase;">Missing from Profile (2)</small>
+              <div class="skill-pills-wrap">
+                <span class="skill-tag missing">✗ Kubernetes</span>
+                <span class="skill-tag missing">✗ Kafka</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Smart Detection Banner -->
+        <div class="ui-showcase-box">
+          <h3>Automatic Job Page Detection</h3>
+          <p style="color:var(--text-muted); font-size:13px;">Appears discretely when navigating LinkedIn, Greenhouse, Lever, or company career portals.</p>
+
+          <div class="af-detect-banner">
+            <div class="af-detect-info">
+              <div class="af-detect-icon">🦊</div>
+              <div class="af-detect-text">
+                <strong>Greenhouse Job Posting Detected</strong>
+                <small>Linear · Staff Frontend Engineer · San Francisco (Hybrid)</small>
+              </div>
+            </div>
+            <button class="btn-fox-primary" style="padding:8px 14px; font-size:12px;">Auto-Draft Saved</button>
+          </div>
+
+          <div class="af-detect-banner" style="background:rgba(255,255,255,0.03); border-color:var(--border);">
+            <div class="af-detect-info">
+              <div class="af-detect-icon" style="background:rgba(255,255,255,0.1);">⚡</div>
+              <div class="af-detect-text">
+                <strong>8 Form Fields Ready to Fill</strong>
+                <small>Full Name, Email, GitHub, LinkedIn, Notice Period, Resume</small>
+              </div>
+            </div>
+            <button class="btn-fox-stealth" style="padding:8px 14px; font-size:12px;">Review & Fill</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- SECTION 4: HERO SECTION PROTOTYPES (3 DESIGNS) -->
+    <!-- ========================================================= -->
+    <section id="hero-sections" style="margin-top:64px;">
+      <div class="section-header">
+        <div>
+          <span class="badge">Landing Experience</span>
+          <h2>ApplyFox Hero Section Prototypes</h2>
+          <p>Three creative directions for the top of the landing page: Dark Cyber, Warm Editorial, and SaaS Cockpit.</p>
+        </div>
+      </div>
+
+      <!-- Hero Selector Switcher -->
+      <div class="hero-selector">
+        <button class="hero-choice-btn active" onclick="showHero('hero-a', this)">
+          <strong>Direction A · The Swift Hunter</strong>
+          <span>High-energy dark mode, cyber fox gradients & extension HUD</span>
+        </button>
+        <button class="hero-choice-btn" onclick="showHero('hero-b', this)">
+          <strong>Direction B · Clever Studio</strong>
+          <span>Warm editorial aesthetic, Stripe/Linear style, rich cream & orange</span>
+        </button>
+        <button class="hero-choice-btn" onclick="showHero('hero-c', this)">
+          <strong>Direction C · The Intelligent Cockpit</strong>
+          <span>High-density command center with live match radar & job ticker</span>
+        </button>
+      </div>
+
+      <!-- Frame containing active Hero -->
+      <div class="hero-frame-container">
+
+        <!-- HERO A -->
+        <div id="hero-a" class="hero-prototype hero-a">
+          <div class="hero-a-copy">
+            <span class="kicker">🦊 ApplyFox Job Copilot 2.0</span>
+            <h1>Outfox the hiring grind with <span>clever precision.</span></h1>
+            <p>One verified profile from your resume. Instant ATS job detection, grounded application answers, and a tracker that never invents your experience.</p>
+            <div class="hero-a-actions">
+              <button class="btn-fox-primary" style="padding:15px 32px; font-size:16px;">Add to Chrome · Free</button>
+              <button class="btn-fox-stealth" style="padding:15px 24px; font-size:15px;">See How It Works →</button>
+            </div>
+            <div class="hero-a-stats">
+              <div><strong>100% Truthful</strong><small>Zero hallucinated roles</small></div>
+              <div><strong>90+ ATS Supported</strong><small>Greenhouse, Lever, Workday</small></div>
+              <div><strong>Review-First</strong><small>Never submits automatically</small></div>
+            </div>
+          </div>
+
+          <div class="hero-a-visual">
+            <div class="mock-extension-window">
+              <div class="mock-ext-header">
+                <div class="mock-ext-brand">
+                  <img src="applyfox-origami-mark.svg" />
+                  <span>ApplyFox Assistant</span>
+                </div>
+                <span class="status-pill-synced">● SYNCED</span>
+              </div>
+
+              <div style="background:rgba(255,255,255,0.03); border-radius:12px; padding:12px; border:1px solid rgba(255,255,255,0.06);">
+                <small style="color:#ff8a3d; font-size:10px; font-weight:800; text-transform:uppercase;">Active Job Posting</small>
+                <div style="font-size:14px; font-weight:700; color:#fff; margin-top:2px;">Lead AI Engineer · Anthropic</div>
+                <small style="color:var(--text-muted);">Detected on greenhouse.io · 94% Skill Match</small>
+              </div>
+
+              <div style="display:flex; gap:8px;">
+                <button class="btn-fox-pill active" style="flex:1;">Fill 6 Fields</button>
+                <button class="btn-fox-pill" style="flex:1;">Attach Resume</button>
+                <button class="btn-fox-pill" style="flex:1;">Save Job</button>
+              </div>
+
+              <div class="af-suggestion-card" style="margin:0; box-shadow:none;">
+                <div class="af-card-header">
+                  <span style="font-size:11px; font-weight:700; color:#ff8a3d;">✦ Grounded Answer Ready</span>
+                  <span class="af-source-tag">Verified</span>
+                </div>
+                <p style="font-size:11px; color:#cbd5e1; line-height:1.5;">"My background matches the PyTorch and distributed systems requirements through 3 years scaling LLM inference clusters..."</p>
+                <div style="display:flex; gap:8px;">
+                  <button class="btn-fox-primary" style="flex:1; padding:7px; font-size:11px;">Insert into Field</button>
+                  <button class="btn-fox-stealth" style="padding:7px 12px; font-size:11px;">Copy</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- HERO B -->
+        <div id="hero-b" class="hero-prototype hero-b" style="display:none;">
+          <div>
+            <span class="kicker">Smart application copilot</span>
+            <h1>Build your profile once. Apply with clever clarity.</h1>
+            <p>ApplyFox connects your verified career history directly to job application forms. Real facts first, intelligent AI drafts when needed, and copy fallbacks when forms fight back.</p>
+            <div style="display:flex; gap:16px;">
+              <button class="btn-fox-primary" style="background:#ea580c; border:none; padding:14px 28px;">Start Free with Resume</button>
+              <button style="padding:14px 22px; border-radius:12px; background:#fff; border:1px solid #dcd7cf; font-weight:700; color:#1a1622; cursor:pointer;">Explore Features</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="card-light">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <img src="applyfox-ember-mark.svg" style="width:28px; height:28px; border-radius:8px;" />
+                  <strong style="font-size:15px; color:#111;">ApplyFox Candidate Profile</strong>
+                </div>
+                <span style="background:#e6fcf5; color:#0ca678; font-weight:800; font-size:11px; padding:3px 8px; border-radius:6px;">96% READY</span>
+              </div>
+              <p style="font-size:13px; color:#666; margin-bottom:16px;">Verified from resume: 8 roles · 32 skills · 6 projects</p>
+              <div style="display:grid; gap:8px;">
+                <div style="display:flex; justify-content:space-between; padding:10px 14px; background:#f8f9fa; border-radius:8px; font-size:12px;"><span>Notice Period</span><strong>30 days (negotiable)</strong></div>
+                <div style="display:flex; justify-content:space-between; padding:10px 14px; background:#f8f9fa; border-radius:8px; font-size:12px;"><span>Work Authorization</span><strong>Authorized (no sponsorship)</strong></div>
+                <div style="display:flex; justify-content:space-between; padding:10px 14px; background:#f8f9fa; border-radius:8px; font-size:12px;"><span>Expected Compensation</span><strong>$150,000 – $175,000</strong></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- HERO C -->
+        <div id="hero-c" class="hero-prototype hero-c" style="display:none;">
+          <span class="badge">🦊 Meet ApplyFox</span>
+          <h1>The sharpest way to hunt, match, and apply for jobs.</h1>
+          <p>Scan opportunities on the fly, benchmark your resume against job requirements, and autofill forms with zero hallucination.</p>
+          <div style="display:flex; gap:16px; margin-bottom:12px;">
+            <button class="btn-fox-primary" style="padding:16px 36px; font-size:16px;">Get the Extension · Free</button>
+            <button class="btn-fox-stealth" style="padding:16px 28px; font-size:15px;">Read Product Philosophy</button>
+          </div>
+
+          <div class="cockpit-preview-grid">
+            <div class="af-match-radar" style="margin:0;">
+              <strong style="color:#fff; font-size:15px;">Live Job Fit Intelligence</strong>
+              <div class="match-score-row">
+                <div class="match-gauge-circle" style="width:72px; height:72px;">
+                  <svg viewBox="0 0 36 36">
+                    <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="3"/>
+                    <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#ff8a3d" stroke-width="3" stroke-dasharray="96, 100" stroke-linecap="round"/>
+                  </svg>
+                  <span class="match-gauge-number" style="font-size:18px;">96%</span>
+                </div>
+                <div>
+                  <strong style="font-size:16px; color:#fff;">Staff Software Engineer</strong>
+                  <span style="color:var(--text-muted); font-size:12px; display:block;">Stripe · Remote (US/Canada)</span>
+                  <span style="color:#34d399; font-size:11px; font-weight:700;">✓ Matched 16 of 17 core requirements</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="af-suggestion-card" style="margin:0;">
+              <div class="af-card-header">
+                <div class="af-fox-badge"><img src="applyfox-origami-mark.svg" /><span>Instant Autofill</span></div>
+                <span class="af-source-tag">8 Fields Ready</span>
+              </div>
+              <p style="font-size:11px; color:var(--text-muted);">Ready to inject verified name, email, resume PDF, GitHub, LinkedIn, and notice period.</p>
+              <button class="btn-fox-primary" style="width:100%; padding:8px; font-size:12px;">Fill Application</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    function showHero(heroId, btn) {
+      document.querySelectorAll('.hero-prototype').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.hero-choice-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(heroId).style.display = heroId === 'hero-c' ? 'flex' : 'grid';
+      btn.classList.add('active');
+    }
+  </script>
+</body>
+</html>

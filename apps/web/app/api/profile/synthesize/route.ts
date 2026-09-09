@@ -12,7 +12,7 @@ import {
   type ProjectSource,
   type RawSignal,
   type UserProfile,
-} from "@applypilot/shared";
+} from "@uplyfox/shared";
 import { generateJson, hasAiProvider, isFailure } from "../../../../lib/ai-provider";
 import { generateProfileAnswersInBatches } from "../../../../lib/profile-answer-agent";
 
@@ -106,7 +106,7 @@ function orderProjects(profile: UserProfile): UserProfile {
   return { ...profile, projects: [...primary, ...secondary] };
 }
 
-const PROFILE_SYSTEM = `You are ApplyPilot's profile architect. You assemble ONE job-application profile for ONE candidate from their own materials.
+const PROFILE_SYSTEM = `You are UplyFox's profile architect. You assemble ONE job-application profile for ONE candidate from their own materials.
 
 SOURCE PRECEDENCE — this is the most important rule:
 1. RESUME_TEXT and RESUME_PROFILE are AUTHORITATIVE. If the resume states a fact (name, title, employer, dates, degree, skill, project), that value MUST appear in your output exactly as the resume states it.

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">ApplyFox Lantern mark</title>
+  <desc id="desc">A fox tail shaped like a rising flame, symbolizing momentum through applications.</desc>
+  <defs>
+    <linearGradient id="lantern" x1=".2" y1="1" x2=".8" y2="0">
+      <stop offset="0" stop-color="#dc2626" />
+      <stop offset=".5" stop-color="#f97316" />
+      <stop offset="1" stop-color="#facc15" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="#1e1b4b" />
+  <path d="M256 424c-91 0-151-55-151-133 0-65 47-101 96-131-5 38 13 62 35 78-2-78 50-116 77-166 43 54 99 111 99 204 0 85-62 148-156 148Z" fill="url(#lantern)" />
+  <path d="M256 382c-43 0-73-25-73-62 0-30 22-49 46-65-2 19 7 30 17 39-1-39 24-57 37-82 21 27 48 55 48 101 0 40-30 69-75 69Z" fill="#fff7ed" opacity=".94" />
+  <circle cx="394" cy="117" r="19" fill="#facc15" />
+  <path d="M394 85v64M362 117h64" stroke="#facc15" stroke-linecap="round" stroke-width="7" />
+</svg>

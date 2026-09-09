@@ -1,4 +1,4 @@
-import { buildSuggestionPrompts, groupProjects, isUsableSuggestion, normalizeSuggestionOutput, type DetectedField, type UserProfile } from "@applypilot/shared";
+import { buildSuggestionPrompts, groupProjects, isUsableSuggestion, normalizeSuggestionOutput, type DetectedField, type UserProfile } from "@uplyfox/shared";
 import { generate, hasAiProvider, isFailure, type ProviderName } from "./ai-provider";
 
 export interface SuggestionAgentInput {

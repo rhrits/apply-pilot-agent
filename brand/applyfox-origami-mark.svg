@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">ApplyFox Origami Mark</title>
+  <desc id="desc">A modern faceted origami fox face with geometric precision and fiery copper gradients.</desc>
+  <defs>
+    <linearGradient id="facet-top-l" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff8a3d"/>
+      <stop offset="100%" stop-color="#e04e10"/>
+    </linearGradient>
+    <linearGradient id="facet-top-r" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffa35c"/>
+      <stop offset="100%" stop-color="#f05b1a"/>
+    </linearGradient>
+    <linearGradient id="facet-ear-l" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ff6b1a"/>
+      <stop offset="100%" stop-color="#b83000"/>
+    </linearGradient>
+    <linearGradient id="facet-ear-r" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ff7f2e"/>
+      <stop offset="100%" stop-color="#c93800"/>
+    </linearGradient>
+    <linearGradient id="facet-cheek-l" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff5ed"/>
+      <stop offset="100%" stop-color="#fed7aa"/>
+    </linearGradient>
+    <linearGradient id="facet-cheek-r" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#ffedd5"/>
+    </linearGradient>
+    <linearGradient id="facet-snout-l" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e04e10"/>
+      <stop offset="100%" stop-color="#992000"/>
+    </linearGradient>
+    <linearGradient id="facet-snout-r" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f05b1a"/>
+      <stop offset="100%" stop-color="#ab2600"/>
+    </linearGradient>
+    <filter id="origami-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#1e1005" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Deep space backdrop -->
+  <rect width="512" height="512" rx="128" fill="#120e18"/>
+
+  <g filter="url(#origami-shadow)">
+    <!-- Left Ear Outer -->
+    <polygon points="256,170 148,60 168,230" fill="url(#facet-ear-l)"/>
+    <!-- Right Ear Outer -->
+    <polygon points="256,170 364,60 344,230" fill="url(#facet-ear-r)"/>
+
+    <!-- Left Ear Inner Fold -->
+    <polygon points="214,142 168,90 182,190" fill="#ffc285" opacity="0.9"/>
+    <!-- Right Ear Inner Fold -->
+    <polygon points="298,142 344,90 330,190" fill="#ffd9ad" opacity="0.9"/>
+
+    <!-- Forehead Left -->
+    <polygon points="256,170 168,230 256,290" fill="url(#facet-top-l)"/>
+    <!-- Forehead Right -->
+    <polygon points="256,170 344,230 256,290" fill="url(#facet-top-r)"/>
+
+    <!-- Left Cheek Outer Diamond -->
+    <polygon points="168,230 84,270 168,340 256,290" fill="url(#facet-cheek-l)"/>
+    <!-- Right Cheek Outer Diamond -->
+    <polygon points="344,230 428,270 344,340 256,290" fill="url(#facet-cheek-r)"/>
+
+    <!-- Left Snout -->
+    <polygon points="256,290 168,340 256,430" fill="url(#facet-snout-l)"/>
+    <!-- Right Snout -->
+    <polygon points="256,290 344,340 256,430" fill="url(#facet-snout-r)"/>
+
+    <!-- Geometric Eyes -->
+    <polygon points="200,266 226,274 206,282" fill="#120e18"/>
+    <polygon points="312,266 286,274 306,282" fill="#120e18"/>
+
+    <!-- Nose Tip -->
+    <polygon points="256,410 242,430 270,430" fill="#0d070b"/>
+  </g>
+</svg>

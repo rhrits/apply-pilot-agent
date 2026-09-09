@@ -3,7 +3,7 @@ import { getAuthenticatedServerContext, jsonError, requireAdmin } from "../../..
 
 function createCode() {
   const value = randomBytes(24).toString("base64url").replace(/[-_]/g, "").toUpperCase();
-  return `AP-${value.slice(0, 6)}-${value.slice(6, 12)}-${value.slice(12, 18)}-${value.slice(18, 24)}`;
+  return `UF-${value.slice(0, 6)}-${value.slice(6, 12)}-${value.slice(12, 18)}-${value.slice(18, 24)}`;
 }
 
 function normalizeCode(value: string) {

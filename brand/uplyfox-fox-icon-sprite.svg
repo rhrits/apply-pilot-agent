@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <defs>
+    <!-- Every icon uses the same small Pixel-style UplyFox face. The interior glyph changes by action. -->
+    <g id="fox-shell">
+      <path d="M3 8 5 2l5 4a7 7 0 0 1 4 0l5-4 2 6c0 5-3 9-9 12C6 17 3 13 3 8Z" fill="currentColor" fill-opacity=".1" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"/>
+      <path d="M5 9 9 8l3 2 3-2 4 1-2 3-5 3-5-3Z" fill="currentColor" fill-opacity=".17"/>
+    </g>
+    <g id="fox-eyes"><circle cx="9" cy="9.5" r=".8" fill="currentColor"/><circle cx="15" cy="9.5" r=".8" fill="currentColor"/></g>
+
+    <symbol id="fox" viewBox="0 0 24 24"><use href="#fox-shell"/><use href="#fox-eyes"/><path d="m10 13 2 1 2-1" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></symbol>
+    <symbol id="home" viewBox="0 0 24 24"><use href="#fox-shell"/><path d="m9 12 3-2.4 3 2.4v3H9Z" fill="#7f1d35"/><path d="M10 15v-2h4v2" fill="none" stroke="#fff" stroke-width=".7"/></symbol>
+    <symbol id="profile" viewBox="0 0 24 24"><use href="#fox-shell"/><circle cx="12" cy="10" r="1.6" fill="#7f1d35"/><path d="M8.8 14c.7-1 1.7-1.4 3.2-1.4s2.5.4 3.2 1.4" fill="none" stroke="#7f1d35" stroke-width="1" stroke-linecap="round"/></symbol>
+    <symbol id="resume" viewBox="0 0 24 24"><use href="#fox-shell"/><path d="M9 7.5h6M9 10h6M9 12.5h4" fill="none" stroke="#7f1d35" stroke-width="1" stroke-linecap="round"/><path d="M10 6v8" stroke="#7f1d35" stroke-width=".7"/></symbol>
+    <symbol id="answers" viewBox="0 0 24 24"><use href="#fox-shell"/><path d="M8 8h8v4H11l-2 1Z" fill="none" stroke="#7f1d35" stroke-width="1" stroke-linejoin="round"/><path d="M10 9.5h4" stroke="#7f1d35" stroke-width=".8" stroke-linecap="round"/></symbol>
+    <symbol id="tracker" viewBox="0 0 24 24"><use href="#fox-shell"/><path d="M8 14v-2M12 14V9M16 14v-3" stroke="#7f1d35" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="job" viewBox="0 0 24 24"><use href="#fox-shell"/><rect x="8" y="9" width="8" height="5" rx=".8" fill="none" stroke="#7f1d35" stroke-width="1"/><path d="M10 9V8h4v1M8 11h8" stroke="#7f1d35" stroke-width=".8"/></symbol>
+    <symbol id="scan" viewBox="0 0 24 24"><use href="#fox-shell"/><path d="M8 9V8h1M15 8h1v1M16 12v1h-1M9 13H8v-1" fill="none" stroke="#7f1d35" stroke-width="1" stroke-linecap="round"/><circle cx="12" cy="10.5" r="2" fill="none" stroke="#7f1d35" stroke-width=".9"/></symbol>
+    <symbol id="autofill" viewBox="0 0 24 24"><use href="#fox-shell"/><path d="M12 8v5M10 11l2 2 2-2" fill="none" stroke="#7f1d35" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 15h4" stroke="#7f1d35" stroke-width="1" stroke-linecap="round"/></symbol>
+    <symbol id="match" viewBox="0 0 24 24"><use href="#fox-shell"/><circle cx="12" cy="11" r="3" fill="none" stroke="#7f1d35" stroke-width="1"/><path d="m10.5 11 1 1 2-2" fill="none" stroke="#7f1d35" stroke-width=".9" stroke-linecap="round"/></symbol>
+    <symbol id="save" viewBox="0 0 24 24"><use href="#fox-shell"/><path d="M9 8h6v6H9Z" fill="none" stroke="#7f1d35" stroke-width="1"/><path d="M10 8V7h4v1" stroke="#7f1d35" stroke-width=".8"/></symbol>
+    <symbol id="copy" viewBox="0 0 24 24"><use href="#fox-shell"/><rect x="9" y="9" width="5" height="5" fill="none" stroke="#7f1d35" stroke-width="1"/><path d="M11 8V7h5v5h-1" fill="none" stroke="#7f1d35" stroke-width=".9"/></symbol>
+    <symbol id="insert" viewBox="0 0 24 24"><use href="#fox-shell"/><path d="M12 8v6M10 12l2 2 2-2M9 15h6" fill="none" stroke="#7f1d35" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="sync" viewBox="0 0 24 24"><use href="#fox-shell"/><path d="M9 10a3 3 0 0 1 5-1M15 12a3 3 0 0 1-5 1M14 8h1v1M10 15H9v-1" fill="none" stroke="#7f1d35" stroke-width="1" stroke-linecap="round"/></symbol>
+    <symbol id="spark" viewBox="0 0 24 24"><use href="#fox-shell"/><path d="M12 8c.5 2 1 2.5 3 3-2 .5-2.5 1-3 3-.5-2-1-2.5-3-3 2-.5 2.5-1 3-3Z" fill="none" stroke="#7f1d35" stroke-width=".9"/></symbol>
+    <symbol id="voice" viewBox="0 0 24 24"><use href="#fox-shell"/><rect x="11" y="8" width="2" height="5" rx="1" fill="#7f1d35"/><path d="M9.5 11a2.5 2.5 0 0 0 5 0M12 14v1.5" fill="none" stroke="#7f1d35" stroke-width=".9" stroke-linecap="round"/></symbol>
+    <symbol id="attach" viewBox="0 0 24 24"><use href="#fox-shell"/><path d="m10 12 2-2a1.5 1.5 0 0 1 2 2l-2 2a2.5 2.5 0 0 1-3.5-3.5l2-2" fill="none" stroke="#7f1d35" stroke-width="1" stroke-linecap="round"/></symbol>
+    <symbol id="calendar" viewBox="0 0 24 24"><use href="#fox-shell"/><rect x="8" y="8" width="8" height="6" rx=".8" fill="none" stroke="#7f1d35" stroke-width="1"/><path d="M10 7v2M14 7v2M8 10h8" stroke="#7f1d35" stroke-width=".8"/><path d="M10 12h.1M12 12h.1M14 12h.1" stroke="#7f1d35" stroke-width="1" stroke-linecap="round"/></symbol>
+    <symbol id="interview" viewBox="0 0 24 24"><use href="#fox-shell"/><path d="M8 9h8v4h-5l-2 1v-1H8Z" fill="none" stroke="#7f1d35" stroke-width="1" stroke-linejoin="round"/><path d="M10 10.5h4" stroke="#7f1d35" stroke-width=".8" stroke-linecap="round"/></symbol>
+    <symbol id="offer" viewBox="0 0 24 24"><use href="#fox-shell"/><path d="M9 9h6v5H9Z" fill="none" stroke="#7f1d35" stroke-width="1"/><path d="M10 9V8h4v1M9 11h6" stroke="#7f1d35" stroke-width=".8"/></symbol>
+    <symbol id="settings" viewBox="0 0 24 24"><use href="#fox-shell"/><circle cx="12" cy="11" r="2" fill="none" stroke="#7f1d35" stroke-width="1"/><path d="M12 8v-1M12 15v-1M9 11H8M16 11h-1" stroke="#7f1d35" stroke-width="1" stroke-linecap="round"/></symbol>
+    <symbol id="shield" viewBox="0 0 24 24"><use href="#fox-shell"/><path d="M12 8 15 9v2c0 2-1.2 3.2-3 4-1.8-.8-3-2-3-4V9Z" fill="none" stroke="#7f1d35" stroke-width="1"/><path d="m10.5 11 1 1 2-2" fill="none" stroke="#7f1d35" stroke-width=".8" stroke-linecap="round"/></symbol>
+    <symbol id="lock" viewBox="0 0 24 24"><use href="#fox-shell"/><rect x="9" y="10" width="6" height="4" rx=".8" fill="none" stroke="#7f1d35" stroke-width="1"/><path d="M10 10V9a2 2 0 0 1 4 0v1" fill="none" stroke="#7f1d35" stroke-width=".9"/></symbol>
+    <symbol id="logout" viewBox="0 0 24 24"><use href="#fox-shell"/><path d="M9 11h6M13 9l2 2-2 2M9 9H8v5h1" fill="none" stroke="#7f1d35" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="plus" viewBox="0 0 24 24"><use href="#fox-shell"/><path d="M12 9v5M9.5 11.5h5" stroke="#7f1d35" stroke-width="1.2" stroke-linecap="round"/></symbol>
+    <symbol id="check" viewBox="0 0 24 24"><use href="#fox-shell"/><path d="m9 11.5 2 2 4-4" fill="none" stroke="#7f1d35" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="arrow" viewBox="0 0 24 24"><use href="#fox-shell"/><path d="M8 11h8M13 9l2 2-2 2" fill="none" stroke="#7f1d35" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="menu" viewBox="0 0 24 24"><use href="#fox-shell"/><path d="M8 9h8M8 11h8M8 13h8" fill="none" stroke="#7f1d35" stroke-width=".9" stroke-linecap="round"/></symbol>
+    <symbol id="alert" viewBox="0 0 24 24"><use href="#fox-shell"/><path d="m12 8 3 6H9Z" fill="none" stroke="#7f1d35" stroke-width="1" stroke-linejoin="round"/><path d="M12 10.5v1.2M12 13.3h.01" stroke="#7f1d35" stroke-width="1" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>

@@ -1,13 +1,13 @@
 import { getSupabaseBrowserClient } from "./supabase";
 
 /**
- * Clears browser data owned by ApplyPilot on the current app origin only.
+ * Clears browser data owned by UplyFox on the current app origin only.
  * It cannot and must not clear cookies belonging to other websites.
  */
-export async function clearApplyPilotBrowserData() {
+export async function clearUplyFoxBrowserData() {
   if (typeof window === "undefined") return;
 
-  // This runs on the ApplyPilot origin only. It does not affect local data for
+  // This runs on the UplyFox origin only. It does not affect local data for
   // the job boards or any other website.
   window.localStorage.clear();
   window.sessionStorage.clear();
@@ -34,11 +34,11 @@ export async function clearApplyPilotBrowserData() {
   }
 }
 
-export async function signOutApplyPilot(clearLocalData: boolean) {
+export async function signOutUplyFox(clearLocalData: boolean) {
   // The content script relays this same-origin signal to the extension service
   // worker, so a web logout also clears the paired extension session when present.
-  window.postMessage({ source: "applypilot-web", type: "APPLY_PILOT_LOGOUT", clearLocalData }, window.location.origin);
+  window.postMessage({ source: "uplyfox-web", type: "UPLYFOX_LOGOUT", clearLocalData }, window.location.origin);
   const supabase = getSupabaseBrowserClient();
   await supabase?.auth.signOut();
-  if (clearLocalData) await clearApplyPilotBrowserData();
+  if (clearLocalData) await clearUplyFoxBrowserData();
 }

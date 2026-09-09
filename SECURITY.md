@@ -15,7 +15,7 @@ We aim to acknowledge reports within a few days.
 
 ## Scope
 
-ApplyPilot handles unusually sensitive data — resumes, contact details, salary
+UplyFox handles unusually sensitive data — resumes, contact details, salary
 figures, work authorization status, and job search activity. The following are
 treated as security issues, not bugs:
 

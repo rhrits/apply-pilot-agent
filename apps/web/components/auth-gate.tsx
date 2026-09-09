@@ -41,7 +41,7 @@ export function AuthGate({ children, requireOnboarding = true, requireAccess = t
     }).catch(() => router.replace(`/login?next=${encodeURIComponent(`${pathname}${typeof window === "undefined" ? "" : window.location.search}`)}`));
   }, [pathname, requireAccess, requireOnboarding, router]);
 
-  if (state === "unconfigured") return <main className="auth-missing"><div className="auth-missing-card"><span className="logo-mark">✦</span><h1>Connect ApplyPilot</h1><p>Supabase environment variables are missing. Add them to the web deployment before using the authenticated workspace.</p></div></main>;
+  if (state === "unconfigured") return <main className="auth-missing"><div className="auth-missing-card"><span className="logo-mark">✦</span><h1>Connect UplyFox</h1><p>Supabase environment variables are missing. Add them to the web deployment before using the authenticated workspace.</p></div></main>;
   if (state !== "authenticated") return <main className="auth-loading"><span className="loading-orbit" /><p>Checking your secure workspace…</p></main>;
   return <>{children}</>;
 }

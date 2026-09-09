@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeJobMatch, type UserProfile } from "@applypilot/shared";
+import { analyzeJobMatch, type UserProfile } from "@uplyfox/shared";
 
 const profile: UserProfile = {
   firstName: "Alex", lastName: "Applicant", email: "alex@example.com", phone: "", location: "Remote",

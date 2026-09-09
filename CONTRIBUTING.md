@@ -1,4 +1,4 @@
-# Contributing to ApplyPilot
+# Contributing to UplyFox
 
 Thanks for helping build a job-application copilot that people can actually trust.
 

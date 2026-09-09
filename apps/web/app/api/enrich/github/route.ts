@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { GitHubEnrichment } from "@applypilot/shared";
+import type { GitHubEnrichment } from "@uplyfox/shared";
 
 export const runtime = "nodejs";
 
@@ -17,7 +17,7 @@ function parseUsername(input: string): string | null {
 }
 
 function githubHeaders() {
-  const base: Record<string, string> = { Accept: "application/vnd.github+json", "User-Agent": "ApplyPilot" };
+  const base: Record<string, string> = { Accept: "application/vnd.github+json", "User-Agent": "UplyFox" };
   // Optional server token for authenticated GitHub API access. Never exposed to the client.
   if (process.env.GITHUB_TOKEN) base.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
   return base;

@@ -16,7 +16,7 @@ import {
   type ProfileSources,
   type RawSignal,
   type UserProfile,
-} from "@applypilot/shared";
+} from "@uplyfox/shared";
 import { AuthGate } from "../../components/auth-gate";
 import { VoiceButton } from "../../components/voice-input";
 import { Markdown } from "../../components/markdown";
@@ -352,7 +352,7 @@ function OnboardingWizard() {
       
   return <main className="onboarding">
     <header className="onboarding-head">
-      <div className="brand"><img src="/icons/48.png" width={28} height={28} alt="" />ApplyPilot</div>
+      <div className="brand"><img src="/icons/48.png" width={28} height={28} alt="" />UplyFox</div>
       <div className="onboarding-progress"><span style={{ width: `${progress}%` }} /></div>
       <nav className="onboarding-steps">{STEPS.map((label, index) => <button key={label} className={index === stepIndex ? "active" : index < stepIndex ? "done" : ""} onClick={() => index <= stepIndex && setStepIndex(index)}><i>{index + 1}</i>{label}</button>)}</nav>
       {saveLabel && <div className={`autosave ${saveState}`}><span className="autosave-dot" />{saveLabel}</div>}

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">ApplyFox Orbit mark</title>
+  <desc id="desc">A minimal geometric fox with an orbiting application cursor.</desc>
+  <defs>
+    <linearGradient id="orbit" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fb7185" />
+      <stop offset=".5" stop-color="#f97316" />
+      <stop offset="1" stop-color="#facc15" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="124" fill="#111827" />
+  <ellipse cx="256" cy="264" rx="193" ry="151" fill="none" stroke="#475569" stroke-width="8" transform="rotate(-23 256 264)" />
+  <path d="m120 144 100 62c24-9 48-9 72 0l100-62-25 148c-6 80-67 135-111 152-44-17-105-72-111-152Z" fill="url(#orbit)" />
+  <path d="m120 144 100 62-93 29Z" fill="#fdba74" />
+  <path d="m392 144-100 62 93 29Z" fill="#fdba74" />
+  <path d="M171 260 215 238 256 278 297 238 341 260 304 323 256 349 208 323Z" fill="#fff7ed" opacity=".95" />
+  <circle cx="214" cy="270" r="9" fill="#111827" />
+  <circle cx="298" cy="270" r="9" fill="#111827" />
+  <path d="m224 374 34 26 34-26" fill="none" stroke="#fff7ed" stroke-linecap="round" stroke-width="9" />
+  <circle cx="391" cy="111" r="21" fill="#facc15" />
+  <path d="M383 111h16M391 103v16" stroke="#111827" stroke-linecap="round" stroke-width="5" />
+</svg>

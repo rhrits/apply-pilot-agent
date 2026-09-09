@@ -1,4 +1,4 @@
-import type { ActiveFieldPayload, ExtensionAuthStatus, ExtensionMessage, ExtensionSettings } from "@applypilot/shared";
+import type { ActiveFieldPayload, ExtensionAuthStatus, ExtensionMessage, ExtensionSettings } from "@uplyfox/shared";
 import { extensionConfig, isExtensionConfigured } from "./lib/config";
 import { clearExtensionSession, fetchAuthenticatedProfile, fetchResumeFile, fetchTracker, getExtensionAuthStatus, getExtensionSupabase, saveJobToSupabase } from "./lib/supabase";
 import { findLocalMemory, saveAnswerMemory } from "./lib/memory";
@@ -17,7 +17,7 @@ async function authStatus() {
 
 async function readyStatus(): Promise<ExtensionAuthStatus> {
   const status = await authStatus();
-  if (status.accessState !== "ready") throw new Error(status.accessState === "profile_required" ? "Complete your profile before using the extension." : status.accessState === "access_required" ? "Redeem an ApplyPilot access code before using the extension." : "Sign in from the extension popup first.");
+  if (status.accessState !== "ready") throw new Error(status.accessState === "profile_required" ? "Complete your profile before using the extension." : status.accessState === "access_required" ? "Redeem a UplyFox access code before using the extension." : "Sign in from the extension popup first.");
   return status;
 }
 
@@ -211,7 +211,7 @@ function messageTabId(sender: chrome.runtime.MessageSender): number | undefined 
  * web should reach the extension without the user pressing "Refresh". A periodic
  * alarm keeps the cached profile fresh, and any auth change refreshes it immediately.
  */
-const SYNC_ALARM = "applypilot-profile-sync";
+const SYNC_ALARM = "uplyfox-profile-sync";
 
 chrome.alarms.create(SYNC_ALARM, { periodInMinutes: 15 });
 
@@ -225,7 +225,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
 // Refresh as soon as the side panel or popup opens, so the panel never shows stale data.
 chrome.runtime.onConnect.addListener(async (port) => {
-  if (port.name !== "applypilot-panel") return;
+  if (port.name !== "uplyfox-panel") return;
   panelPorts.add(port);
   port.onDisconnect.addListener(() => panelPorts.delete(port));
   const status = await authStatus().catch(() => null);

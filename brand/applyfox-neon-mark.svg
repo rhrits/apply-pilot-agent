@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">ApplyFox Cyber Neon Mark</title>
+  <desc id="desc">High-speed cyber fox with luminous neon gradients and speed vectors.</desc>
+  <defs>
+    <linearGradient id="neon-glow-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff0055"/>
+      <stop offset="45%" stop-color="#ff6600"/>
+      <stop offset="100%" stop-color="#ffcc00"/>
+    </linearGradient>
+    <linearGradient id="neon-cyan" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#00f5d4"/>
+      <stop offset="100%" stop-color="#7b2cbf"/>
+    </linearGradient>
+    <filter id="neon-bloom" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur1"/>
+      <feGaussianBlur stdDeviation="16" result="blur2"/>
+      <feMerge>
+        <feMergeNode in="blur2"/>
+        <feMergeNode in="blur1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="128" fill="#08070d"/>
+
+  <!-- Cyber grid accents -->
+  <line x1="256" y1="40" x2="256" y2="472" stroke="#ffffff" stroke-opacity="0.04" stroke-width="2"/>
+  <line x1="40" y1="256" x2="472" y2="256" stroke="#ffffff" stroke-opacity="0.04" stroke-width="2"/>
+  <circle cx="256" cy="256" r="170" fill="none" stroke="#ff6600" stroke-opacity="0.08" stroke-width="1.5"/>
+
+  <!-- Glowing Fox Geometry -->
+  <g filter="url(#neon-bloom)">
+    <!-- Back trail / speed lines -->
+    <path d="M120 180 Q256 120 392 180" fill="none" stroke="url(#neon-cyan)" stroke-width="5" stroke-dasharray="14 18" opacity="0.6"/>
+
+    <!-- Fox Head Silhouette Outline & Core -->
+    <path d="M100 200 L136 76 L230 156 L256 146 L282 156 L376 76 L412 200 C412 300 336 386 256 436 C176 386 100 300 100 200 Z"
+          fill="#130f1e" stroke="url(#neon-glow-grad)" stroke-width="10" stroke-linejoin="round"/>
+
+    <!-- Ear Inners -->
+    <path d="M144 116 L210 170 L156 190 Z" fill="url(#neon-glow-grad)" opacity="0.8"/>
+    <path d="M368 116 L302 170 L356 190 Z" fill="url(#neon-glow-grad)" opacity="0.8"/>
+
+    <!-- Cheek Flares (White glowing accents) -->
+    <path d="M116 230 C156 226 196 256 220 286 C180 292 140 280 116 230 Z" fill="#ffffff"/>
+    <path d="M396 230 C356 226 316 256 292 286 C332 292 372 280 396 230 Z" fill="#ffffff"/>
+
+    <!-- Cyber Fox Eyes (Angular slit lenses) -->
+    <polygon points="180,240 220,252 188,262" fill="#00f5d4"/>
+    <polygon points="332,240 292,252 324,262" fill="#00f5d4"/>
+
+    <!-- Glowing Nose & Whiskers Path -->
+    <polygon points="256,356 242,374 270,374" fill="url(#neon-glow-grad)"/>
+    <line x1="220" y1="368" x2="160" y2="360" stroke="#ff6600" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+    <line x1="292" y1="368" x2="352" y2="360" stroke="#ff6600" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+    <line x1="224" y1="380" x2="170" y2="388" stroke="#ff6600" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+    <line x1="288" y1="380" x2="342" y2="388" stroke="#ff6600" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  </g>
+</svg>

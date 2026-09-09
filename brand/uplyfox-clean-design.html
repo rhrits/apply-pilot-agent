@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UplyFox · Clean Icon & Button Design System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1f2040;
+    --ink-muted: #6e6d85;
+    --ink-subtle: #9998b0;
+    --page: #fbfaff;
+    --card: #ffffff;
+    --border: #e8e5f2;
+    --border-hover: #cfcaeb;
+
+    /* Theme Purple */
+    --purple-primary: #5546d9;
+    --purple-hover: #4536cb;
+    --purple-deep: #25234d;
+    --purple-soft: #f4f2ff;
+    --purple-border: #ded9fa;
+    --purple-gradient: linear-gradient(135deg, #5b4de3 0%, #4a3cd1 100%);
+    --purple-gradient-soft: linear-gradient(135deg, #f7f5ff 0%, #ede9fe 100%);
+
+    /* Wine/Crimson Accent */
+    --wine: #8b1e3f;
+    --wine-soft: #fbf0f4;
+    --wine-border: #f2d5df;
+
+    /* Emerald Verified */
+    --green: #0d8a5f;
+    --green-soft: #e4f8ef;
+    --green-border: #b8eed6;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 3px rgba(31, 32, 64, 0.04), 0 1px 2px rgba(31, 32, 64, 0.02);
+    --shadow-md: 0 4px 12px rgba(31, 32, 64, 0.06), 0 1px 3px rgba(31, 32, 64, 0.04);
+    --shadow-button: 0 4px 14px rgba(85, 70, 217, 0.22);
+    --shadow-card: 0 16px 40px rgba(31, 24, 71, 0.06);
+
+    --font-display: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+    --font-body: 'DM Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--page);
+    color: var(--ink);
+    font-family: var(--font-body);
+    line-height: 1.5;
+    padding-bottom: 120px;
+    overflow-x: hidden;
+  }
+
+  .ambient-mesh {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      radial-gradient(circle at 10% 12%, rgba(85, 70, 217, 0.06) 0%, transparent 45%),
+      radial-gradient(circle at 90% 18%, rgba(139, 30, 63, 0.05) 0%, transparent 40%),
+      radial-gradient(circle at 50% 80%, rgba(85, 70, 217, 0.04) 0%, transparent 50%);
+  }
+
+  .container {
+    width: min(1180px, calc(100% - 44px));
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Navigation Header */
+  .top-bar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: rgba(251, 250, 255, 0.9);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+  .top-bar-inner {
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .brand-lockup {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    font-family: var(--font-display);
+    font-size: 21px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--ink);
+  }
+  .brand-lockup img {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+  }
+  .brand-lockup span strong {
+    color: var(--wine);
+  }
+  .badge-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--purple-soft);
+    color: var(--purple-primary);
+    border: 1px solid var(--purple-border);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  /* Section Styles */
+  .section-head {
+    margin: 72px 0 28px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 16px;
+  }
+  .section-head h2 {
+    font-size: 26px;
+    font-family: var(--font-display);
+    letter-spacing: -0.03em;
+    color: var(--ink);
+  }
+  .section-head p {
+    color: var(--ink-muted);
+    font-size: 14px;
+    margin-top: 4px;
+  }
+
+  /* ------------------------------------------------------------- */
+  /* 1. CLEAN ICONS GRID                                           */
+  /* ------------------------------------------------------------- */
+  .icons-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+    gap: 14px;
+  }
+  .clean-icon-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 14px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: pointer;
+  }
+  .clean-icon-card:hover {
+    border-color: var(--purple-border);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+  }
+  .clean-icon-card .icon-wrapper {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--purple-soft);
+    display: grid;
+    place-items: center;
+    color: var(--purple-primary);
+    transition: all 0.2s ease;
+  }
+  .clean-icon-card:hover .icon-wrapper {
+    background: var(--purple-primary);
+    color: #ffffff;
+  }
+  .clean-icon-card:hover .icon-wrapper svg {
+    stroke: #ffffff;
+  }
+  .clean-icon-card svg {
+    width: 24px;
+    height: 24px;
+    transition: all 0.2s ease;
+  }
+  .clean-icon-card span {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .clean-icon-card small {
+    font-size: 10px;
+    color: var(--ink-muted);
+    margin-top: -8px;
+  }
+
+  /* ------------------------------------------------------------- */
+  /* 2. CLEAN BUTTON SYSTEM                                        */
+  /* ------------------------------------------------------------- */
+  .buttons-showcase-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 22px;
+  }
+  .btn-category-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .btn-category-card h3 {
+    font-size: 17px;
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .btn-category-card p {
+    font-size: 13px;
+    color: var(--ink-muted);
+    line-height: 1.5;
+  }
+  .btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* CLEAN BUTTON 1: Primary Purple Gradient */
+  .btn-clean-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 11px;
+    background: var(--purple-gradient);
+    color: #ffffff;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: var(--shadow-button);
+    cursor: pointer;
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .btn-clean-primary:hover {
+    background: linear-gradient(135deg, #6456ed 0%, #5142dc 100%);
+    transform: translateY(-1.5px);
+    box-shadow: 0 6px 18px rgba(85, 70, 217, 0.3);
+  }
+  .btn-clean-primary:active { transform: translateY(0); }
+  .btn-clean-primary svg { width: 16px; height: 16px; stroke: #ffffff; }
+
+  /* CLEAN BUTTON 2: White Surface Card Button */
+  .btn-clean-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 11px;
+    background: #ffffff;
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: all 0.18s ease;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .btn-clean-secondary:hover {
+    border-color: var(--border-hover);
+    background: #faf9ff;
+    color: var(--purple-primary);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+  }
+  .btn-clean-secondary svg { width: 16px; height: 16px; stroke: currentColor; }
+
+  /* CLEAN BUTTON 3: Soft Lavender Tint */
+  .btn-clean-soft {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 11px;
+    background: var(--purple-soft);
+    color: var(--purple-primary);
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid var(--purple-border);
+    cursor: pointer;
+    transition: all 0.18s ease;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .btn-clean-soft:hover {
+    background: #eae5ff;
+    border-color: #cbbeff;
+    color: var(--purple-hover);
+  }
+  .btn-clean-soft svg { width: 16px; height: 16px; stroke: currentColor; }
+
+  /* CLEAN BUTTON 4: Animated Mascot Action Button */
+  .btn-clean-mascot {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px solid var(--purple-border);
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 4px 14px rgba(85, 70, 217, 0.08);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn-clean-mascot:hover {
+    border-color: var(--purple-primary);
+    box-shadow: 0 6px 20px rgba(85, 70, 217, 0.15);
+    transform: translateY(-1.5px);
+  }
+  .btn-clean-mascot .mini-fox {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    animation: mini-wiggle 3.5s ease-in-out infinite;
+  }
+  @keyframes mini-wiggle {
+    0%, 100% { transform: translateY(0) rotate(0); }
+    50% { transform: translateY(-2px) rotate(4deg); }
+  }
+
+  /* CLEAN BUTTON 5: Small Compact Toolbar Buttons (Extension Fit) */
+  .btn-clean-sm {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: #ffffff;
+    color: var(--ink);
+    transition: all 0.15s ease;
+  }
+  .btn-clean-sm:hover {
+    background: var(--purple-soft);
+    border-color: var(--purple-border);
+    color: var(--purple-primary);
+  }
+  .btn-clean-sm svg { width: 14px; height: 14px; }
+  .btn-clean-sm.primary {
+    background: var(--purple-primary);
+    border-color: var(--purple-primary);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(85, 70, 217, 0.25);
+  }
+  .btn-clean-sm.primary:hover {
+    background: var(--purple-hover);
+  }
+  .btn-clean-sm.primary svg { stroke: #ffffff; }
+
+  /* Status Filter Pills */
+  .clean-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    color: var(--ink-muted);
+    transition: all 0.15s ease;
+  }
+  .clean-pill:hover {
+    border-color: var(--purple-border);
+    color: var(--purple-primary);
+  }
+  .clean-pill.active {
+    background: var(--purple-soft);
+    border-color: var(--purple-border);
+    color: var(--purple-primary);
+    font-weight: 700;
+  }
+  .clean-pill svg { width: 13px; height: 13px; }
+
+  /* ------------------------------------------------------------- */
+  /* 3. EXTENSION HUD & IN-PAGE PREVIEW (CLEAN DESIGN)             */
+  /* ------------------------------------------------------------- */
+  .preview-deck {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 24px;
+    margin-top: 24px;
+  }
+
+  /* In-Page Question Popover (Clean) */
+  .hud-card {
+    background: #ffffff;
+    border: 1px solid #dfdaf0;
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 14px 40px rgba(33, 26, 77, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .hud-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .hud-brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .hud-brand img {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+  }
+  .hud-badge-verified {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    border-radius: 6px;
+    background: var(--green-soft);
+    color: var(--green);
+    font-size: 11px;
+    font-weight: 700;
+    border: 1px solid var(--green-border);
+  }
+  .hud-question {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    border-left: 2px solid var(--purple-primary);
+    padding-left: 10px;
+  }
+  .hud-answer {
+    background: var(--purple-soft);
+    border: 1px solid var(--purple-border);
+    border-radius: 12px;
+    padding: 13px 15px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #2e2b58;
+  }
+  .hud-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  /* Side Panel Preview (Clean) */
+  .sidepanel-mock {
+    background: #ffffff;
+    border: 1px solid #dfdaf0;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 14px 40px rgba(33, 26, 77, 0.08);
+    display: flex;
+    flex-direction: column;
+  }
+  .sidepanel-header {
+    padding: 14px 18px;
+    background: #faf9ff;
+    border-bottom: 1px solid #eeeaf6;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .sidepanel-body {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .job-detected-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--wine-soft);
+    border: 1px solid var(--wine-border);
+  }
+  .job-detected-box strong {
+    display: block;
+    font-size: 11px;
+    color: var(--wine);
+    text-transform: uppercase;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+  }
+  .job-detected-box span {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  @media (max-width: 800px) {
+    .preview-deck { grid-template-columns: 1fr; }
+    .icons-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+  }
+</style>
+</head>
+<body>
+
+  <!-- Hidden SVG Sprite with 24 Clean Icons -->
+  <div id="sprite-container"></div>
+
+  <div class="ambient-mesh"></div>
+
+  <!-- TOP BAR -->
+  <header class="top-bar">
+    <div class="container top-bar-inner">
+      <a href="#" class="brand-lockup">
+        <img src="uplyfox-pixel-crimson-logo.svg" alt="UplyFox Logo" />
+        <span>Uply<strong>Fox</strong></span>
+      </a>
+      <span class="badge-tag">Clean Icon & Button Design System</span>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- ========================================================= -->
+    <!-- SECTION 1: 24 CLEAN UPLYFOX VECTOR ICONS                  -->
+    <!-- ========================================================= -->
+    <section>
+      <div class="section-head">
+        <div>
+          <h2>24 Custom UplyFox UI Icons</h2>
+          <p>Crisp, modern, 24x24 vector icons with 1.75px stroke, rounded terminals, and refined duotone accents.</p>
+        </div>
+        <span class="badge-tag">No Cluttered Outlines</span>
+      </div>
+
+      <div class="icons-grid" id="clean-icons-mount">
+        <!-- Rendered by JS -->
+      </div>
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- SECTION 2: CLEAN BUTTON SYSTEM                            -->
+    <!-- ========================================================= -->
+    <section>
+      <div class="section-head">
+        <div>
+          <h2>Clean Button & Action System</h2>
+          <p>Refined buttons with smooth micro-interactions, clean padding, and subtle gradients.</p>
+        </div>
+      </div>
+
+      <div class="buttons-showcase-grid">
+
+        <!-- 1. Primary Action Buttons -->
+        <div class="btn-category-card">
+          <h3>1. Primary Action Buttons</h3>
+          <p>Deep purple gradient with crisp white text and smooth elevated shadow. For main conversion points.</p>
+          <div class="btn-row">
+            <button class="btn-clean-primary">
+              <svg viewBox="0 0 24 24"><use href="#spark"/></svg>
+              <span>Build verified profile</span>
+            </button>
+            <button class="btn-clean-primary">
+              <svg viewBox="0 0 24 24"><use href="#autofill"/></svg>
+              <span>Autofill form</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. Secondary & Card Buttons -->
+        <div class="btn-category-card">
+          <h3>2. White Card & Secondary</h3>
+          <p>Clean white surface with subtle 1px border. Perfect for in-app tools, filters, and auxiliary steps.</p>
+          <div class="btn-row">
+            <button class="btn-clean-secondary">
+              <svg viewBox="0 0 24 24"><use href="#save"/></svg>
+              <span>Save opportunity</span>
+            </button>
+            <button class="btn-clean-secondary">
+              <svg viewBox="0 0 24 24"><use href="#copy"/></svg>
+              <span>Copy answer</span>
+            </button>
+            <button class="btn-clean-secondary">
+              <svg viewBox="0 0 24 24"><use href="#scan"/></svg>
+              <span>Scan page</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. Soft Lavender Tint Buttons -->
+        <div class="btn-category-card">
+          <h3>3. Soft Lavender Tint Actions</h3>
+          <p>Quiet, calm buttons for frequent actions that shouldn't overwhelm the visual hierarchy.</p>
+          <div class="btn-row">
+            <button class="btn-clean-soft">
+              <svg viewBox="0 0 24 24"><use href="#sync"/></svg>
+              <span>Sync profile</span>
+            </button>
+            <button class="btn-clean-soft">
+              <svg viewBox="0 0 24 24"><use href="#attach"/></svg>
+              <span>Attach resume</span>
+            </button>
+            <button class="btn-clean-soft" style="background:var(--wine-soft); border-color:var(--wine-border); color:var(--wine);">
+              <svg viewBox="0 0 24 24"><use href="#shield"/></svg>
+              <span>Needs review</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 4. Mascot Hero Trigger Button -->
+        <div class="btn-category-card">
+          <h3>4. UplyFox Mascot Trigger Button</h3>
+          <p>Features our lively fox character beside the action prompt, creating instant brand connection.</p>
+          <div class="btn-row">
+            <button class="btn-clean-mascot">
+              <img class="mini-fox" src="uplyfox-pixel-crimson-logo.svg" alt="UplyFox" />
+              <span>Ask UplyFox Copilot</span>
+            </button>
+            <button class="btn-clean-mascot" style="border-color:var(--green-border); background:var(--green-soft);">
+              <span style="color:var(--green); font-size:16px;">✓</span>
+              <span style="color:var(--green);">All fields verified</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 5. Compact Extension Buttons (300px Fit) -->
+        <div class="btn-category-card">
+          <h3>5. Compact Toolbar & Extension Buttons</h3>
+          <p>Small, crisp 30px height buttons designed specifically for the narrow extension sidepanel.</p>
+          <div class="btn-row">
+            <button class="btn-clean-sm primary">
+              <svg viewBox="0 0 24 24"><use href="#insert"/></svg>
+              <span>Insert</span>
+            </button>
+            <button class="btn-clean-sm">
+              <svg viewBox="0 0 24 24"><use href="#copy"/></svg>
+              <span>Copy</span>
+            </button>
+            <button class="btn-clean-sm">
+              <svg viewBox="0 0 24 24"><use href="#save"/></svg>
+              <span>Save</span>
+            </button>
+            <button class="btn-clean-sm">
+              <svg viewBox="0 0 24 24"><use href="#voice"/></svg>
+              <span>Dictate</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 6. Filter & Status Pills -->
+        <div class="btn-category-card">
+          <h3>6. Filter & Navigation Pills</h3>
+          <p>Used across the Job Tracker and Answer Library to filter by status or category.</p>
+          <div class="btn-row">
+            <button class="clean-pill active">
+              <svg viewBox="0 0 24 24"><use href="#tracker"/></svg>
+              <span>All Jobs (14)</span>
+            </button>
+            <button class="clean-pill">
+              <svg viewBox="0 0 24 24"><use href="#interview"/></svg>
+              <span>Interviews (3)</span>
+            </button>
+            <button class="clean-pill">
+              <svg viewBox="0 0 24 24"><use href="#offer"/></svg>
+              <span>Offers (1)</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- SECTION 3: IN-PAGE HUD & EXTENSION INTEGRATION            -->
+    <!-- ========================================================= -->
+    <section>
+      <div class="section-head">
+        <div>
+          <h2>Extension & In-Page UI with Clean Buttons</h2>
+          <p>Real application surfaces showing how the clean icons, clean buttons, and fox mascot work together.</p>
+        </div>
+      </div>
+
+      <div class="preview-deck">
+        <!-- In-Page Question Popover -->
+        <div class="hud-card">
+          <div class="hud-top">
+            <div class="hud-brand">
+              <img src="uplyfox-pixel-crimson-logo.svg" alt="" />
+              <span>UplyFox Suggestion</span>
+            </div>
+            <span class="hud-badge-verified">
+              <svg viewBox="0 0 24 24" style="width:13px; height:13px; stroke:currentColor;"><use href="#match"/></svg>
+              <span>Answer Memory · 94%</span>
+            </span>
+          </div>
+
+          <div class="hud-question">
+            "What is your notice period or earliest possible start date?"
+          </div>
+
+          <div class="hud-answer">
+            "My notice period is 30 days as per current company policy, with flexibility for an earlier transition depending on handover requirements."
+          </div>
+
+          <div class="hud-actions">
+            <button class="btn-clean-primary" style="flex:1;">
+              <svg viewBox="0 0 24 24"><use href="#insert"/></svg>
+              <span>Insert into field</span>
+            </button>
+            <button class="btn-clean-secondary">
+              <svg viewBox="0 0 24 24"><use href="#copy"/></svg>
+              <span>Copy</span>
+            </button>
+            <button class="btn-clean-secondary">
+              <svg viewBox="0 0 24 24"><use href="#save"/></svg>
+              <span>Save</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Extension Assistant Mock -->
+        <div class="sidepanel-mock">
+          <div class="sidepanel-header">
+            <div class="hud-brand">
+              <img src="uplyfox-pixel-crimson-logo.svg" alt="" />
+              <span>UplyFox Assistant</span>
+            </div>
+            <span style="font-size:10px; font-weight:800; color:var(--green);">● SYNCED</span>
+          </div>
+          <div class="sidepanel-body">
+            <div class="job-detected-box">
+              <div>
+                <strong>Job Page Detected</strong>
+                <span>Staff Software Engineer · Stripe</span>
+              </div>
+              <span class="badge-tag" style="background:#fff; color:var(--wine); border-color:var(--wine-border);">96% Match</span>
+            </div>
+
+            <div style="display:flex; gap:8px;">
+              <button class="btn-clean-sm primary" style="flex:1;">
+                <svg viewBox="0 0 24 24"><use href="#autofill"/></svg>
+                <span>Fill all 7 fields</span>
+              </button>
+              <button class="btn-clean-sm" style="flex:1;">
+                <svg viewBox="0 0 24 24"><use href="#attach"/></svg>
+                <span>Attach resume</span>
+              </button>
+            </div>
+
+            <div style="border-top:1px solid var(--border); padding-top:12px; display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:12px; color:var(--ink-muted); font-weight:600;">Verified profile data</span>
+              <button class="btn-clean-sm" style="padding:4px 8px; font-size:11px;">
+                <svg viewBox="0 0 24 24"><use href="#sync"/></svg>
+                <span>Refresh</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Load and mount the clean SVG sprite
+    fetch('uplyfox-clean-icons.svg')
+      .then(res => res.text())
+      .then(svg => {
+        document.getElementById('sprite-container').innerHTML = svg;
+      });
+
+    // Mount 24 clean icons
+    const icons = [
+      { id: 'fox', label: 'Fox Mascot', note: 'brand' },
+      { id: 'home', label: 'Dashboard', note: 'nav' },
+      { id: 'profile', label: 'Profile', note: 'identity' },
+      { id: 'resume', label: 'Resume', note: 'document' },
+      { id: 'answers', label: 'Answers', note: 'library' },
+      { id: 'tracker', label: 'Tracker', note: 'analytics' },
+      { id: 'job', label: 'Opportunity', note: 'listing' },
+      { id: 'scan', label: 'Scan Page', note: 'detection' },
+      { id: 'autofill', label: 'Autofill', note: 'action' },
+      { id: 'match', label: 'Match Radar', note: 'score' },
+      { id: 'save', label: 'Save Draft', note: 'action' },
+      { id: 'copy', label: 'Copy Text', note: 'fallback' },
+      { id: 'insert', label: 'Insert Value', note: 'action' },
+      { id: 'sync', label: 'Sync Profile', note: 'cloud' },
+      { id: 'spark', label: 'AI Suggest', note: 'engine' },
+      { id: 'voice', label: 'Dictation', note: 'speech' },
+      { id: 'attach', label: 'Attachment', note: 'file' },
+      { id: 'calendar', label: 'Schedule', note: 'dates' },
+      { id: 'interview', label: 'Interview', note: 'stage' },
+      { id: 'offer', label: 'Offer', note: 'milestone' },
+      { id: 'settings', label: 'Settings', note: 'prefs' },
+      { id: 'shield', label: 'Privacy Guard', note: 'security' },
+      { id: 'lock', label: 'Auth Token', note: 'security' },
+      { id: 'logout', label: 'Sign Out', note: 'session' }
+    ];
+
+    const mount = document.getElementById('clean-icons-mount');
+    mount.innerHTML = icons.map(icon => `
+      <div class="clean-icon-card" title="${icon.label} (${icon.id})">
+        <div class="icon-wrapper">
+          <svg viewBox="0 0 24 24"><use href="#${icon.id}"/></svg>
+        </div>
+        <span>${icon.label}</span>
+        <small>${icon.id}</small>
+      </div>
+    `).join('');
+  </script>
+</body>
+</html>

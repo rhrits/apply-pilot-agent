@@ -1,4 +1,4 @@
-import type { AnswerMemoryItem } from "@applypilot/shared";
+import type { AnswerMemoryItem } from "@uplyfox/shared";
 import { getExtensionSupabase, getExtensionUser } from "./supabase";
 
 const MEMORY_KEY = "answerMemory";

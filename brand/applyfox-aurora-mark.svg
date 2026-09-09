@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">ApplyFox Aurora mark</title>
+  <desc id="desc">A soft gradient fox emblem designed for a calm, modern job assistant.</desc>
+  <defs>
+    <linearGradient id="aurora" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#38bdf8" />
+      <stop offset=".52" stop-color="#8b5cf6" />
+      <stop offset="1" stop-color="#f97316" />
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="14" result="blur" />
+      <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="#0f172a" />
+  <circle cx="256" cy="256" r="186" fill="url(#aurora)" opacity=".22" filter="url(#glow)" />
+  <path d="M96 176 133 78l105 77c12-3 24-4 36-4s24 1 36 4l105-77 37 98v88c0 105-80 176-176 210-96-34-176-105-176-210Z" fill="url(#aurora)" />
+  <path d="m133 78 82 105-74-5Z" fill="#bae6fd" opacity=".72" />
+  <path d="m379 78-82 105 74-5Z" fill="#fed7aa" opacity=".72" />
+  <path d="M156 247c26-28 65-28 100 11-20 40-55 55-87 36-21-13-26-30-13-47ZM356 247c-26-28-65-28-100 11 20 40 55 55 87 36 21-13 26-30 13-47Z" fill="#f8fafc" opacity=".95" />
+  <circle cx="218" cy="266" r="9" fill="#172554" /><circle cx="294" cy="266" r="9" fill="#172554" />
+  <path d="M235 321c12 12 30 12 42 0l-21 24Z" fill="#172554" />
+</svg>

@@ -1,6 +1,6 @@
 # Onboarding and Profile Intelligence
 
-How ApplyPilot turns scattered material into one verified profile that can answer
+How UplyFox turns scattered material into one verified profile that can answer
 almost any application question without inventing anything.
 
 ## The pipeline

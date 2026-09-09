@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="brand/applypilot-logo.svg" width="88" alt="ApplyPilot" />
+<img src="brand/uplyfox-pixel-crimson-logo.svg" width="88" alt="UplyFox" />
 
-# ApplyPilot
+# UplyFox
 
 **An open-source job-application copilot that never invents your experience.**
 
@@ -16,18 +16,18 @@ and copy or paste when autofill cannot be trusted.
 
 ---
 
-ApplyPilot is an open-source **AI job-application assistant** for people who are
+UplyFox is an open-source **AI job-application assistant** for people who are
 tired of entering the same information into every application form. It combines
 a verified personal profile, resume and project context, a Chrome MV3 browser
 extension, and a job tracker in one privacy-conscious workspace.
 
 It is designed for real-world application sites, including forms that the
-extension cannot fully control. ApplyPilot detects the question, finds a
+extension cannot fully control. UplyFox detects the question, finds a
 supported answer, and lets you review, copy, or insert it. When autofill is not
 possible, the Side Panel and manual question mode remain available as reliable
 fallbacks.
 
-## What ApplyPilot does
+## What UplyFox does
 
 - **Builds a reusable profile** from a resume, GitHub profile, portfolio links,
   projects, experience, skills, education, and user-written answers.
@@ -56,7 +56,7 @@ user confirmation.
 Most autofill tools fail in one of two ways: they break on any site they have not
 been hard-coded for, or they cheerfully make up experience you do not have.
 
-ApplyPilot takes a different position:
+UplyFox takes a different position:
 
 - **Deterministic before AI.** "Notice period" and "Current company" are looked up
   from your verified profile. No model call, no rate limit, no hallucination.
@@ -166,7 +166,7 @@ key anywhere in this project.
 
 ### Email sign-in
 
-ApplyPilot uses Supabase email OTP. Supabase's default template sends a magic
+UplyFox uses Supabase email OTP. Supabase's default template sends a magic
 **link**; to also support the extension's numeric code, add `{{ .Token }}` to the
 Magic Link template. Add `/onboarding` and `/profile` to your Supabase redirect URLs.
 Configure custom SMTP before real use — the built-in sender is rate-limited.
@@ -193,7 +193,7 @@ These are real boundaries, not bugs:
 
 ## Project status
 
-ApplyPilot is an active early-stage project. The current repository includes the
+UplyFox is an active early-stage project. The current repository includes the
 web workspace, authenticated Chrome extension, resume/profile onboarding, local
 and Supabase-backed job tracking, deterministic field answering, and server-side
 Mistral integration. The compatibility layer is intentionally incremental:

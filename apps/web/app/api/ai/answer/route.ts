@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { answerQuestion, cleanTitle, type DetectedField, type UserProfile } from "@applypilot/shared";
+import { answerQuestion, cleanTitle, type DetectedField, type UserProfile } from "@uplyfox/shared";
 import { runSuggestionAgent } from "../../../../lib/suggestion-agent";
 
 export const runtime = "nodejs";

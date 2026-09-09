@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import pdfParse from "pdf-parse";
-import { cleanTitle, emptyProfile, mergeProfile, type ResumeAnalysis, type UserProfile } from "@applypilot/shared";
+import { cleanTitle, emptyProfile, mergeProfile, type ResumeAnalysis, type UserProfile } from "@uplyfox/shared";
 import { generateJson, hasAiProvider, isFailure } from "../../../../lib/ai-provider";
 
 export const runtime = "nodejs";

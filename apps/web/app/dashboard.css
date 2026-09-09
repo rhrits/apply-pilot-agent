@@ -5,7 +5,7 @@
 .hero-link{color:var(--purple);font-size:13px;font-weight:700;text-decoration:none}
 .hero-link:hover{text-decoration:underline}
 .activity-row{text-decoration:none;color:inherit;cursor:pointer}
-.activity-icon.done{background:#e4f8ef;color:var(--green)}
+.activity-icon.done{background:#fdf2f5;color:#8b1e3f}
 .pill.pending{background:#f0efff;color:var(--purple)}
 .empty-snapshot{font-size:12px;color:var(--muted);line-height:1.6;margin:0}
 .empty-snapshot a{color:var(--purple);font-weight:700;text-decoration:none}

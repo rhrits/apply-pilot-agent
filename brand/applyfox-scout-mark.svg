@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">ApplyFox Scout mark</title>
+  <desc id="desc">A sharp fox profile with a white check mark, representing finding and completing the right application.</desc>
+  <defs>
+    <linearGradient id="scout" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fb923c" />
+      <stop offset="1" stop-color="#c2410c" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="124" fill="#fff7ed" />
+  <path d="M80 188 113 72l116 78c18-5 36-7 54-5l112-73 37 116c-5 93-58 178-161 217-103-39-156-124-161-217Z" fill="url(#scout)" />
+  <path d="M112 119 192 171l-66 25Z" fill="#fed7aa" />
+  <path d="m400 119-80 52 66 25Z" fill="#fed7aa" />
+  <path d="M154 244c32-22 67-17 91 12-23 30-52 42-84 24-13-8-17-25-7-36Z" fill="#fff" opacity=".92" />
+  <path d="M358 244c-32-22-67-17-91 12 23 30 52 42 84 24 13-8 17-25 7-36Z" fill="#fff" opacity=".92" />
+  <circle cx="207" cy="256" r="10" fill="#431407" />
+  <circle cx="305" cy="256" r="10" fill="#431407" />
+  <path d="m168 350 45 43 132-143" fill="none" stroke="#166534" stroke-linecap="round" stroke-linejoin="round" stroke-width="30" />
+</svg>

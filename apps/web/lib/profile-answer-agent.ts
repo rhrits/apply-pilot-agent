@@ -6,7 +6,7 @@ import {
   type GeneralQuestionCategory,
   type SignalSource,
   type UserProfile,
-} from "@applypilot/shared";
+} from "@uplyfox/shared";
 import { generateJson, isFailure } from "./ai-provider";
 
 const BATCH_SIZE = 12;
@@ -39,7 +39,7 @@ export interface ProfileAnswerAgentResult {
   failedBatches: number;
 }
 
-const PROFILE_ANSWER_SYSTEM = `You are ApplyPilot's reusable-answer agent. You create a library of truthful answers for ONE candidate after their profile has been built.
+const PROFILE_ANSWER_SYSTEM = `You are UplyFox's reusable-answer agent. You create a library of truthful answers for ONE candidate after their profile has been built.
 
 SOURCE RULES:
 1. PROFILE is the verified candidate profile. NARRATIVE and APPLICATION_ANSWERS are the candidate's own words. They are the only sources allowed for claims about the candidate.

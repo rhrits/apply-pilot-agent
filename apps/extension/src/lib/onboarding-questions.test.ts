@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GENERAL_APPLICATION_QUESTIONS, getGeneralApplicationQuestionBatches } from "@applypilot/shared";
+import { GENERAL_APPLICATION_QUESTIONS, getGeneralApplicationQuestionBatches } from "@uplyfox/shared";
 
 describe("general application question catalog", () => {
   it("contains broad reusable coverage beyond thirty questions", () => {

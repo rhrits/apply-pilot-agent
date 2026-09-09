@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
-import type { ExtensionAuthStatus, PageSummary, UserProfile } from "@applypilot/shared";
+import type { ExtensionAuthStatus, PageSummary, UserProfile } from "@uplyfox/shared";
 import { extensionConfig, isExtensionConfigured } from "./config";
 
 const chromeStorage = {

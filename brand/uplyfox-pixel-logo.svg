@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">UplyFox Pixel Mark</title>
+  <desc id="desc">Solid orange gradient container with angular white fox mask and clean geometric features.</desc>
+  <defs>
+    <!-- Rich fiery orange gradient from 05 Pixel mark -->
+    <linearGradient id="uply-fox-gradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff944d"/>
+      <stop offset="45%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#d9480f"/>
+    </linearGradient>
+    <!-- Top rim highlight -->
+    <linearGradient id="rim-glow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="30%" stop-color="#ffffff" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <!-- Soft warm shadow under the mask -->
+    <filter id="mask-depth" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#801f00" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <!-- Squircle container with fiery orange gradient -->
+  <rect width="512" height="512" rx="124" fill="url(#uply-fox-gradient)"/>
+  <!-- Subtle glass lighting curve -->
+  <rect width="512" height="512" rx="124" fill="url(#rim-glow)"/>
+
+  <!-- Angular White Fox Mask -->
+  <g filter="url(#mask-depth)">
+    <!-- Main white face geometry -->
+    <path d="M72 172 L124 64 L236 142 C243 140 250 139 256 139 C262 139 269 140 276 142 L388 64 L440 172 C440 296 358 382 272 426 C262 431 250 431 240 426 C154 382 72 296 72 172 Z" fill="#ffffff"/>
+
+    <!-- Inner ears (soft peach warm tone) -->
+    <polygon points="72,172 184,220 128,254" fill="#fed7aa"/>
+    <polygon points="440,172 328,220 384,254" fill="#fed7aa"/>
+
+    <!-- Angular geometric dark eye patches -->
+    <polygon points="144,248 226,214 256,252 200,306 144,290" fill="#241b18"/>
+    <polygon points="368,248 286,214 256,252 312,306 368,290" fill="#241b18"/>
+
+    <!-- Crisp square eyes/pupils -->
+    <rect x="194" y="248" width="20" height="20" rx="4" fill="#ffffff"/>
+    <rect x="298" y="248" width="20" height="20" rx="4" fill="#ffffff"/>
+
+    <!-- Chevron nose / mouth -->
+    <path d="M216 364 L256 394 L296 364" fill="none" stroke="#241b18" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

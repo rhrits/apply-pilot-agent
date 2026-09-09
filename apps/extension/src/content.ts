@@ -1,4 +1,4 @@
-import { analyzeJobMatch, type ExtensionMessage, type PageSummary } from "@applypilot/shared";
+import { analyzeJobMatch, type ExtensionMessage, type PageSummary } from "@uplyfox/shared";
 import { answerForField, extractField } from "./lib/field-detector";
 import { insertValue } from "./lib/insertion";
 import { getProfile } from "./lib/profile";
@@ -26,7 +26,7 @@ type OverlayState =
 function renderOverlay(element: Element, state: OverlayState) {
   removeOverlay();
   const host = document.createElement("div");
-  host.id = "applypilot-overlay-host";
+  host.id = "uplyfox-overlay-host";
   host.style.cssText = "position:fixed;z-index:2147483647;pointer-events:auto;";
   const rect = element.getBoundingClientRect();
   const estimatedHeight = state.kind === "answer" || state.kind === "suggestion" ? 175 : 90;
@@ -41,7 +41,7 @@ function renderOverlay(element: Element, state: OverlayState) {
 
   const hasAnswer = state.kind === "answer" || state.kind === "suggestion";
   const badge = state.kind === "suggestion" ? `<span class="badge">${state.source === "memory" ? "Remembered" : "AI suggestion"}</span>` : "";
-  card.innerHTML = `<div class="title">✦ ApplyPilot${badge}</div><div class="q"></div>${state.kind === "loading" ? `<div class="loading"><span class="spinner"></span>Finding the best answer…</div>` : hasAnswer ? `<div class="answer"></div>` : ""}<div class="actions">${state.kind === "loading" ? "" : hasAnswer ? `<button class="primary">Insert</button><button class="secondary">Copy</button>${state.kind === "suggestion" ? `<button class="tertiary">Save</button>` : ""}` : `<button class="primary">Open assistant</button><button class="secondary">Copy question</button><button class="tertiary">Save question</button>`}</div>`;
+  card.innerHTML = `<div class="title">✦ UplyFox${badge}</div><div class="q"></div>${state.kind === "loading" ? `<div class="loading"><span class="spinner"></span>Finding the best answer…</div>` : hasAnswer ? `<div class="answer"></div>` : ""}<div class="actions">${state.kind === "loading" ? "" : hasAnswer ? `<button class="primary">Insert</button><button class="secondary">Copy</button>${state.kind === "suggestion" ? `<button class="tertiary">Save</button>` : ""}` : `<button class="primary">Open assistant</button><button class="secondary">Copy question</button><button class="tertiary">Save question</button>`}</div>`;
   (card.querySelector(".q") as HTMLElement).textContent = state.question || "Focused field";
   if (hasAnswer) (card.querySelector(".answer") as HTMLElement).textContent = state.text;
 
@@ -133,7 +133,7 @@ document.addEventListener("mouseup", () => {
 });
 window.addEventListener("message", (event) => {
   if (event.source !== window || event.origin !== window.location.origin) return;
-  if (event.data?.source !== "applypilot-web" || event.data?.type !== "APPLY_PILOT_LOGOUT") return;
+  if (event.data?.source !== "uplyfox-web" || event.data?.type !== "UPLYFOX_LOGOUT") return;
   chrome.runtime.sendMessage({ type: "AUTH_SIGN_OUT", clearLocalData: event.data.clearLocalData === true } satisfies ExtensionMessage).catch(() => undefined);
 });
 document.addEventListener("click", (event) => {

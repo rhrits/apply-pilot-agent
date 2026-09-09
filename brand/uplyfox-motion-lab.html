@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>UplyFox · Motion Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--ink:#26213f;--muted:#77728d;--page:#fbfaff;--line:#e6e1f5;--purple:#5546d9;--blood:#7f1d35;--soft:#f1efff}
+    *{box-sizing:border-box}body{margin:0;padding:42px 20px;background:radial-gradient(circle at 10% 5%,#eeeaff,transparent 38%),radial-gradient(circle at 95% 80%,#f7e9ee,transparent 35%),var(--page);color:var(--ink);font-family:'DM Sans',system-ui,sans-serif}
+    main{width:min(1100px,100%);margin:auto}.header{margin-bottom:30px}.badge{display:inline-flex;padding:5px 10px;border-radius:99px;background:#f8edf1;color:var(--blood);font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.header h1{font:700 clamp(34px,6vw,58px)/1.02 'Space Grotesk';letter-spacing:-.06em;margin:14px 0 9px}.header h1 span{background:linear-gradient(135deg,var(--blood),#312e81);-webkit-background-clip:text;-webkit-text-fill-color:transparent}.header p{max-width:650px;color:var(--muted);line-height:1.6;margin:0}
+    .stage{position:relative;height:330px;display:grid;place-items:center;overflow:hidden;border:1px solid var(--line);border-radius:24px;background:linear-gradient(135deg,#fff,#faf9ff 55%,#f8eef2);box-shadow:0 22px 60px #312e8114}.stage:before{content:'';position:absolute;inset:16px;border:1px dashed #cbc4ed;border-radius:18px;pointer-events:none}.stage img{position:relative;z-index:1;width:220px;height:220px;filter:drop-shadow(0 20px 20px #4c051930)}
+    .motion-track{position:absolute;left:7%;right:7%;bottom:43px;height:2px;background:linear-gradient(90deg,transparent,#d6d0ed,transparent)}.motion-track:after{content:'motion path';position:absolute;right:0;top:-20px;color:#aba5c5;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+    .controls{display:flex;flex-wrap:wrap;gap:9px;margin:16px 0}.controls button{border:1px solid #cbc5e9;border-radius:9px;background:linear-gradient(135deg,#f5f3ff,#ddd6fe);color:#312e81;font:700 11px system-ui;padding:9px 13px;cursor:pointer}.controls button.active,.controls button:hover{background:linear-gradient(135deg,#ede9fe,#c4b5fd);border-color:#9b90dd}
+    .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:24px}.card{padding:18px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 10px 24px #312e8109}.card h2{font:700 15px 'Space Grotesk';margin:0 0 6px}.card p{font-size:11px;line-height:1.5;color:var(--muted);margin:0}.card small{display:block;margin-top:14px;color:var(--purple);font-size:10px;font-weight:800}
+    /* Motion modes. */
+    .mode-blink{animation:float 4.6s ease-in-out infinite}
+    .mode-slide{animation:slide-across 3.2s cubic-bezier(.16,1,.3,1) infinite}
+    .mode-hover{animation:hover-tilt 2.8s ease-in-out infinite}
+    .mode-success{animation:success-nod 3.4s ease-in-out infinite}
+    @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+    @keyframes slide-across{0%{transform:translateX(-260px) scale(.86);opacity:0}18%{opacity:1}42%{transform:translateX(18px) scale(1.03)}58%{transform:translateX(-8px) scale(.99)}76%,100%{transform:translateX(0) scale(1);opacity:1}}
+    @keyframes hover-tilt{0%,100%{transform:rotate(-2deg) translateY(2px)}50%{transform:rotate(3deg) translateY(-9px)}}
+    @keyframes success-nod{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-12px) rotate(-3deg)}42%{transform:translateY(2px) rotate(2deg)}57%{transform:translateY(-5px) rotate(0)}75%{transform:translateY(0)}}
+    @media(max-width:800px){.cards{grid-template-columns:repeat(2,1fr)}}@media(max-width:520px){.cards{grid-template-columns:1fr}.stage{height:270px}.stage img{width:180px;height:180px}}
+  </style>
+</head>
+<body>
+  <main>
+    <header class="header"><span class="badge">UplyFox · transparent motion lab</span><h1>Let the fox <span>come across.</span></h1><p>The square background has been removed from the animated mark. Try four motion directions for the same Pixel / Bold fox: blink, slide across, hover, and success nod.</p></header>
+    <section class="stage"><div class="motion-track"></div><img id="fox" class="mode-blink" src="uplyfox-pixel-crimson-animated.svg" alt="Animated transparent UplyFox Pixel fox"></section>
+    <div class="controls"><button class="active" data-mode="blink">Blink & breathe</button><button data-mode="slide">Come across</button><button data-mode="hover">Hover glance</button><button data-mode="success">Success nod</button><button id="replay">Replay</button></div>
+    <section class="cards"><article class="card"><h2>01 · Blink</h2><p>Gentle idle motion with two natural blinks and eyes glancing side-to-side.</p><small>Best for: app header</small></article><article class="card"><h2>02 · Come across</h2><p>Slides from the left, eases past center, then settles on the motion path.</p><small>Best for: page detection</small></article><article class="card"><h2>03 · Hover</h2><p>Small tilt and lift keeps the icon alive without distracting from the form.</p><small>Best for: extension popup</small></article><article class="card"><h2>04 · Success</h2><p>A compact nod animation communicates that an answer or job draft is ready.</p><small>Best for: saved state</small></article></section>
+  </main>
+  <script>
+    const fox = document.getElementById('fox');
+    const buttons = document.querySelectorAll('[data-mode]');
+    buttons.forEach((button) => button.addEventListener('click', () => {
+      buttons.forEach((item) => item.classList.remove('active'));
+      button.classList.add('active');
+      fox.className = `mode-${button.dataset.mode}`;
+      fox.src = `uplyfox-pixel-crimson-animated.svg?mode=${button.dataset.mode}-${Date.now()}`;
+    }));
+    document.getElementById('replay').addEventListener('click', () => {
+      fox.src = `uplyfox-pixel-crimson-animated.svg?replay=${Date.now()}`;
+    });
+  </script>
+</body>
+</html>

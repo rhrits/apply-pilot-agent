@@ -1,4 +1,4 @@
-import type { PageSummary } from "@applypilot/shared";
+import type { PageSummary } from "@uplyfox/shared";
 import { getExtensionSupabase, getExtensionUser } from "./supabase";
 
 const KEY = "unknownQuestions";

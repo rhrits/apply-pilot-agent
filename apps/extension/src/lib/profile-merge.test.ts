@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildProfileMarkdown, groupProjects, mergeAllSources, mergeProfile, emptyProfile, profileCompleteness } from "@applypilot/shared";
+import { buildProfileMarkdown, groupProjects, mergeAllSources, mergeProfile, emptyProfile, profileCompleteness } from "@uplyfox/shared";
 
 describe("resume-first merging", () => {
   it("never lets a lower-priority source overwrite a resume fact", () => {

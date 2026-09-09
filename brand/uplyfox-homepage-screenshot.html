@@ -1,0 +1,789 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>UplyFox · Homepage Screen & App Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #1f2040;
+      --ink-muted: #6e6d87;
+      --ink-subtle: #9998b0;
+      --page: #fbfaff;
+      --border: #e8e5f2;
+      --border-subtle: #eeebf8;
+      --purple: #5546d9;
+      --purple-hover: #4536cb;
+      --purple-dark: #24234a;
+      --purple-soft: #f4f2ff;
+      --purple-border: #ded9fa;
+      --purple-gradient: linear-gradient(135deg, #5b4de3 0%, #4a3cd1 100%);
+      --wine: #8b1e3f;
+      --wine-soft: #fdf2f5;
+      --wine-border: #f5d7e1;
+      --green: #0d8a5f;
+      --green-soft: #e4f8ef;
+      --green-border: #b8eed6;
+      --font-display: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+      --font-body: 'DM Sans', system-ui, -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--page);
+      color: var(--ink);
+      font-family: var(--font-body);
+      line-height: 1.5;
+      padding: 48px 24px;
+      overflow-x: hidden;
+    }
+
+    .ambient {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(circle at 10% 12%, rgba(85, 70, 217, 0.08) 0%, transparent 45%),
+        radial-gradient(circle at 92% 16%, rgba(139, 30, 63, 0.06) 0%, transparent 42%),
+        radial-gradient(circle at 50% 85%, rgba(85, 70, 217, 0.04) 0%, transparent 50%);
+    }
+
+    .wrapper {
+      max-width: 1200px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    .header-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: var(--purple-soft);
+      color: var(--purple);
+      border: 1px solid var(--purple-border);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .header-bar h1 {
+      font-size: 26px;
+      font-family: var(--font-display);
+      letter-spacing: -0.03em;
+      margin-top: 6px;
+    }
+    .header-bar p {
+      color: var(--ink-muted);
+      font-size: 13px;
+    }
+
+    /* ------------------------------------------------------------- */
+    /* THE HERO SCREENSHOT STAGE                                     */
+    /* ------------------------------------------------------------- */
+    .screenshot-stage {
+      position: relative;
+      min-height: 720px;
+      border-radius: 28px;
+      padding: 32px 32px 64px;
+      background: linear-gradient(135deg, #ffffff 0%, #faf8ff 50%, #f4f1ff 100%);
+      border: 1px solid #e5e0f7;
+      box-shadow: 0 30px 80px -15px rgba(45, 33, 99, 0.12);
+      overflow: hidden;
+    }
+
+    /* Background aura */
+    .screenshot-glow {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(85, 70, 217, 0.12) 0%, transparent 70%);
+      top: -150px;
+      right: -100px;
+      pointer-events: none;
+    }
+
+    /* Browser Mockup Window (Dashboard Screen) */
+    .browser-window {
+      width: 82%;
+      background: #ffffff;
+      border: 1px solid #ded9f2;
+      border-radius: 18px;
+      box-shadow: 0 20px 50px rgba(35, 25, 80, 0.09), 0 4px 12px rgba(35, 25, 80, 0.04);
+      overflow: hidden;
+      transform: rotate(0.8deg);
+      transition: transform 0.3s ease;
+    }
+    .browser-window:hover {
+      transform: rotate(0deg);
+    }
+    .window-header {
+      height: 38px;
+      padding: 0 16px;
+      background: #faf9ff;
+      border-bottom: 1px solid #eeebf7;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .window-dots {
+      display: flex;
+      gap: 6px;
+    }
+    .window-dots span {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #e2dfef;
+    }
+    .window-dots span:nth-child(1) { background: #ff9b8a; }
+    .window-dots span:nth-child(2) { background: #fcd34d; }
+    .window-dots span:nth-child(3) { background: #86efac; }
+    .window-url-bar {
+      flex: 1;
+      max-width: 380px;
+      height: 24px;
+      background: #ffffff;
+      border: 1px solid #eae6f5;
+      border-radius: 6px;
+      padding: 0 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--ink-muted);
+    }
+    .window-url-bar svg { width: 12px; height: 12px; stroke: var(--purple); }
+
+    /* Dashboard Inner Layout */
+    .dash-layout {
+      display: flex;
+      min-height: 520px;
+    }
+    /* Dashboard Sidebar */
+    .dash-sidebar {
+      width: 210px;
+      background: var(--purple-dark);
+      color: #fff;
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+    .dash-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .dash-logo img {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+    }
+    .dash-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .dash-nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 12px;
+      border-radius: 8px;
+      color: #b5b2ce;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .dash-nav-item.active {
+      background: #393666;
+      color: #ffffff;
+    }
+    .dash-nav-item small {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+    .dash-sidebar-footer {
+      margin-top: auto;
+      padding: 12px;
+      border-radius: 10px;
+      background: #2d2b57;
+      border: 1px solid #454277;
+      font-size: 11px;
+      line-height: 1.5;
+      color: #c4c1de;
+    }
+    .dash-sidebar-footer strong { color: #fff; display: block; margin-bottom: 2px; }
+
+    /* Dashboard Main Canvas */
+    .dash-content {
+      flex: 1;
+      padding: 24px 28px;
+      background: #fdfcff;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .dash-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .dash-topbar-copy small {
+      color: var(--purple);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .dash-topbar-copy h3 {
+      font-family: var(--font-display);
+      font-size: 20px;
+      color: var(--ink);
+      margin-top: 2px;
+    }
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ff944d, #d9480f);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    /* Hero Banner inside Dashboard */
+    .dash-hero-card {
+      padding: 20px 24px;
+      border-radius: 16px;
+      background: linear-gradient(110deg, #f3f0ff 0%, #faf8ff 100%);
+      border: 1px solid #e5e0f9;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+    .dash-hero-copy strong {
+      font-size: 16px;
+      font-family: var(--font-display);
+      color: var(--ink);
+      display: block;
+      margin-bottom: 4px;
+    }
+    .dash-hero-copy p {
+      font-size: 12px;
+      color: var(--ink-muted);
+      line-height: 1.5;
+    }
+    .gauge-ring-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .gauge-circle {
+      width: 54px;
+      height: 54px;
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+    .gauge-circle svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+    .gauge-circle span {
+      position: absolute;
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--purple);
+    }
+
+    /* Dashboard Metrics Row */
+    .dash-metrics-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .metric-card {
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .metric-card small {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ink-muted);
+    }
+    .metric-card strong {
+      font-size: 22px;
+      font-family: var(--font-display);
+      color: var(--ink);
+    }
+    .metric-card span {
+      font-size: 10px;
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    /* Active Opportunities in Dashboard */
+    .dash-opps-card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .dash-opps-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .opp-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #faf9ff;
+      border: 1px solid #eeebf8;
+      font-size: 11px;
+    }
+    .opp-info strong {
+      font-size: 12px;
+      color: var(--ink);
+    }
+    .opp-info small {
+      color: var(--ink-muted);
+      margin-left: 6px;
+    }
+    .opp-match-pill {
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 800;
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    /* ------------------------------------------------------------- */
+    /* FLOATING EXTENSION HUD WINDOW (RIGHT OVERLAY)                 */
+    /* ------------------------------------------------------------- */
+    .extension-floating-hud {
+      position: absolute;
+      top: 54px;
+      right: 28px;
+      width: 340px;
+      background: #ffffff;
+      border: 1px solid #d8d3ee;
+      border-radius: 20px;
+      box-shadow: 0 25px 60px rgba(31, 24, 71, 0.16), 0 6px 18px rgba(31, 24, 71, 0.08);
+      overflow: hidden;
+      z-index: 10;
+      transform: rotate(-1.5deg);
+      transition: transform 0.3s ease;
+    }
+    .extension-floating-hud:hover {
+      transform: rotate(0deg);
+    }
+    .ext-topbar {
+      padding: 13px 16px;
+      background: #faf9ff;
+      border-bottom: 1px solid #eeebf8;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .ext-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .ext-brand img {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+    }
+    .synced-tag {
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--green);
+      background: var(--green-soft);
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--green-border);
+    }
+    .ext-body {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .detected-box {
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: var(--wine-soft);
+      border: 1px solid var(--wine-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .detected-box strong {
+      font-size: 10px;
+      color: var(--wine);
+      text-transform: uppercase;
+      font-weight: 800;
+      display: block;
+      letter-spacing: 0.05em;
+    }
+    .detected-box span {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .match-tag-pill {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--wine);
+      background: #ffffff;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--wine-border);
+    }
+
+    /* Floating Suggestion Popover */
+    .ext-suggestion-card {
+      background: #ffffff;
+      border: 1px solid #e0dbf2;
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 8px 24px rgba(85, 70, 217, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .suggestion-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .suggestion-header strong {
+      color: var(--purple);
+      font-size: 11px;
+      font-weight: 800;
+      font-family: var(--font-display);
+    }
+    .memory-badge {
+      font-size: 9px;
+      font-weight: 800;
+      background: var(--purple-soft);
+      color: var(--purple);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--purple-border);
+    }
+    .suggestion-q {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ink-muted);
+      border-left: 2px solid var(--purple);
+      padding-left: 8px;
+    }
+    .suggestion-ans {
+      background: var(--purple-soft);
+      padding: 10px;
+      border-radius: 9px;
+      font-size: 11px;
+      line-height: 1.55;
+      color: #312e5c;
+    }
+    .suggestion-btns {
+      display: flex;
+      gap: 6px;
+    }
+    .btn-insert {
+      flex: 1;
+      padding: 8px;
+      background: var(--purple-gradient);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 8px;
+      border: 0;
+      cursor: pointer;
+    }
+    .btn-copy {
+      padding: 8px 12px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      color: var(--ink);
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    /* Floating Skill Radar Pill */
+    .radar-floating-pill {
+      position: absolute;
+      bottom: -16px;
+      left: -20px;
+      background: #ffffff;
+      padding: 12px 18px;
+      border-radius: 16px;
+      border: 1px solid #ded9f2;
+      box-shadow: 0 16px 36px rgba(33, 26, 77, 0.12);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 15;
+    }
+    .radar-svg {
+      width: 44px;
+      height: 44px;
+      transform: rotate(-90deg);
+    }
+    .radar-num {
+      position: absolute;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 13px;
+      color: var(--ink);
+      top: 24px;
+      left: 31px;
+    }
+
+    @media (max-width: 960px) {
+      .browser-window { width: 100%; transform: none; }
+      .extension-floating-hud { position: static; width: 100%; margin-top: 24px; transform: none; }
+      .radar-floating-pill { position: static; margin-top: 14px; }
+      .screenshot-stage { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="ambient"></div>
+
+  <main class="wrapper">
+    <header class="header-bar">
+      <div>
+        <span class="badge">✦ UplyFox · Theme Showcase</span>
+        <h1>Homepage Screenshot Prototype</h1>
+        <p>Purple & White Light Mode Theme with Wine Accents, Pixel Fox Mark, and Live Extension HUD</p>
+      </div>
+      <a href="/brand/uplyfox-clean-design.html" style="font-size:12px; color:var(--purple); font-weight:700; text-decoration:none;">View Icon System →</a>
+    </header>
+
+    <!-- THE SCREENSHOT STAGE -->
+    <div class="screenshot-stage">
+      <div class="screenshot-glow"></div>
+
+      <!-- Main Browser Mockup Window (Dashboard Screen) -->
+      <div class="browser-window">
+        <!-- Top window frame -->
+        <div class="window-header">
+          <div class="window-dots">
+            <span></span><span></span><span></span>
+          </div>
+          <div class="window-url-bar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>app.uplyfox.com/dashboard</span>
+          </div>
+        </div>
+
+        <!-- Dashboard Layout -->
+        <div class="dash-layout">
+          <!-- Sidebar -->
+          <aside class="dash-sidebar">
+            <div class="dash-logo">
+              <img src="uplyfox-pixel-crimson-logo.svg" alt="UplyFox" />
+              <span>UplyFox</span>
+            </div>
+
+            <nav class="dash-nav">
+              <a href="#" class="dash-nav-item active">
+                <span>Overview</span>
+              </a>
+              <a href="#" class="dash-nav-item">
+                <span>My profile</span>
+              </a>
+              <a href="#" class="dash-nav-item">
+                <span>Job tracker</span>
+                <small>14</small>
+              </a>
+              <a href="#" class="dash-nav-item">
+                <span>Answer library</span>
+                <small>34</small>
+              </a>
+            </nav>
+
+            <div class="dash-sidebar-footer">
+              <strong>Extension synced</strong>
+              Auto-detects jobs & suggests verified answers.
+            </div>
+          </aside>
+
+          <!-- Main Canvas -->
+          <div class="dash-content">
+            <div class="dash-topbar">
+              <div class="dash-topbar-copy">
+                <small>Your workspace</small>
+                <h3>Good morning, Priya</h3>
+              </div>
+              <div class="user-avatar">PS</div>
+            </div>
+
+            <!-- Completeness Hero Card -->
+            <div class="dash-hero-card">
+              <div class="dash-hero-copy">
+                <strong>Your profile is ready to apply</strong>
+                <p>Verified from resume: 8 roles · 32 skills · 6 projects. Answers stay truthful to your real experience.</p>
+              </div>
+              <div class="gauge-ring-wrap">
+                <div class="gauge-circle">
+                  <svg viewBox="0 0 36 36">
+                    <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e6e1f7" stroke-width="3.5"/>
+                    <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#5546d9" stroke-width="3.5" stroke-dasharray="94, 100" stroke-linecap="round"/>
+                  </svg>
+                  <span>94%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Metrics Row -->
+            <div class="dash-metrics-row">
+              <div class="metric-card">
+                <small>Tracked jobs</small>
+                <strong>14</strong>
+                <span>3 active interviews</span>
+              </div>
+              <div class="metric-card">
+                <small>Reusable answers</small>
+                <strong>34</strong>
+                <span>Memory library active</span>
+              </div>
+              <div class="metric-card">
+                <small>Avg. requirement fit</small>
+                <strong>92%</strong>
+                <span>Top candidate match</span>
+              </div>
+            </div>
+
+            <!-- Active Jobs Preview -->
+            <div class="dash-opps-card">
+              <div class="dash-opps-header">
+                <span>Recent tracked opportunities</span>
+                <span style="color:var(--purple); font-size:11px; cursor:pointer;">View board →</span>
+              </div>
+              <div class="opp-row">
+                <div class="opp-info">
+                  <strong>Stripe</strong>
+                  <small>Staff Software Engineer · Remote</small>
+                </div>
+                <span class="opp-match-pill">96% Match</span>
+              </div>
+              <div class="opp-row">
+                <div class="opp-info">
+                  <strong>Linear</strong>
+                  <small>Senior Frontend Engineer · San Francisco</small>
+                </div>
+                <span class="opp-match-pill">94% Match</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Floating Extension HUD Window (Right Overlap) -->
+      <div class="extension-floating-hud">
+        <div class="ext-topbar">
+          <div class="ext-brand">
+            <img src="uplyfox-pixel-crimson-logo.svg" alt="UplyFox" />
+            <span>UplyFox Assistant</span>
+          </div>
+          <span class="synced-tag">● SYNCED</span>
+        </div>
+
+        <div class="ext-body">
+          <div class="detected-box">
+            <div>
+              <strong>Greenhouse Job Detected</strong>
+              <span>Staff Frontend Engineer · Linear</span>
+            </div>
+            <span class="match-tag-pill">94% Match</span>
+          </div>
+
+          <div class="ext-suggestion-card">
+            <div class="suggestion-header">
+              <strong>✦ UplyFox suggests</strong>
+              <span class="memory-badge">Answer Memory</span>
+            </div>
+            <div class="suggestion-q">
+              "Why do you want to work at Linear?"
+            </div>
+            <div class="suggestion-ans">
+              "I'm drawn to Linear’s focus on craft, speed, and making complex product work feel effortless. In my previous roles scaling React and design systems, I prioritized that same simplicity..."
+            </div>
+            <div class="suggestion-btns">
+              <button class="btn-insert">Insert answer</button>
+              <button class="btn-copy">Copy</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating Match Radar Pill Attached to HUD -->
+        <div class="radar-floating-pill">
+          <div style="position:relative; width:44px; height:44px; display:grid; place-items:center;">
+            <svg class="radar-svg" viewBox="0 0 36 36">
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#eeecf7" stroke-width="3.5"/>
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#5546d9" stroke-width="3.5" stroke-dasharray="94, 100" stroke-linecap="round"/>
+            </svg>
+            <span style="position:absolute; font-family:var(--font-display); font-weight:800; font-size:13px; color:var(--ink);">94%</span>
+          </div>
+          <div>
+            <strong style="display:block; font-size:12px; color:var(--ink);">High Requirement Fit</strong>
+            <small style="color:var(--green); font-weight:700; font-size:10px;">14 of 15 skills matched in profile</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

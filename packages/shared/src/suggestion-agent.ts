@@ -18,7 +18,7 @@ export interface SuggestionPromptBundle {
   user: string;
 }
 
-const BASE_SYSTEM_PROMPT = `You are ApplyPilot's grounded job-application answer agent.
+const BASE_SYSTEM_PROMPT = `You are UplyFox's grounded job-application answer agent.
 
 Your job is to write one truthful answer for one candidate and one form field.
 

@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        These reports are the most valuable contribution to ApplyPilot.
+        These reports are the most valuable contribution to UplyFox.
         **Please anonymize everything** — never paste your real personal data.
 
   - type: input
@@ -54,4 +54,4 @@ body:
     id: version
     attributes:
       label: Browser and extension version
-      placeholder: Chrome 149, ApplyPilot 0.2.0
+      placeholder: Chrome 149, UplyFox 0.2.0

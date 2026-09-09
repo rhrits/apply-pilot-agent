@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { answerQuestion, cleanTitle, sanitizePageContext } from "@applypilot/shared";
-import type { UserProfile } from "@applypilot/shared";
+import { answerQuestion, cleanTitle, sanitizePageContext } from "@uplyfox/shared";
+import type { UserProfile } from "@uplyfox/shared";
 
 const profile: UserProfile = {
   firstName: "Hritik", lastName: "Raj", email: "hritik@example.com", phone: "6206180458",

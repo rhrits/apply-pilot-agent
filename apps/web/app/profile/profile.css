@@ -46,7 +46,7 @@
 .profile-page input,.profile-page textarea{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:#fff;font:12px 'DM Sans';color:var(--ink);outline:0;resize:vertical}
 .profile-page input:focus,.profile-page textarea:focus{border-color:#8d84ef;box-shadow:0 0 0 3px #eeecff}
 .source-chip{margin-left:7px;padding:2px 6px;border-radius:5px;background:#f0eeff;color:#5546d9;font-size:8px;font-weight:800;font-style:normal;text-transform:uppercase}
-.source-chip.resume{background:#e4f8ef;color:#07835e}
+.source-chip.resume{background:#fdf2f5;color:#8b1e3f}
 
 /* Chips and inline add rows */
 .chip-list{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:13px}
@@ -64,7 +64,7 @@
 .detail-item strong{display:block;font-size:12px}
 .detail-item span{display:block;font-size:10px;color:var(--purple);margin-top:3px}
 .detail-item p{font-size:11px;line-height:1.55;color:var(--muted);margin:6px 0 0}
-.detail-item p.impact{color:#07835e}
+.detail-item p.impact{color:#8b1e3f}
 .detail-item ul{margin:7px 0 0;padding-left:16px;display:grid;gap:4px}
 .detail-item li{font-size:11px;line-height:1.5;color:var(--muted)}
 .empty-state{font-size:11px;line-height:1.5;color:var(--muted);padding:13px;border-radius:9px;background:#fafaff;margin:0}

@@ -104,14 +104,14 @@ function DashboardContent() {
     { done: data.jobCount > 0, label: "Track your first opportunity", detail: `${data.jobCount} job${data.jobCount === 1 ? "" : "s"} tracked`, href: "/tracker" },
   ];
 
-  return <div className="dashboard"><aside className="sidebar"><div className="logo"><img src="/icons/48.png" width={30} height={30} alt="" /><span>ApplyPilot</span></div><nav className="nav"><Link className="active" href="/dashboard">Overview</Link><Link href="/profile">My profile & resume</Link><Link href="/tracker">Job tracker</Link><Link href="/answer-library">Answer library</Link></nav><div className="sidebar-bottom"><strong>Browser extension</strong><p>Sign in to the extension popup with this same email, then press <em>Refresh profile data</em> to sync.</p></div></aside><main className="main">
+  return <div className="dashboard"><aside className="sidebar"><div className="logo"><img src="/uplyfox-pixel-crimson-animated-logo.svg" width={32} height={32} alt="" /><span>Uply<strong style={{color: '#8b1e3f'}}>Fox</strong></span></div><nav className="nav"><Link className="active" href="/dashboard">Overview</Link><Link href="/profile">My profile & resume</Link><Link href="/tracker">Job tracker</Link><Link href="/answer-library">Answer library</Link></nav><div className="sidebar-bottom"><strong>Browser extension</strong><p>Sign in to the extension popup with this same email, then press <em>Refresh profile data</em> to sync.</p></div></aside><main className="main">
     <div className="topbar"><div><div className="eyebrow">Your workspace</div><h1>{greeting()}, {displayName}</h1></div><div className="avatar">{initials(data.firstName, data.lastName, data.email)}</div></div>
 
     <section className="hero">
       <div>
         <div className="eyebrow">One profile. Every application.</div>
         <h2>{completeness >= 90 ? "Your profile is ready to apply." : "Finish building your profile."}</h2>
-        <p>ApplyPilot answers from your verified facts first, and only asks AI for genuinely open-ended questions.</p>
+        <p>UplyFox answers from your verified facts first, and only asks AI for genuinely open-ended questions.</p>
         <div className="hero-actions"><Link href="/profile" className="hero-button">{data.resumeCount > 0 ? "Edit profile" : "Build profile"}</Link><Link href="/tracker" className="hero-link">Open tracker →</Link></div>
       </div>
       <div className="hero-graphic"><svg viewBox="0 0 120 120" width="112" height="112"><circle cx="60" cy="60" r="52" fill="none" stroke="#e4e0ff" strokeWidth="10"/><circle cx="60" cy="60" r="52" fill="none" stroke="#5546d9" strokeWidth="10" strokeLinecap="round" strokeDasharray={`${completeness * 3.27} 327`} transform="rotate(-90 60 60)"/><text x="60" y="66" textAnchor="middle" fontSize="24" fontWeight="700" fill="#1f2040" fontFamily="Space Grotesk">{completeness}%</text></svg></div>

@@ -1,4 +1,4 @@
-import { answerQuestion, type DetectedField, type FieldKind, type QuestionSource, type UserProfile } from "@applypilot/shared";
+import { answerQuestion, type DetectedField, type FieldKind, type QuestionSource, type UserProfile } from "@uplyfox/shared";
 
 const TEXT_TYPES = new Set(["text", "email", "tel", "url", "number", "search", ""]);
 
@@ -87,7 +87,7 @@ export function extractField(element: Element): DetectedField | null {
   const question = questionCandidate[0] ?? { value: "Focused field", source: "unknown" as const };
 
   return {
-    id: id || `applypilot-${Math.random().toString(36).slice(2)}`,
+    id: id || `uplyfox-${Math.random().toString(36).slice(2)}`,
     elementType: element instanceof HTMLSelectElement ? "select" : (element as HTMLElement).isContentEditable ? "contenteditable" : element instanceof HTMLTextAreaElement ? "textarea" : "input",
     inputType,
     label: label || placeholder || ariaLabel || name || id,

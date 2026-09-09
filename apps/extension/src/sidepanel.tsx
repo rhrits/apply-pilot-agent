@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { ActiveFieldPayload, AnswerResponse, ExtensionAccessState, ExtensionMessage, ScannedField, UserProfile } from "@applypilot/shared";
+import type { ActiveFieldPayload, AnswerResponse, ExtensionAccessState, ExtensionMessage, ScannedField, UserProfile } from "@uplyfox/shared";
 import { extensionConfig } from "./lib/config";
 import type { TrackerSnapshot } from "./lib/supabase";
 import { CopyButton, DictationControl, ExternalIcon, InsertIcon, SaveIcon, SyncIcon } from "./components/ui";
@@ -123,7 +123,7 @@ function SidePanel() {
     }).catch(() => undefined);
 
     // Opening this port asks the worker for a fresh profile, so the panel is never stale.
-    const port = chrome.runtime.connect({ name: "applypilot-panel" });
+    const port = chrome.runtime.connect({ name: "uplyfox-panel" });
     port.onMessage.addListener((message: { type: string; profile?: UserProfile; status?: { accessState?: ExtensionAccessState }; payload?: ActiveFieldPayload }) => {
       if (message.type === "PROFILE_SYNCED" && message.profile) setProfile(message.profile);
       if (message.type === "ACTIVE_FIELD" && message.payload) { setActive(message.payload); setQuestion(message.payload.field.question); setSelectedText(""); setAnswer(null); }
@@ -243,15 +243,15 @@ function SidePanel() {
   }
 
   if (accessState !== "ready") {
-    const title = accessState === "loading" ? "Checking access…" : accessState === "profile_required" ? "Create your profile first" : accessState === "unconfigured" ? "Extension setup required" : "Sign in to ApplyPilot";
-    const description = accessState === "profile_required" ? "Your account is connected, but the assistant stays locked until you complete your verified profile." : accessState === "unconfigured" ? "This extension build is missing its secure configuration." : "Open the ApplyPilot extension popup and sign in to use the page assistant.";
-    return <main className="panel"><header><img className="brand-mark" src="/icons/48.png" width={36} height={36} alt="" /><div><h1>ApplyPilot</h1><p>Page assistant</p></div><span className="ready off">LOCKED</span></header><section className="auth-banner"><strong>{title}</strong><br />{description}</section>{accessState === "profile_required" && <button className="generate" onClick={openOnboarding}>Create your profile</button>}<footer>ApplyPilot only reads or fills application data after authentication and profile setup.</footer></main>;
+    const title = accessState === "loading" ? "Checking access…" : accessState === "profile_required" ? "Create your profile first" : accessState === "unconfigured" ? "Extension setup required" : "Sign in to UplyFox";
+    const description = accessState === "profile_required" ? "Your account is connected, but the assistant stays locked until you complete your verified profile." : accessState === "unconfigured" ? "This extension build is missing its secure configuration." : "Open the UplyFox extension popup and sign in to use the page assistant.";
+    return <main className="panel"><header><img className="brand-mark" src="/icons/48.png" width={36} height={36} alt="" /><div><h1>UplyFox</h1><p>Page assistant</p></div><span className="ready off">LOCKED</span></header><section className="auth-banner"><strong>{title}</strong><br />{description}</section>{accessState === "profile_required" && <button className="generate" onClick={openOnboarding}>Create your profile</button>}<footer>UplyFox only reads or fills application data after authentication and profile setup.</footer></main>;
   }
 
   return <main className="panel">
     <header>
       <img className="brand-mark" src="/icons/48.png" width={36} height={36} alt="" />
-      <div><h1>ApplyPilot</h1><p>Page assistant</p></div>
+      <div><h1>UplyFox</h1><p>Page assistant</p></div>
       <span className={`ready ${authenticated ? "" : "off"}`}>{authenticated ? "SYNCED" : "SIGN IN"}</span>
     </header>
 
