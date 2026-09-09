@@ -1,10 +1,11 @@
 :root {
-  --uplyfox-purple: #5546d9;
-  --uplyfox-purple-hover: #4536cb;
+  --purple: #312e81;
+  --uplyfox-purple: #312e81;
+  --uplyfox-purple-hover: #252565;
   --uplyfox-wine: #8b1e3f;
   --uplyfox-wine-soft: #fdf2f5;
   --uplyfox-wine-border: #f5d7e1;
-  --uplyfox-gradient: linear-gradient(135deg, #991b1b 0%, #7f1d35 48%, #312e81 100%);
+  --uplyfox-primary: #312e81;
   --uplyfox-purple-soft: #f4f2ff;
   --uplyfox-purple-border: #ded9fa;
 }
@@ -40,7 +41,7 @@ a[class*="-button"],
 .access-button.primary,
 .send-email-button,
 .approve {
-  background: var(--uplyfox-gradient) !important;
+  background: var(--uplyfox-primary) !important;
   border: 1px solid rgba(255,255,255,.18) !important;
   color: #fff !important;
   box-shadow: 0 5px 16px rgba(127,29,53,.2);
@@ -56,6 +57,21 @@ a[class*="-button"],
 .approve:hover {
   transform: translateY(-1px);
   box-shadow: 0 8px 22px rgba(127,29,53,.28);
+}
+
+/* Solid-color theme: keep every primary control and themed surface free of gradients. */
+.danger-button,
+.onboarding-progress span,
+.profile-avatar,
+.logo-mark {
+  background: #312e81 !important;
+}
+
+.hero,
+.profile-hero,
+.source-card.primary,
+.access-page {
+  background: #f8f7ff !important;
 }
 
 .ghost-button,

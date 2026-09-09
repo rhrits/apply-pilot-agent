@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import pdfParse from "pdf-parse";
-import { cleanTitle, emptyProfile, mergeProfile, type ResumeAnalysis, type UserProfile } from "@uplyfox/shared";
+import { cleanTitle, emptyProfile, type ResumeAnalysis, type UserProfile } from "@uplyfox/shared";
 import { generateJson, hasAiProvider, isFailure } from "../../../../lib/ai-provider";
+import { finalizeLayoutText, renderPageWithLayout } from "../../../../lib/resume-layout";
 
 export const runtime = "nodejs";
 
@@ -83,13 +84,27 @@ function category(title: string): "summary" | "experience" | "skills" | "educati
   return "other";
 }
 
-const DATE_RANGE = /((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*)?(?:\d{4}|present|current)\s*(?:-|–|—|to)\s*(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*)?(?:\d{4}|present|current)/i;
+/**
+ * Date ranges as resumes actually write them. The previous grammar only accepted a
+ * 4-digit year or present/current, so `01/2020 - 06/2024`, `2020-06 – 2024-01` and
+ * single-year entries were missed — and a missed date breaks role splitting, not just
+ * the period field.
+ */
+const MONTH = "(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\\.?";
+const DATE_TOKEN = `(?:${MONTH}\\s*['’]?\\d{2,4}|\\d{1,2}[\\/.\\-]\\d{4}|\\d{4}[\\/.\\-]\\d{1,2}|\\d{4}|present|current|now|ongoing|to date)`;
+const RANGE_SEPARATOR = "(?:\\s*(?:-|–|—|−|to|until|through|→)\\s*)";
+const DATE_RANGE = new RegExp(`${DATE_TOKEN}${RANGE_SEPARATOR}${DATE_TOKEN}`, "i");
+
+/** A lone year or `Mon YYYY` still dates an entry when no range is present. */
+const SINGLE_DATE = new RegExp(`(?:^|[\\s(|,·•])(${MONTH}\\s*['’]?\\d{2,4}|\\d{4})(?:$|[\\s)|,·•])`, "i");
 
 function extractPeriod(text: string) {
   const parenthetical = text.match(/\(([^)]*\d{4}[^)]*)\)/);
   if (parenthetical) return parenthetical[1].trim();
   const inline = text.match(DATE_RANGE);
-  return inline ? inline[0].trim() : "";
+  if (inline) return inline[0].trim();
+  const single = text.match(SINGLE_DATE);
+  return single ? single[1].trim() : "";
 }
 
 function parseExperienceHeader(header: string) {
@@ -107,7 +122,12 @@ function parseExperienceHeader(header: string) {
 }
 
 const JOB_TITLE_KEYWORDS = /engineer|developer|designer|manager|analyst|scientist|architect|consultant|specialist|lead|director|intern/i;
-const BULLET_PREFIX = /^[-*•–—]\s+/;
+/**
+ * Bullet glyphs seen in real PDFs. The old class covered only `-*•–—` and required
+ * trailing whitespace, so `◦ ▪ ▸ ‣ ● →` bullets — and any bullet a parser emits without a
+ * following space — were read as header lines and corrupted role boundaries.
+ */
+const BULLET_PREFIX = /^[-*•◦▪▫▸▹‣⁃⁌⁍●○■□➔➢→⇒–—·]\s*/;
 
 function parseExperienceSection(content: string) {
   // Split into role blocks on blank lines, and also mid-block whenever a new non-bullet line
@@ -118,7 +138,9 @@ function parseExperienceSection(content: string) {
   let current: string[] = [];
   for (const line of lines) {
     const isBullet = BULLET_PREFIX.test(line);
-    const startsNewRole = !isBullet && current.some((prev) => BULLET_PREFIX.test(prev)) && extractPeriod(line) !== "";
+    // A role boundary needs a full date RANGE. `extractPeriod` also accepts a lone year,
+    // which would wrongly split on a sentence like "Led the 2021 migration".
+    const startsNewRole = !isBullet && current.some((prev) => BULLET_PREFIX.test(prev)) && DATE_RANGE.test(line);
     if (startsNewRole) { blocks.push(current); current = [line]; } else { current.push(line); }
   }
   if (current.length) blocks.push(current);
@@ -357,6 +379,48 @@ COMPLETENESS:
 OUTPUT — return ONLY valid JSON in exactly this shape:
 {"formattedText":"","profile":{"firstName":"","lastName":"","email":"","phone":"","location":"","linkedin":"","github":"","portfolio":"","currentTitle":"","summary":"","totalExperience":"","skills":[{"name":"","years":null,"proficiency":"","category":""}],"experiences":[{"company":"","title":"","period":"","location":"","summary":"","achievements":[""],"skills":[""]}],"education":[{"institution":"","degree":"","field":"","period":""}],"projects":[{"name":"","description":"","technologies":[""],"impact":"","role":"","period":"","url":"","source":"resume"}]},"sections":[{"title":"","content":"","category":"summary|experience|skills|education|projects|certifications|other"}],"suggestions":[""]}`;
 
+/**
+ * Counts the real content in a record so two extractions can be compared objectively
+ * rather than one being trusted by policy.
+ */
+function contentWeight(record: unknown): number {
+  if (!record || typeof record !== "object") return 0;
+  let weight = 0;
+  for (const value of Object.values(record as Record<string, unknown>)) {
+    if (typeof value === "string" && value.trim()) weight += 1;
+    else if (Array.isArray(value)) weight += value.filter((item) => String(item ?? "").trim()).length;
+    else if (typeof value === "number") weight += 1;
+  }
+  return weight;
+}
+
+/**
+ * Picks whichever extraction carries more content. On a tie the model wins, because it
+ * separates company / title / period far more reliably than line heuristics can.
+ */
+function richerRecords<T>(heuristic: T[] | undefined, ai: T[] | undefined): T[] {
+  const mine = heuristic ?? [];
+  const theirs = ai ?? [];
+  if (!theirs.length) return mine;
+  if (!mine.length) return theirs;
+  const mineWeight = mine.reduce((sum, item) => sum + contentWeight(item), 0);
+  const theirsWeight = theirs.reduce((sum, item) => sum + contentWeight(item), 0);
+  return theirsWeight >= mineWeight ? theirs : mine;
+}
+
+/** Skills are additive: a dropped skill only ever costs the candidate a match. */
+function mergeSkills(heuristic: UserProfile["skills"], ai: UserProfile["skills"]): UserProfile["skills"] {
+  const merged = new Map<string, NonNullable<UserProfile["skills"]>[number]>();
+  for (const skill of [...(heuristic ?? []), ...(ai ?? [])]) {
+    const name = skill?.name?.trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    const existing = merged.get(key);
+    merged.set(key, existing ? { ...existing, ...skill, name: existing.name } : { ...skill, name });
+  }
+  return [...merged.values()];
+}
+
 async function improveWithAi(analysis: ResumeAnalysis): Promise<ResumeAnalysis> {
   if (!hasAiProvider()) return analysis;
 
@@ -379,12 +443,40 @@ async function improveWithAi(analysis: ResumeAnalysis): Promise<ResumeAnalysis> 
     return { ...analysis, aiNotice: "The AI response was incomplete, so your locally extracted resume is shown." };
   }
 
-  // The heuristic extraction is authoritative. AI may add structure the heuristic
-  // missed, but it can never replace a non-empty heuristic field with an empty or
-  // reworded value. This is the first lossless boundary in the onboarding pipeline.
-  const heuristic = mergeProfile(emptyProfile(), analysis.profile, "resume");
-  const reconciled = mergeProfile(heuristic.profile, value.profile, "typed", heuristic.sources);
-  const profile: UserProfile = normalizeResumeProfile(reconciled.profile);
+  // Field-level reconciliation. The heuristic and the model are each reliable at
+  // different things, so neither is blanket-authoritative:
+  //
+  //  - Contact details and links come from deterministic regexes. Those beat an LLM,
+  //    so a non-empty heuristic value always wins.
+  //  - Roles, education and projects come from line-splitting guesses over text that
+  //    may be garbled. Previously the heuristic could never be corrected here, so one
+  //    bad split was permanent. Now whichever extraction carries more real content wins.
+  const aiProfile = value.profile as Partial<UserProfile>;
+  const base = analysis.profile;
+  const prefer = (mine: string | undefined, theirs: string | undefined) => (mine?.trim() ? mine : theirs ?? "");
+
+  const profile: UserProfile = normalizeResumeProfile({
+    ...emptyProfile(),
+    ...aiProfile,
+    // Regex-extracted identity wins.
+    email: prefer(base.email, aiProfile.email),
+    phone: prefer(base.phone, aiProfile.phone),
+    linkedin: prefer(base.linkedin, aiProfile.linkedin),
+    github: prefer(base.github, aiProfile.github),
+    portfolio: prefer(base.portfolio, aiProfile.portfolio),
+    location: prefer(base.location, aiProfile.location),
+    firstName: prefer(aiProfile.firstName, base.firstName),
+    lastName: prefer(aiProfile.lastName, base.lastName),
+    summary: prefer(aiProfile.summary, base.summary),
+    currentTitle: prefer(aiProfile.currentTitle, base.currentTitle),
+    totalExperience: prefer(aiProfile.totalExperience, base.totalExperience),
+    // Structured records: the richer extraction wins.
+    experiences: richerRecords(base.experiences, aiProfile.experiences),
+    education: richerRecords(base.education, aiProfile.education),
+    projects: richerRecords(base.projects, aiProfile.projects),
+    // Skills are additive — a missed skill only ever costs the candidate a match.
+    skills: mergeSkills(base.skills, aiProfile.skills),
+  });
 
   return {
     rawText: analysis.rawText,
@@ -424,8 +516,12 @@ export async function POST(request: Request) {
   if (file instanceof File) {
     if (file.size > 8 * 1024 * 1024) return NextResponse.json({ error: "Resume files must be 8 MB or smaller." }, { status: 413, headers: corsHeaders });
     if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
-      const parsed = await pdfParse(Buffer.from(await file.arrayBuffer()));
-      text = parsed.text;
+      // Layout-aware rendering: reads columns in the right order and drops the repeated
+      // headers/footers that the default flat extraction turns into resume content.
+      const parsed = await pdfParse(Buffer.from(await file.arrayBuffer()), {
+        pagerender: renderPageWithLayout,
+      } as Parameters<typeof pdfParse>[1]);
+      text = finalizeLayoutText(parsed.text);
     } else if (file.type.startsWith("text/") || /\.txt$|\.md$/i.test(file.name)) {
       text = await file.text();
     } else {

@@ -11,3 +11,13 @@
 .empty-snapshot a{color:var(--purple);font-weight:700;text-decoration:none}
 .empty-snapshot a:hover{text-decoration:underline}
 .sidebar-bottom p{margin:6px 0 0}
+
+/* Application funnel */
+.funnel{display:grid;gap:13px;margin-top:4px}
+.funnel-stage{display:grid;gap:6px}
+.funnel-meta{display:flex;align-items:baseline;justify-content:space-between}
+.funnel-meta span{font-size:11px;font-weight:700;color:#5e5d72}
+.funnel-meta strong{font:700 15px 'Space Grotesk';color:var(--ink)}
+.funnel-bar{height:8px;border-radius:99px;background:#f0eff7;overflow:hidden}
+.funnel-bar span{display:block;height:100%;border-radius:99px;background:linear-gradient(135deg,#991b1b 0%,#7f1d35 48%,#312e81 100%);transition:width .4s cubic-bezier(.16,1,.3,1)}
+.funnel-card .card-hint{font-size:11px;color:#8b1e3f}

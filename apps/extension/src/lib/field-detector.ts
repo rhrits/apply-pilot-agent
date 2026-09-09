@@ -6,12 +6,41 @@ function clean(value: string | null | undefined): string {
   return value?.replace(/\s+/g, " ").trim() ?? "";
 }
 
+/**
+ * Placeholder/label text that carries no question meaning. A value matching this is
+ * discarded outright — it must never resurface through a fallback tier, which is what
+ * previously let Google Forms' "Your answer" placeholder become the question.
+ */
 function isGenericPrompt(value: string): boolean {
-  return /^(answer|response|enter answer|enter response|text|text field|field|value|input|type here|write here|select|choose)$/i.test(value.trim());
+  const text = value.trim().replace(/[*:\s]+$/, "");
+  if (!text || text.length < 2) return true;
+  if (/^[-–—_.·•]+$/.test(text)) return true;
+  return /^(your |the |an |a )?(answer|answers|response|short answer|long answer|your answer|enter (your )?(answer|response|value|text)?|type (your )?(answer|response|here)?|write (your )?(answer|here)?|text|text field|free text|field|value|input|select|select\.{0,3}|select an option|choose|choose an option|please select|pick one|none|n\/a|optional|required|answer here|start typing|search)$/i.test(text);
 }
 
+/**
+ * A usable question is any meaningful field name, not only an interrogative sentence.
+ * The previous rule demanded "?", a trailing ":", a leading question word, or 45+ chars,
+ * so ordinary labels like "Current company" were thrown away.
+ */
 function isQuestionLike(value: string): boolean {
-  return /\?|:\s*$|^(tell|describe|explain|share|provide|list|why|how|what|where|when|which|please|enter|select|choose)\b/i.test(value.trim()) || value.trim().length >= 45;
+  const text = value.trim();
+  if (!text || isGenericPrompt(text)) return false;
+  if (/\?|:\s*$/.test(text)) return true;
+  if (/^(tell|describe|explain|share|provide|list|why|how|what|where|when|which|do|are|have|will|would|please)\b/i.test(text)) return true;
+  if (text.length >= 45) return true;
+  // A short noun phrase of two or more words is a legitimate field question.
+  return text.split(/\s+/).length >= 2 && text.length <= 160;
+}
+
+/** Turn machine names such as `first_name` / `firstName` into readable text. */
+function humanizeToken(value: string): string {
+  return clean(
+    value
+      .replace(/[_\-.]+/g, " ")
+      .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+      .replace(/\b\d{4,}\b/g, " "),
+  );
 }
 
 function currentValue(element: Element): string {
@@ -23,6 +52,109 @@ function nearbyText(element: Element): string {
   const container = element.closest("fieldset, [role='group'], .field, .form-group, .question, li, section, div");
   if (!container) return "";
   return clean((container as HTMLElement).innerText || container.textContent).slice(0, 500);
+}
+
+/**
+ * Site-specific question resolution. Generic DOM heuristics cannot see how a given ATS
+ * associates a question with its control, so each adapter reads the real question from
+ * the structure that host actually uses.
+ */
+const QUESTION_ADAPTERS: Array<{ id: string; matches: (host: string) => boolean; resolve: (element: Element) => string }> = [
+  {
+    // Google Forms keeps the question in a [role=heading] inside the enclosing listitem,
+    // while the input itself only exposes the "Your answer" placeholder/aria-label.
+    id: "google-forms",
+    matches: (host) => host.endsWith("docs.google.com") || host.endsWith("forms.gle"),
+    resolve: (element) => {
+      const item = element.closest("[role='listitem']");
+      const heading = item?.querySelector("[role='heading']");
+      return clean((heading as HTMLElement | null)?.innerText ?? heading?.textContent);
+    },
+  },
+  {
+    id: "greenhouse",
+    matches: (host) => host.includes("greenhouse.io"),
+    resolve: (element) => {
+      const field = element.closest(".field, .application-question, [class*='question']");
+      const label = field?.querySelector("label, .application-label, legend");
+      return clean((label as HTMLElement | null)?.innerText ?? label?.textContent);
+    },
+  },
+  {
+    id: "lever",
+    matches: (host) => host.includes("lever.co"),
+    resolve: (element) => {
+      const field = element.closest(".application-question, .application-field, li");
+      const label = field?.querySelector(".application-label, label, .text");
+      return clean((label as HTMLElement | null)?.innerText ?? label?.textContent);
+    },
+  },
+  {
+    id: "workday",
+    matches: (host) => host.includes("myworkdayjobs.com") || host.includes("workday.com"),
+    resolve: (element) => {
+      const group = element.closest("[data-automation-id]");
+      const label = group?.querySelector("label, legend, [id$='-label']");
+      return clean((label as HTMLElement | null)?.innerText ?? label?.textContent);
+    },
+  },
+  {
+    id: "ashby",
+    matches: (host) => host.includes("ashbyhq.com"),
+    resolve: (element) => {
+      const field = element.closest("[class*='_fieldEntry'], [class*='field']");
+      const label = field?.querySelector("label, [class*='_label']");
+      return clean((label as HTMLElement | null)?.innerText ?? label?.textContent);
+    },
+  },
+];
+
+function adapterQuestion(element: Element): string {
+  const host = location.hostname;
+  for (const adapter of QUESTION_ADAPTERS) {
+    if (!adapter.matches(host)) continue;
+    try {
+      const value = adapter.resolve(element);
+      if (value && !isGenericPrompt(value)) return value.slice(0, 300);
+    } catch { /* A hostile or unexpected DOM must never break detection. */ }
+  }
+  return "";
+}
+
+/** Resolve `aria-labelledby` across the document, per the accessible-name algorithm. */
+function ariaLabelledByText(element: Element): string {
+  const ids = element.getAttribute("aria-labelledby");
+  if (!ids) return "";
+  const text = ids
+    .split(/\s+/)
+    .map((id) => {
+      const node = document.getElementById(id);
+      return node ? (node.innerText || node.textContent || "") : "";
+    })
+    .filter(Boolean)
+    .join(" ");
+  return clean(text);
+}
+
+/** Nearest preceding heading/legend/label text inside the field's own group. */
+function precedingLabelText(element: Element): string {
+  const group = element.closest("fieldset, [role='group'], [role='listitem'], .field, .form-group, .question, li");
+  if (group) {
+    const heading = group.querySelector("legend, [role='heading'], h1, h2, h3, h4, h5, h6, label");
+    if (heading && !heading.contains(element)) {
+      const text = clean((heading as HTMLElement).innerText || heading.textContent);
+      if (text && !isGenericPrompt(text)) return text.slice(0, 300);
+    }
+  }
+  let sibling = element.previousElementSibling;
+  let hops = 0;
+  while (sibling && hops < 3) {
+    const text = clean((sibling as HTMLElement).innerText || sibling.textContent);
+    if (text && text.length <= 300 && !isGenericPrompt(text)) return text;
+    sibling = sibling.previousElementSibling;
+    hops += 1;
+  }
+  return "";
 }
 
 function labelFor(element: Element): string {
@@ -69,28 +201,41 @@ export function extractField(element: Element): DetectedField | null {
   const name = clean(element.getAttribute("name"));
   const id = clean(element.id);
   const nearby = nearbyText(element);
-  const context = clean([label, placeholder, ariaLabel, name, id, nearby].filter(Boolean).join(" | "));
+  const adapted = adapterQuestion(element);
+  const labelledBy = ariaLabelledByText(element);
+  const preceding = precedingLabelText(element);
+  const context = clean([adapted, label, ariaLabel, preceding, placeholder, name, id, nearby].filter(Boolean).join(" | "));
   const inputType = element instanceof HTMLInputElement ? element.type : element instanceof HTMLSelectElement ? "select" : "textarea";
   const classification = classify(context, inputType);
   const options = element instanceof HTMLSelectElement ? Array.from(element.options).map((option) => clean(option.text)).filter(Boolean) : [];
 
-  const questionCandidate: Array<{ value: string; source: QuestionSource }> = [
+  // Accessible-name order (W3C accname): site adapter, then aria-labelledby, aria-label,
+  // associated/wrapping label, preceding heading, nearby question text, humanized
+  // name/id, and only then placeholder. Every candidate that is generic is dropped
+  // outright rather than being re-added by a fallback tier.
+  const humanName = humanizeToken(name);
+  const humanId = humanizeToken(id);
+
+  const questionCandidate = ([
+    { value: adapted, source: "label" as const },
+    { value: labelledBy, source: "aria_label" as const },
+    { value: ariaLabel, source: "aria_label" as const },
+    { value: label, source: "label" as const },
+    { value: preceding, source: "nearby_text" as const },
     ...(nearby && isQuestionLike(nearby) ? [{ value: nearby, source: "nearby_text" as const }] : []),
-    ...(label && !isGenericPrompt(label) ? [{ value: label, source: "label" as const }] : []),
-    ...(placeholder && !isGenericPrompt(placeholder) ? [{ value: placeholder, source: "placeholder" as const }] : []),
-    ...(ariaLabel && !isGenericPrompt(ariaLabel) ? [{ value: ariaLabel, source: "aria_label" as const }] : []),
-    ...(label ? [{ value: label, source: "label" as const }] : []),
-    ...(placeholder ? [{ value: placeholder, source: "placeholder" as const }] : []),
-    ...(name ? [{ value: name, source: "name" as const }] : []),
-    ...(id ? [{ value: id, source: "id" as const }] : []),
-  ];
+    { value: humanName, source: "name" as const },
+    { value: humanId, source: "id" as const },
+    { value: placeholder, source: "placeholder" as const },
+  ] as Array<{ value: string; source: QuestionSource }>).filter(
+    (candidate) => Boolean(candidate.value) && !isGenericPrompt(candidate.value),
+  );
   const question = questionCandidate[0] ?? { value: "Focused field", source: "unknown" as const };
 
   return {
     id: id || `uplyfox-${Math.random().toString(36).slice(2)}`,
     elementType: element instanceof HTMLSelectElement ? "select" : (element as HTMLElement).isContentEditable ? "contenteditable" : element instanceof HTMLTextAreaElement ? "textarea" : "input",
     inputType,
-    label: label || placeholder || ariaLabel || name || id,
+    label: adapted || label || ariaLabel || preceding || humanizeToken(name) || humanizeToken(id) || placeholder,
     question: question.value,
     questionSource: question.source,
     nearbyText: nearby || undefined,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { ActiveFieldPayload, AnswerResponse, ExtensionAccessState, ExtensionMessage, ScannedField, UserProfile } from "@uplyfox/shared";
+import type { ActiveFieldPayload, AnswerResponse, ExtensionAccessState, ExtensionMessage, PageSummary, ScannedField, UserProfile } from "@uplyfox/shared";
 import { extensionConfig } from "./lib/config";
 import type { TrackerSnapshot } from "./lib/supabase";
 import { CopyButton, DictationControl, ExternalIcon, InsertIcon, SaveIcon, SyncIcon } from "./components/ui";
@@ -108,6 +108,7 @@ function SidePanel() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [fields, setFields] = useState<ScannedField[]>([]);
   const [tracker, setTracker] = useState<TrackerSnapshot | null>(null);
+  const [pageMatch, setPageMatch] = useState<PageSummary | null>(null);
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: "AUTH_STATUS" } satisfies ExtensionMessage).then((result) => {
@@ -115,7 +116,7 @@ function SidePanel() {
       setAuthenticated(result?.accessState === "ready");
       setAccountEmail(result?.email ?? null);
       setProfile(result?.accessState === "ready" ? result.profile ?? null : null);
-      if (result?.accessState === "ready") void loadTracker();
+      if (result?.accessState === "ready") { void loadTracker(); void loadPageMatch(); }
     }).catch(() => undefined);
 
     chrome.runtime.sendMessage({ type: "GET_ACTIVE_FIELD" } satisfies ExtensionMessage).then((result) => {
@@ -139,6 +140,18 @@ function SidePanel() {
   async function loadTracker() {
     const result = await chrome.runtime.sendMessage({ type: "GET_TRACKER" } satisfies ExtensionMessage).catch(() => null);
     if (result && !result.error) setTracker(result as TrackerSnapshot);
+  }
+
+  /**
+   * The content script already computes a deterministic match analysis for job pages.
+   * Pull it into panel state so the score is visible for the page being viewed, not
+   * only for opportunities that were already saved to the tracker.
+   */
+  async function loadPageMatch() {
+    const [tabInfo] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tabInfo?.id) return;
+    const summary = await chrome.tabs.sendMessage(tabInfo.id, { type: "GET_PAGE_SUMMARY" } satisfies ExtensionMessage).catch(() => null);
+    setPageMatch(summary && !summary.error && summary.isJobPage ? summary as PageSummary : null);
   }
 
   async function activeTabId() {
@@ -263,6 +276,23 @@ function SidePanel() {
       <small>{active?.page.hostname ?? "Current page"}</small>
       <strong>{active?.page.title ?? "Focus a form field to start"}</strong>
     </section>
+
+    {pageMatch?.matchAnalysis && <section className="match-card">
+      <div className="match-head">
+        <div>
+          <small>Match for this role</small>
+          <strong>{pageMatch.title || "Detected job posting"}</strong>
+        </div>
+        <span className="match-score">{pageMatch.matchAnalysis.score}%</span>
+      </div>
+      {pageMatch.matchAnalysis.matchedSkills.length > 0 && <div className="match-chips">
+        {pageMatch.matchAnalysis.matchedSkills.slice(0, 8).map((skill) => <span className="chip matched" key={skill}>{skill}</span>)}
+      </div>}
+      {pageMatch.matchAnalysis.missingSkills.length > 0 && <div className="match-chips">
+        {pageMatch.matchAnalysis.missingSkills.slice(0, 6).map((skill) => <span className="chip missing" key={skill}>{skill}</span>)}
+      </div>}
+      {pageMatch.matchAnalysis.summary && <p className="match-summary">{pageMatch.matchAnalysis.summary}</p>}
+    </section>}
 
     <div className="quick-actions">
       <button onClick={() => scan(false)}>Scan page</button>

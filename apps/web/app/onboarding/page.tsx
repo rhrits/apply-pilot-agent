@@ -22,6 +22,7 @@ import { VoiceButton } from "../../components/voice-input";
 import { Markdown } from "../../components/markdown";
 import { getSupabaseBrowserClient } from "../../lib/supabase";
 import { commitProfile, deleteSignal, loadDraft, saveDraft, saveSignal } from "../../lib/onboarding-store";
+import { storeResumeFile } from "../../lib/resume-store";
 import "./onboarding.css";
 
 const STEPS = ["Resume", "Enrich", "Your story", "Details", "Build", "Review"] as const;
@@ -175,6 +176,13 @@ function OnboardingWizard() {
       setResumeProfile(extractedProfile);
       setResumeText(extractedText);
       setResumeSections(Array.isArray(result.sections) ? result.sections : []);
+
+      // Keep the original file. The extension attaches this exact binary to job-board
+      // upload inputs, so parsing alone is not enough.
+      if (resumeFile) {
+        const stored = await storeResumeFile(resumeFile, extractedText);
+        if (!stored.ok) setNotice(`Resume parsed, but the file could not be stored: ${stored.error ?? "upload failed"}`);
+      }
 
       const merged = await applySignal(
         { source: "resume", origin: resumeFile?.name ?? "Pasted resume", content: extractedText, data: { profile: extractedProfile, sections: result.sections ?? [] } },

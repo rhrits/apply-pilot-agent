@@ -2,7 +2,7 @@
 .onboarding-head{margin-bottom:32px}
 .onboarding-head .brand{display:flex;align-items:center;gap:9px;font:700 17px 'Space Grotesk';margin-bottom:20px}
 .onboarding-progress{height:4px;border-radius:4px;background:#eceaff;overflow:hidden}
-.onboarding-progress span{display:block;height:100%;background:linear-gradient(90deg,#8b7cff,#5546d9);transition:width .35s ease}
+.onboarding-progress span{display:block;height:100%;background:#5546d9;transition:width .35s ease}
 .onboarding-steps{display:flex;gap:6px;margin-top:16px;flex-wrap:wrap}
 .onboarding-steps button{display:flex;align-items:center;gap:7px;border:0;background:none;color:#9a99ad;font:700 11px 'DM Sans';cursor:default;padding:4px 0;margin-right:14px}
 .onboarding-steps button.active,.onboarding-steps button.done{color:#5546d9;cursor:pointer}
@@ -83,7 +83,7 @@
 .autosave.error .autosave-dot{background:#c0392b}
 
 /* Resume-first emphasis */
-.source-card.primary{border-color:#c7c0ff;background:linear-gradient(160deg,#f7f6ff,#fff);box-shadow:0 8px 24px rgba(85,70,217,.08)}
+.source-card.primary{border-color:#c7c0ff;background:#f7f6ff;box-shadow:0 8px 24px rgba(85,70,217,.08)}
 .source-card.primary textarea{width:100%;margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:10px;font:12px/1.6 'DM Sans';resize:vertical;outline:0}
 .source-card.primary textarea:focus{border-color:#8d84ef;box-shadow:0 0 0 3px #eeecff}
 .primary-button.wide{width:100%;margin-top:12px}

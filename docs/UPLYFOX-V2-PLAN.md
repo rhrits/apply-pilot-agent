@@ -380,11 +380,45 @@ offer), response-rate, 30-day application velocity sparkline, stale-application 
 
 | Phase | Scope | Unblocks |
 |---|---|---|
-| **P0 — Unblock (highest value/effort ratio)** | `AuthGate` onboarding-redirect fix (2.3); resume storage + `resumes` row (2.1); accname reorder + generic denylist + Google Forms adapter (2.4); render `notice` in overlay (2.5); current-page match card (2.6). | Rebuild wizard, extension resume attach, correct questions, explained non-answers, visible score. |
-| **P1 — Profile & Settings** | Profile v2 editors, `position` migration + reordering, resume preview/replace/delete, `/settings` route, account deletion API. | Full profile control + data rights. |
-| **P2 — Extraction quality** | pdfjs layout extraction, column reflow, header/footer strip, widened bullet/date grammars, AI-corrects-heuristics, confidence + review queue. | Materially better parsing. |
+| **P0 — Unblock** ✅ *shipped* | `AuthGate` onboarding-redirect fix (2.3); resume storage + `resumes` row (2.1); accname reorder + generic denylist + ATS/Google-Forms adapters (2.4); render `notice` in overlay (2.5); current-page match card (2.6); `/settings` + real account deletion (2.9). | Rebuild wizard, extension resume attach, correct questions, explained non-answers, visible score, data rights. |
+| **P1 — Profile depth** ✅ *shipped* | Inline editors for experience/education/projects/skills, `position` migration + drag/keyboard reordering, free-text `period`/`location`/`role` round-trip, dashboard application funnel. | Full profile control. |
+| **P2 — Extraction quality** ✅ *shipped* | Layout-aware PDF rendering via a custom `pdf-parse` pagerender (no new dependency), gutter-based column reflow, repeated header/footer + page-number stripping, widened bullet and date grammars, and field-level AI/heuristic reconciliation. | Materially better parsing. |
 | **P3 — Action Detector** | MAIN-world network patch, click/submit/URL/DOM signals, fusion scoring, `saved → applied` transition with Undo, modal/Shadow-DOM field scanning. | Self-filling tracker; apply-popup support. |
 | **P4 — Intelligence** | Fact retrieval/ranking, confidence-aware prompting, missing-fact reporting, dashboard v2. | Higher answer quality and insight. |
+
+### P0 shipped — what changed
+
+| Defect | Fix | Evidence |
+|---|---|---|
+| 2.3 Rebuild bounces to /access | `auth-gate.tsx` now honours `requireOnboarding={false}` instead of hard-coding a `/onboarding` redirect. | Wizard reachable for onboarded users. |
+| 2.1 Resume binary discarded | New `apps/web/lib/resume-store.ts` uploads to the private `resumes` bucket + inserts the `public.resumes` row both paths (onboarding + profile). Replace retires the old file. | `fetchResumeFile()` now finds a `storage_path`. |
+| 2.4 `"Your answer"` as question | `field-detector.ts` rebuilt on accname order; generic values excluded terminally; adapters for Google Forms / Greenhouse / Lever / Workday / Ashby; `aria-labelledby` resolution; humanized `name`/`id`. | 4 new regression tests, 37/37 green. |
+| 2.5 Silent blank overlay | `content.ts` threads `notice` into the `none` state and renders it. | User now sees *why* there is no answer. |
+| 2.6 Match score invisible | Side panel loads `GET_PAGE_SUMMARY` into `pageMatch` and renders a score card with matched/missing skill chips. | Live score on any detected job page. |
+| 2.9 No settings / no deletion | New `/settings` route + `POST /api/account/delete` removing storage objects, all child rows, the profile, and the auth user. | Genuine data deletion, type-to-confirm. |
+
+### P1 shipped — what changed
+
+| Gap | Fix | Evidence |
+|---|---|---|
+| Experience/education/projects were read-only | New `components/editable-record-list.tsx` — collapsible cards with inline fields, add, duplicate, delete. Wired into all three sections. | Every field is now editable. |
+| No ordering, and order was not even representable | Migration `202609090003` adds `position` to `experiences`/`education`/`projects`/`skills`; `commitProfile()` writes the array index; the profile page reads `.order("position")`. | Order survives the delete-and-reinsert save. |
+| Reordering unreachable by keyboard | Pointer drag **and** ↑/↓ buttons on every record, both driving the same `move()`. | Accessible parity. |
+| Skills `years`/`proficiency` displayed but not editable | Replaced the chip list with editable rows: name, years, and a proficiency select. | Full skill control. |
+| `period`/`location`/`role` dropped on save | Same migration adds free-text columns; loader prefers them over reconstructing from `start_date`/`end_date`. | Resume wording round-trips. |
+| Dashboard was static counters | Added an application funnel (Saved → Applied → Interview → Offer) with a derived interview response rate. | Drop-off visible at a glance. |
+
+### P2 shipped — what changed
+
+| Gap | Fix | Evidence |
+|---|---|---|
+| Multi-column resumes interleaved | New `lib/resume-layout.ts` supplies a custom `pagerender` to `pdf-parse`. Because `pdf-parse` hands over a real pdf.js page, glyph coordinates were already available — **no new dependency was needed**. Lines are clustered by y, a vertical gutter no text crosses is detected, and the left column is read fully before the right. | Column order preserved. |
+| Headers/footers parsed as content | Page starts are marked with a form feed, then any first/last line repeating on ≥half the pages is dropped, along with bare page numbers. | 4 tests. |
+| Bullets missed | Glyph class widened from `-*•–—` to include `◦ ▪ ▸ ‣ ● ■ → ⇒ ·` and friends, and the required trailing space relaxed so parser-emitted bullets without one still register. | Achievements no longer read as headers. |
+| Dates missed | Grammar now accepts `MM/YYYY`, `YYYY-MM`, `Mon 'YY`, `now`/`ongoing`/`to date`, and lone years. Role-splitting deliberately still requires a full **range**, so a sentence like "Led the 2021 migration" cannot split a role. | Periods and `totalExperience` survive. |
+| AI could never fix a wrong heuristic | Replaced blanket heuristic precedence with field-level reconciliation: regex-extracted contact/links stay authoritative, while roles/education/projects go to whichever extraction carries more real content (`contentWeight`). Skills are unioned. | One bad split is no longer permanent. |
+| Web app had no tests | Added Vitest to `apps/web`; root `npm test` now runs both workspaces. | 42 tests total. |
+
 
 ## 5. Schema changes required
 

@@ -162,20 +162,24 @@ export async function commitProfile(profile: UserProfile, options: {
   const education = (profile.education ?? []).filter((item) => item.institution || item.degree);
   const projects = (profile.projects ?? []).filter((item) => item.name);
 
-  if (experiences.length) inserts.push(supabase.from("experiences").insert(experiences.map((item) => ({
+  if (experiences.length) inserts.push(supabase.from("experiences").insert(experiences.map((item, index) => ({
     user_id: userId, company: item.company || "To review", job_title: item.title || "To review",
     description: item.summary || null, achievements: item.achievements ?? [], technologies: item.skills ?? [],
+    period: item.period || null, location: item.location || null, position: index,
   }))));
-  if (skills.length) inserts.push(supabase.from("skills").insert(skills.map((item) => ({
+  if (skills.length) inserts.push(supabase.from("skills").insert(skills.map((item, index) => ({
     user_id: userId, name: item.name, years: item.years ?? null, proficiency: item.proficiency ?? null,
+    position: index,
   }))));
-  if (education.length) inserts.push(supabase.from("education").insert(education.map((item) => ({
+  if (education.length) inserts.push(supabase.from("education").insert(education.map((item, index) => ({
     user_id: userId, institution: item.institution || "To review", degree: item.degree || null, field: item.field || null,
+    period: item.period || null, position: index,
   }))));
-  if (projects.length) inserts.push(supabase.from("projects").insert(projects.map((item) => ({
+  if (projects.length) inserts.push(supabase.from("projects").insert(projects.map((item, index) => ({
     user_id: userId, name: item.name, description: item.description || null,
     impact: item.impact || null, technologies: item.technologies ?? [],
     url: item.url || null, source: item.source ?? "resume",
+    period: item.period || null, role: item.role || null, position: index,
   }))));
 
   const results = await Promise.all(inserts);

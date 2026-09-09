@@ -24,3 +24,15 @@ button:hover,.button:hover,.quick-actions button:hover,.selection-button:hover,.
 .mic-button.recording{border-color:var(--uplyfox-wine)!important;background:var(--uplyfox-wine-soft)!important;color:var(--uplyfox-wine)!important}
 input:focus,textarea:focus{border-color:var(--uplyfox-purple)!important;box-shadow:0 0 0 3px rgba(85,70,217,.13)!important}
 @media(prefers-reduced-motion:reduce){button,.button,.icon-button{transition:none}}
+
+/* Live match score for the page currently being viewed. */
+.match-card{margin-bottom:13px;padding:12px;border:1px solid var(--uplyfox-purple-border);border-radius:12px;background:linear-gradient(135deg,#fdf2f5 0%,#f7f5ff 100%)}
+.match-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.match-head small{display:block;color:var(--uplyfox-wine);font-size:9px;font-weight:800;letter-spacing:.07em;text-transform:uppercase}
+.match-head strong{display:block;margin-top:3px;font-size:12px;line-height:1.35;color:#1f2040}
+.match-score{flex-shrink:0;display:grid;place-items:center;min-width:46px;height:46px;padding:0 8px;border-radius:50%;background:var(--uplyfox-gradient);color:#fff;font:800 14px system-ui;box-shadow:0 5px 14px rgba(127,29,53,.25)}
+.match-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:9px}
+.chip{padding:3px 7px;border-radius:20px;font:700 9px system-ui}
+.chip.matched{background:#fff;color:var(--uplyfox-wine);border:1px solid var(--uplyfox-wine-border)}
+.chip.missing{background:#fff;color:var(--uplyfox-purple);border:1px dashed var(--uplyfox-purple-border)}
+.match-summary{margin:9px 0 0;font-size:10px;line-height:1.5;color:#5f5c74}

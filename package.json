@@ -9,7 +9,9 @@
     "dev:web": "npm --workspace apps/web run dev",
     "build:web": "npm --workspace apps/web run build",
     "build:extension": "npm --workspace apps/extension run build",
-    "test": "npm --workspace apps/extension run test",
+    "test": "npm run test --workspaces --if-present",
+    "test:extension": "npm --workspace apps/extension run test",
+    "test:web": "npm --workspace apps/web run test",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "engines": { "node": ">=20.0.0" }

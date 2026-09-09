@@ -17,7 +17,7 @@ export default function OpenGraphImage() {
           height: "100%",
           padding: "68px 76px",
           color: "#202040",
-          background: "linear-gradient(135deg, #f8f7ff 0%, #ffffff 55%, #eeebff 100%)",
+          background: "#f8f7ff",
           fontFamily: "Arial",
         }}
       >
@@ -33,7 +33,7 @@ export default function OpenGraphImage() {
               color: "white",
               fontSize: 28,
               fontWeight: 700,
-              background: "linear-gradient(135deg, #991b1b 0%, #7f1d35 48%, #312e81 100%)",
+              background: "#312e81",
             }}
           >
             U
@@ -47,7 +47,7 @@ export default function OpenGraphImage() {
           </div>
           <div style={{ display: "flex", flexDirection: "column", fontSize: 68, lineHeight: 1.05, fontWeight: 800, letterSpacing: -3 }}>
             <span>Outfox the hiring grind.</span>
-            <span style={{ color: "#5546d9" }}>Stay in control.</span>
+            <span style={{ color: "#312e81" }}>Stay in control.</span>
           </div>
           <div style={{ display: "flex", color: "#6f6d86", fontSize: 25, lineHeight: 1.35 }}>
             Build one verified profile and get grounded help with repetitive application forms.

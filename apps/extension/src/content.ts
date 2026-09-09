@@ -21,7 +21,7 @@ type OverlayState =
   | { kind: "answer"; text: string; question: string }
   | { kind: "loading"; question: string }
   | { kind: "suggestion"; text: string; question: string; source: string }
-  | { kind: "none"; question: string };
+  | { kind: "none"; question: string; notice?: string };
 
 function renderOverlay(element: Element, state: OverlayState) {
   removeOverlay();
@@ -29,21 +29,28 @@ function renderOverlay(element: Element, state: OverlayState) {
   host.id = "uplyfox-overlay-host";
   host.style.cssText = "position:fixed;z-index:2147483647;pointer-events:auto;";
   const rect = element.getBoundingClientRect();
-  const estimatedHeight = state.kind === "answer" || state.kind === "suggestion" ? 175 : 90;
+  const estimatedHeight = state.kind === "answer" || state.kind === "suggestion" ? 175 : state.kind === "none" && state.notice ? 150 : 90;
   host.style.left = `${Math.min(Math.max(8, rect.right - 268), window.innerWidth - 276)}px`;
   host.style.top = `${Math.min(rect.bottom + 8, window.innerHeight - estimatedHeight)}px`;
   const shadow = host.attachShadow({ mode: "open" });
   const style = document.createElement("style");
-  style.textContent = "*{box-sizing:border-box}button{font:600 12px system-ui;border:0;cursor:pointer}.card{width:264px;padding:12px;border:1px solid #d9d6fe;border-radius:14px;background:#fff;color:#1f2937;box-shadow:0 12px 35px rgba(31,24,71,.18)}.title{display:flex;align-items:center;gap:6px;font:700 13px system-ui;color:#4f46e5;margin-bottom:6px}.badge{font:700 8px system-ui;letter-spacing:.05em;text-transform:uppercase;padding:2px 6px;border-radius:8px;background:#eef2ff;color:#4338ca}.q{font:500 12px system-ui;line-height:1.4;margin-bottom:8px;max-height:34px;overflow:hidden}.answer{font:600 12px system-ui;background:#f5f3ff;padding:8px;border-radius:9px;overflow-wrap:anywhere}.loading{font:500 11px system-ui;color:#6b7280;display:flex;align-items:center;gap:7px;padding:8px 0}.spinner{width:12px;height:12px;border-radius:50%;border:2px solid #ddd6fe;border-top-color:#4f46e5;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.actions{display:flex;gap:6px;margin-top:9px}.primary{flex:1;color:#fff;background:#4f46e5;padding:8px 9px;border-radius:8px}.secondary{color:#4338ca;background:#eef2ff;padding:8px 9px;border-radius:8px}.tertiary{color:#7a7a8c;background:#f4f4f8;padding:8px 9px;border-radius:8px}button:disabled{opacity:.5;cursor:wait}";
+  style.textContent = "*{box-sizing:border-box}button{font:600 12px system-ui;border:0;cursor:pointer}.card{width:264px;padding:12px;border:1px solid #d9d6fe;border-radius:14px;background:#fff;color:#1f2937;box-shadow:0 12px 35px rgba(31,24,71,.18)}.title{display:flex;align-items:center;gap:6px;font:700 13px system-ui;color:#4f46e5;margin-bottom:6px}.badge{font:700 8px system-ui;letter-spacing:.05em;text-transform:uppercase;padding:2px 6px;border-radius:8px;background:#eef2ff;color:#4338ca}.q{font:500 12px system-ui;line-height:1.4;margin-bottom:8px;max-height:34px;overflow:hidden}.answer{font:600 12px system-ui;background:#f5f3ff;padding:8px;border-radius:9px;overflow-wrap:anywhere}.notice{font:500 11px system-ui;line-height:1.45;padding:8px 9px;border-radius:9px;background:#fdf2f5;color:#8b1e3f;border:1px solid #f5d7e1}.loading{font:500 11px system-ui;color:#6b7280;display:flex;align-items:center;gap:7px;padding:8px 0}.spinner{width:12px;height:12px;border-radius:50%;border:2px solid #ddd6fe;border-top-color:#4f46e5;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.actions{display:flex;gap:6px;margin-top:9px}.primary{flex:1;color:#fff;background:#4f46e5;padding:8px 9px;border-radius:8px}.secondary{color:#4338ca;background:#eef2ff;padding:8px 9px;border-radius:8px}.tertiary{color:#7a7a8c;background:#f4f4f8;padding:8px 9px;border-radius:8px}button:disabled{opacity:.5;cursor:wait}";
   shadow.append(style);
   const card = document.createElement("div");
   card.className = "card";
 
   const hasAnswer = state.kind === "answer" || state.kind === "suggestion";
+  const noticeText = state.kind === "none" ? state.notice : "";
   const badge = state.kind === "suggestion" ? `<span class="badge">${state.source === "memory" ? "Remembered" : "AI suggestion"}</span>` : "";
-  card.innerHTML = `<div class="title">✦ UplyFox${badge}</div><div class="q"></div>${state.kind === "loading" ? `<div class="loading"><span class="spinner"></span>Finding the best answer…</div>` : hasAnswer ? `<div class="answer"></div>` : ""}<div class="actions">${state.kind === "loading" ? "" : hasAnswer ? `<button class="primary">Insert</button><button class="secondary">Copy</button>${state.kind === "suggestion" ? `<button class="tertiary">Save</button>` : ""}` : `<button class="primary">Open assistant</button><button class="secondary">Copy question</button><button class="tertiary">Save question</button>`}</div>`;
+  card.innerHTML = `<div class="title">✦ UplyFox${badge}</div><div class="q"></div>${state.kind === "loading" ? `<div class="loading"><span class="spinner"></span>Finding the best answer…</div>` : hasAnswer ? `<div class="answer"></div>` : noticeText ? `<div class="notice"></div>` : ""}<div class="actions">${state.kind === "loading" ? "" : hasAnswer ? `<button class="primary">Insert</button><button class="secondary">Copy</button>${state.kind === "suggestion" ? `<button class="tertiary">Save</button>` : ""}` : `<button class="primary">Open assistant</button><button class="secondary">Copy question</button><button class="tertiary">Save question</button>`}</div>`;
   (card.querySelector(".q") as HTMLElement).textContent = state.question || "Focused field";
   if (hasAnswer) (card.querySelector(".answer") as HTMLElement).textContent = state.text;
+  // Surface the server's explanation (missing profile value, AI throttled, etc.) instead
+  // of showing an unexplained empty card.
+  if (noticeText) {
+    const noticeNode = card.querySelector(".notice") as HTMLElement | null;
+    if (noticeNode) noticeNode.textContent = noticeText;
+  }
 
   card.querySelector(".primary")?.addEventListener("click", () => {
     if (hasAnswer) insertValue(element, state.text);
@@ -88,12 +95,12 @@ async function requestLiveSuggestion(element: Element, field: NonNullable<Return
 
   const tokenResult = await chrome.runtime.sendMessage({ type: "GET_AUTH_TOKEN" } satisfies ExtensionMessage).catch(() => null);
   if (token !== requestToken || activeElement !== element) return;
-  if (!tokenResult?.accessToken) { renderOverlay(element, { kind: "none", question }); return; }
+  if (!tokenResult?.accessToken) { renderOverlay(element, { kind: "none", question, notice: "Sign in from the UplyFox popup to get suggestions." }); return; }
 
   const result = await chrome.runtime.sendMessage({ type: "SUGGEST_ANSWER", question, page, field } satisfies ExtensionMessage).catch(() => null);
   if (token !== requestToken || activeElement !== element) return;
   if (result?.answer) renderOverlay(element, { kind: "suggestion", text: result.answer, question, source: result.source ?? "ai" });
-  else renderOverlay(element, { kind: "none", question });
+  else renderOverlay(element, { kind: "none", question, notice: result?.notice || result?.error || "No grounded answer yet. Add this detail to your profile, or write it once and save it." });
 }
 
 async function analyze(element: Element) {
@@ -116,7 +123,7 @@ async function analyze(element: Element) {
     renderOverlay(element, { kind: "loading", question: field.question || field.label });
     void requestLiveSuggestion(element, field, page, token);
   } else {
-    renderOverlay(element, { kind: "none", question: field.question || field.label });
+    renderOverlay(element, { kind: "none", question: field.question || field.label, notice: "Live AI suggestions are off. Turn them on in the UplyFox popup." });
   }
 }
 

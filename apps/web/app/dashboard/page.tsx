@@ -97,6 +97,26 @@ function DashboardContent() {
   const totalApplications = Object.values(data.statusCounts).reduce((sum, count) => sum + count, 0);
   const activeApplications = (data.statusCounts.applying ?? 0) + (data.statusCounts.applied ?? 0) + (data.statusCounts.interview ?? 0);
 
+  /**
+   * Application funnel. Each stage counts everything that reached it or moved past it,
+   * so the bars only ever narrow — that is what makes a drop-off visible at a glance.
+   */
+  const funnel = useMemo(() => {
+    const counts = data.statusCounts;
+    const saved = totalApplications;
+    const applied = (counts.applied ?? 0) + (counts.assessment ?? 0) + (counts.interview ?? 0) + (counts.offer ?? 0);
+    const interview = (counts.interview ?? 0) + (counts.offer ?? 0);
+    const offer = counts.offer ?? 0;
+    const stages = [
+      { label: "Saved", value: saved },
+      { label: "Applied", value: applied },
+      { label: "Interview", value: interview },
+      { label: "Offer", value: offer },
+    ];
+    const responseRate = applied ? Math.round((interview / applied) * 100) : 0;
+    return { stages, responseRate, applied };
+  }, [data.statusCounts, totalApplications]);
+
   const checklist = [
     { done: Boolean(data.onboardingCompletedAt), label: "Complete onboarding", detail: "Your account and initial profile", href: "/onboarding" },
     { done: data.resumeCount > 0, label: "Import a resume", detail: `${data.resumeCount} resume${data.resumeCount === 1 ? "" : "s"} on file`, href: "/profile" },
@@ -104,7 +124,7 @@ function DashboardContent() {
     { done: data.jobCount > 0, label: "Track your first opportunity", detail: `${data.jobCount} job${data.jobCount === 1 ? "" : "s"} tracked`, href: "/tracker" },
   ];
 
-  return <div className="dashboard"><aside className="sidebar"><div className="logo"><img src="/uplyfox-pixel-crimson-animated-logo.svg" width={32} height={32} alt="" /><span>Uply<strong style={{color: '#8b1e3f'}}>Fox</strong></span></div><nav className="nav"><Link className="active" href="/dashboard">Overview</Link><Link href="/profile">My profile & resume</Link><Link href="/tracker">Job tracker</Link><Link href="/answer-library">Answer library</Link></nav><div className="sidebar-bottom"><strong>Browser extension</strong><p>Sign in to the extension popup with this same email, then press <em>Refresh profile data</em> to sync.</p></div></aside><main className="main">
+  return <div className="dashboard"><aside className="sidebar"><div className="logo"><img src="/uplyfox-pixel-crimson-animated-logo.svg" width={32} height={32} alt="" /><span>Uply<strong style={{color: '#8b1e3f'}}>Fox</strong></span></div><nav className="nav"><Link className="active" href="/dashboard">Overview</Link><Link href="/profile">My profile & resume</Link><Link href="/tracker">Job tracker</Link><Link href="/answer-library">Answer library</Link><Link href="/settings">Settings</Link></nav><div className="sidebar-bottom"><strong>Browser extension</strong><p>Sign in to the extension popup with this same email, then press <em>Refresh profile data</em> to sync.</p></div></aside><main className="main">
     <div className="topbar"><div><div className="eyebrow">Your workspace</div><h1>{greeting()}, {displayName}</h1></div><div className="avatar">{initials(data.firstName, data.lastName, data.email)}</div></div>
 
     <section className="hero">
@@ -124,6 +144,20 @@ function DashboardContent() {
     </div>
 
     <section className="card activity"><div className="section-head"><h3>Setup checklist</h3></div>{checklist.map((item) => <Link className="activity-row" href={item.href} key={item.label}><div className={`activity-icon ${item.done ? "done" : ""}`}>{item.done ? "✓" : "○"}</div><div><strong>{item.label}</strong><span>{item.detail}</span></div><div className={`pill ${item.done ? "" : "pending"}`}>{item.done ? "Done" : "To do"}</div></Link>)}</section>
+
+    <section className="card funnel-card" style={{ marginTop: 18 }}>
+      <div className="section-head">
+        <h3>Application funnel</h3>
+        {funnel.applied > 0 && <span className="card-hint">{funnel.responseRate}% of applications reached an interview</span>}
+      </div>
+      {totalApplications === 0
+        ? <p className="empty-snapshot">No applications yet. Save a job from the extension to start tracking your funnel.</p>
+        : <div className="funnel">{funnel.stages.map((stage) => <div className="funnel-stage" key={stage.label}>
+          <div className="funnel-meta"><span>{stage.label}</span><strong>{stage.value}</strong></div>
+          <div className="funnel-bar"><span style={{ width: `${totalApplications ? Math.round((stage.value / totalApplications) * 100) : 0}%` }} /></div>
+        </div>)}</div>}
+    </section>
+
     <section className="card" style={{ marginTop: 18 }}><div className="section-head"><h3>Profile snapshot</h3><Link className="text-link" href="/profile">Edit profile</Link></div>{data.firstName || data.currentTitle ? <div className="profile-list"><div className="profile-item"><span>Name</span><strong>{[data.firstName, data.lastName].filter(Boolean).join(" ") || "Not set"}</strong></div><div className="profile-item"><span>Focus</span><strong>{data.currentTitle || "Not set"}</strong></div><div className="profile-item"><span>Core skills</span><strong>{data.skills.slice(0, 3).join(" · ") || "Add skills on your profile"}</strong></div></div> : <p className="empty-snapshot">Your profile is empty. <Link href="/onboarding">Run onboarding</Link> to build it from your resume and links.</p>}</section>
   </main></div>;
 }

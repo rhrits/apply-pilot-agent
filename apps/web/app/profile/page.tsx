@@ -15,8 +15,10 @@ import {
 } from "@uplyfox/shared";
 import { getSupabaseBrowserClient } from "../../lib/supabase";
 import { commitProfile } from "../../lib/onboarding-store";
+import { deleteStoredResume, getResumePreviewUrl, getStoredResume, storeResumeFile, type StoredResume } from "../../lib/resume-store";
 import { AuthGate } from "../../components/auth-gate";
 import { AccountSecurity } from "../../components/account-security";
+import { EditableRecordList } from "../../components/editable-record-list";
 import { Markdown } from "../../components/markdown";
 import "./profile.css";
 
@@ -40,6 +42,9 @@ function ProfileWorkspace() {
 
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [resumeBusy, setResumeBusy] = useState(false);
+  const [storedResume, setStoredResume] = useState<StoredResume | null>(null);
+  const [resumePreviewUrl, setResumePreviewUrl] = useState<string | null>(null);
+  const [showResumePreview, setShowResumePreview] = useState(false);
   const [analysis, setAnalysis] = useState<ResumeAnalysis | null>(null);
   const [newSkill, setNewSkill] = useState("");
   const [newCustomLabel, setNewCustomLabel] = useState("");
@@ -47,7 +52,6 @@ function ProfileWorkspace() {
 
   const loaded = useRef(false);
   const completeness = useMemo(() => profileCompleteness(profile), [profile]);
-  const { primary: resumeProjects, secondary: supportingProjects } = useMemo(() => groupProjects(profile), [profile]);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -56,13 +60,14 @@ function ProfileWorkspace() {
       const user = data.user;
       if (!user) { setLoading(false); return; }
       setEmail(user.email ?? "");
+      void getStoredResume().then(setStoredResume);
 
       const [profileResult, skillsResult, experiencesResult, educationResult, projectsResult] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
-        supabase.from("skills").select("name,years,proficiency").eq("user_id", user.id).order("name"),
-        supabase.from("experiences").select("company,job_title,description,achievements,technologies,start_date,end_date").eq("user_id", user.id),
-        supabase.from("education").select("institution,degree,field,start_year,end_year").eq("user_id", user.id),
-        supabase.from("projects").select("name,description,impact,technologies,url,source").eq("user_id", user.id),
+        supabase.from("skills").select("name,years,proficiency,position").eq("user_id", user.id).order("position"),
+        supabase.from("experiences").select("company,job_title,description,achievements,technologies,start_date,end_date,period,location,position").eq("user_id", user.id).order("position"),
+        supabase.from("education").select("institution,degree,field,start_year,end_year,period,position").eq("user_id", user.id).order("position"),
+        supabase.from("projects").select("name,description,impact,technologies,url,source,period,role,position").eq("user_id", user.id).order("position"),
       ]);
 
       const row = (profileResult.data ?? {}) as Record<string, unknown>;
@@ -81,18 +86,22 @@ function ProfileWorkspace() {
         skills: (skillsResult.data ?? []).map((item) => ({ name: value(item.name), years: item.years == null ? undefined : Number(item.years), proficiency: value(item.proficiency) || undefined })),
         experiences: (experiencesResult.data ?? []).map((item) => ({
           company: value(item.company), title: value(item.job_title),
-          period: [value(item.start_date), value(item.end_date) || "Present"].filter(Boolean).join(" – "),
+          // The stored free-text period keeps the resume's own wording; the date columns
+          // are only a fallback for rows written before that column existed.
+          period: value(item.period) || [value(item.start_date), value(item.end_date) || "Present"].filter(Boolean).join(" – "),
+          location: value(item.location) || undefined,
           summary: value(item.description), achievements: Array.isArray(item.achievements) ? item.achievements.map(String) : [],
           skills: Array.isArray(item.technologies) ? item.technologies.map(String) : [],
         })),
         education: (educationResult.data ?? []).map((item) => ({
           institution: value(item.institution), degree: value(item.degree), field: value(item.field),
-          period: [item.start_year, item.end_year].filter(Boolean).join(" – "),
+          period: value(item.period) || [item.start_year, item.end_year].filter(Boolean).join(" – "),
         })),
         projects: (projectsResult.data ?? []).map((item) => ({
           name: value(item.name), description: value(item.description), impact: value(item.impact),
           technologies: Array.isArray(item.technologies) ? item.technologies.map(String) : [],
           url: value(item.url), source: (value(item.source) || "resume") as ProjectSource,
+          period: value(item.period) || undefined, role: value(item.role) || undefined,
         })),
       };
 
@@ -152,11 +161,19 @@ function ProfileWorkspace() {
       setAnalysis(result);
       // Resume wins: re-merging under "resume" replaces anything a weaker source had filled.
       const merged = mergeProfile(profile, result.profile, "resume", sources);
-      setProfile(merged.profile);
+      // Seed a sensible order for freshly imported projects (resume first, supporting
+      // evidence after). The candidate can reorder from here and that order is saved.
+      const grouped = groupProjects(merged.profile);
+      setProfile({ ...merged.profile, projects: [...grouped.primary, ...grouped.secondary] });
       setSources(merged.sources);
+      // Persist the original file so the extension can attach this exact document.
+      const stored = await storeResumeFile(resumeFile, result.rawText ?? result.formattedText ?? "");
+      if (stored.ok && stored.resume) setStoredResume(stored.resume);
       setResumeFile(null);
       setSaveState("dirty");
-      setNotice("Resume extracted. Review the highlighted values, then save.");
+      setNotice(stored.ok
+        ? "Resume extracted and saved. Review the highlighted values, then save."
+        : `Resume extracted, but the file could not be stored: ${stored.error ?? "upload failed"}`);
     } catch (error) { setNotice(error instanceof Error ? error.message : "Resume import failed."); }
     finally { setResumeBusy(false); }
   }
@@ -259,8 +276,34 @@ function ProfileWorkspace() {
       </section>
 
       <section className="card">
-        <div className="section-head"><h3>Skills <span className="count">{profile.skills?.length ?? 0}</span></h3></div>
-        <div className="chip-list">{(profile.skills ?? []).map((skill) => <span key={skill.name}>{skill.name}{skill.years ? ` · ${skill.years}y` : ""}<button onClick={() => removeSkill(skill.name)} aria-label={`Remove ${skill.name}`}>×</button></span>)}
+        <div className="section-head">
+          <h3>Skills <span className="count">{profile.skills?.length ?? 0}</span></h3>
+          <span className="card-hint">Years and level are editable</span>
+        </div>
+        <div className="skill-rows">{(profile.skills ?? []).map((skill, index) => <div className="skill-row" key={index}>
+          <input
+            value={skill.name}
+            placeholder="Skill"
+            onChange={(event) => { setProfile((current) => ({ ...current, skills: (current.skills ?? []).map((entry, position) => position === index ? { ...entry, name: event.target.value } : entry) })); markDirty(); }}
+          />
+          <input
+            type="number" min={0} max={50} step={0.5}
+            value={skill.years ?? ""}
+            placeholder="Years"
+            onChange={(event) => { const years = event.target.value === "" ? undefined : Number(event.target.value); setProfile((current) => ({ ...current, skills: (current.skills ?? []).map((entry, position) => position === index ? { ...entry, years } : entry) })); markDirty(); }}
+          />
+          <select
+            value={skill.proficiency ?? ""}
+            onChange={(event) => { const proficiency = event.target.value || undefined; setProfile((current) => ({ ...current, skills: (current.skills ?? []).map((entry, position) => position === index ? { ...entry, proficiency } : entry) })); markDirty(); }}
+          >
+            <option value="">Level</option>
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+            <option value="expert">Expert</option>
+          </select>
+          <button onClick={() => removeSkill(skill.name)} aria-label={`Remove ${skill.name}`}>×</button>
+        </div>)}
           {!profile.skills?.length && <p className="empty-state">No skills yet. Import a resume or add them below.</p>}
         </div>
         <div className="inline-add">
@@ -271,48 +314,76 @@ function ProfileWorkspace() {
 
       <div className="profile-columns">
         <section className="card">
-          <div className="section-head"><h3>Experience <span className="count">{profile.experiences?.length ?? 0}</span></h3></div>
-          {(profile.experiences ?? []).map((item, index) => <div className="detail-item" key={index}>
-            <strong>{item.title || "Role"}</strong><span>{[item.company, item.period, item.location].filter(Boolean).join(" · ")}</span>
-            {item.achievements?.length ? <ul>{item.achievements.map((achievement, position) => <li key={position}>{achievement}</li>)}</ul> : item.summary ? <p>{item.summary}</p> : null}
-            {item.skills?.length ? <div className="chip-list small">{item.skills.map((skill) => <span key={skill}>{skill}</span>)}</div> : null}
-          </div>)}
-          {!profile.experiences?.length && <p className="empty-state">Import your resume to populate your roles.</p>}
+          <div className="section-head">
+            <h3>Experience <span className="count">{profile.experiences?.length ?? 0}</span></h3>
+            <span className="card-hint">Drag or use ↑ ↓ to order</span>
+          </div>
+          <EditableRecordList
+            items={profile.experiences ?? []}
+            onChange={(next) => { setProfile((current) => ({ ...current, experiences: next })); markDirty(); }}
+            createEmpty={() => ({ company: "", title: "", period: "", location: "", summary: "", achievements: [], skills: [] })}
+            title={(item) => item.title || item.company}
+            subtitle={(item) => [item.company, item.period, item.location].filter(Boolean).join(" · ")}
+            addLabel="Add a role"
+            emptyHint="Import your resume to populate your roles, or add one manually."
+            fields={[
+              { key: "title", label: "Job title", placeholder: "Senior Engineer" },
+              { key: "company", label: "Company", placeholder: "Acme Inc." },
+              { key: "period", label: "Period", placeholder: "2022 — Present" },
+              { key: "location", label: "Location", placeholder: "Remote" },
+              { key: "summary", label: "Summary", type: "area", placeholder: "What you owned in this role" },
+              { key: "achievements", label: "Achievements", type: "list", placeholder: "Cut onboarding time by 40%" },
+              { key: "skills", label: "Skills used", type: "list", placeholder: "TypeScript" },
+            ]}
+          />
         </section>
 
         <section className="card">
           <div className="section-head">
-            <h3>Projects <span className="count">{resumeProjects.length}</span></h3>
-            <span className="card-hint">From your resume — shown first everywhere</span>
+            <h3>Projects <span className="count">{profile.projects?.length ?? 0}</span></h3>
+            <span className="card-hint">Resume projects first</span>
           </div>
-          {resumeProjects.map((item, index) => <div className="detail-item" key={`resume-project-${index}`}>
-            <strong>{item.name}</strong><span>{[item.role, item.period].filter(Boolean).join(" · ")}</span>
-            {item.description && <p>{item.description}</p>}
-            {item.technologies?.length ? <div className="chip-list small">{item.technologies.map((tech) => <span key={tech}>{tech}</span>)}</div> : null}
-            {item.impact && <p className="impact">{item.impact}</p>}
-          </div>)}
-          {!resumeProjects.length && <p className="empty-state">Projects from your resume appear here first.</p>}
-
-          {supportingProjects.length > 0 && <>
-            <div className="section-head secondary-head">
-              <h3>Supporting projects <span className="count">{supportingProjects.length}</span></h3>
-              <span className="card-hint">From GitHub and your links</span>
-            </div>
-            {supportingProjects.map((item, index) => <div className="detail-item secondary" key={`supporting-project-${index}`}>
-              <strong>{item.name}<em className="source-chip">{item.source}</em></strong>
-              <span>{item.technologies?.join(" · ")}</span>
-              {item.description && <p>{item.description}</p>}
-            </div>)}
-          </>}
+          <EditableRecordList
+            items={profile.projects ?? []}
+            onChange={(next) => { setProfile((current) => ({ ...current, projects: next })); markDirty(); }}
+            createEmpty={() => ({ name: "", description: "", technologies: [], impact: "", role: "", period: "", url: "", source: "manual" as ProjectSource })}
+            title={(item) => item.name}
+            subtitle={(item) => [item.role, item.period, item.source].filter(Boolean).join(" · ")}
+            addLabel="Add a project"
+            emptyHint="Projects from your resume appear here first."
+            fields={[
+              { key: "name", label: "Name", placeholder: "UplyFox" },
+              { key: "role", label: "Your role", placeholder: "Creator" },
+              { key: "period", label: "Period", placeholder: "2025" },
+              { key: "url", label: "Link", placeholder: "https://" },
+              { key: "description", label: "Description", type: "area" },
+              { key: "impact", label: "Impact", type: "area", placeholder: "The measurable outcome" },
+              { key: "technologies", label: "Technologies", type: "list", placeholder: "React" },
+            ]}
+          />
         </section>
       </div>
 
       <section className="card">
-        <div className="section-head"><h3>Education <span className="count">{profile.education?.length ?? 0}</span></h3></div>
-        {(profile.education ?? []).map((item, index) => <div className="detail-item" key={index}>
-          <strong>{item.institution}</strong><span>{[item.degree, item.field, item.period].filter(Boolean).join(" · ")}</span>
-        </div>)}
-        {!profile.education?.length && <p className="empty-state">No education entries yet.</p>}
+        <div className="section-head">
+          <h3>Education <span className="count">{profile.education?.length ?? 0}</span></h3>
+          <span className="card-hint">Drag or use ↑ ↓ to order</span>
+        </div>
+        <EditableRecordList
+          items={profile.education ?? []}
+          onChange={(next) => { setProfile((current) => ({ ...current, education: next })); markDirty(); }}
+          createEmpty={() => ({ institution: "", degree: "", field: "", period: "" })}
+          title={(item) => item.institution || item.degree || ""}
+          subtitle={(item) => [item.degree, item.field, item.period].filter(Boolean).join(" · ")}
+          addLabel="Add education"
+          emptyHint="No education entries yet."
+          fields={[
+            { key: "institution", label: "Institution", placeholder: "University" },
+            { key: "degree", label: "Degree", placeholder: "B.Tech" },
+            { key: "field", label: "Field", placeholder: "Computer Science" },
+            { key: "period", label: "Period", placeholder: "2018 — 2022" },
+          ]}
+        />
       </section>
     </div>}
 
@@ -356,9 +427,35 @@ function ProfileWorkspace() {
     </div>}
 
     {tab === "sources" && <div className="profile-stack">
+      {storedResume && <section className="card">
+        <div className="section-head"><h3>Stored resume</h3><span className="pill">Used by the extension</span></div>
+        <p className="card-hint">This is the exact file the browser extension attaches to job-board upload fields.</p>
+        <div className="resume-file-row">
+          <div className="resume-file-icon">PDF</div>
+          <div className="resume-file-meta">
+            <strong>{storedResume.name}</strong>
+            <small>{storedResume.fileSize ? `${Math.round(storedResume.fileSize / 1024)} KB` : "Stored"} · uploaded {storedResume.createdAt ? new Date(storedResume.createdAt).toLocaleDateString() : "recently"}</small>
+          </div>
+          <button className="ghost-button" onClick={async () => {
+            if (showResumePreview) { setShowResumePreview(false); return; }
+            const url = await getResumePreviewUrl(storedResume.storagePath);
+            if (!url) { setNotice("Could not open the resume preview."); return; }
+            setResumePreviewUrl(url); setShowResumePreview(true);
+          }}>{showResumePreview ? "Hide" : "View"}</button>
+          <button className="ghost-button" onClick={async () => {
+            if (!window.confirm(`Delete ${storedResume.name}? The extension will no longer be able to attach it.`)) return;
+            const result = await deleteStoredResume(storedResume);
+            if (!result.ok) { setNotice(result.error ?? "Could not delete the resume."); return; }
+            setStoredResume(null); setShowResumePreview(false); setResumePreviewUrl(null);
+            setNotice("Resume deleted. Upload a new one below.");
+          }}>Delete</button>
+        </div>
+        {showResumePreview && resumePreviewUrl && <iframe className="resume-preview-frame" src={resumePreviewUrl} title={storedResume.name} />}
+      </section>}
+
       <section className="card">
-        <div className="section-head"><h3>Re-import your resume</h3></div>
-        <p className="card-hint">Your resume always takes priority. Re-importing refreshes every field it covers and leaves your manual edits elsewhere untouched.</p>
+        <div className="section-head"><h3>{storedResume ? "Replace your resume" : "Re-import your resume"}</h3></div>
+        <p className="card-hint">Your resume always takes priority. Re-importing refreshes every field it covers and leaves your manual edits elsewhere untouched.{storedResume ? " Uploading a new file replaces the stored one." : ""}</p>
         <label className="upload-drop">
           <input type="file" accept="application/pdf,.txt,.md,text/plain" onChange={(event) => setResumeFile(event.target.files?.[0] ?? null)} />
           <span className="upload-icon">↑</span>

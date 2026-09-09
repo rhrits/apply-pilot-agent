@@ -168,7 +168,12 @@ key anywhere in this project.
 
 UplyFox uses Supabase email OTP. Supabase's default template sends a magic
 **link**; to also support the extension's numeric code, add `{{ .Token }}` to the
-Magic Link template. Add `/onboarding` and `/profile` to your Supabase redirect URLs.
+Magic Link template. The branded HTML source is maintained in
+[supabase/templates/magic-link.html](supabase/templates/magic-link.html); paste its
+contents into Supabase Dashboard → Authentication → Email Templates → Magic Link.
+It uses the public logo at `https://ap.coderscookies.com/uplyfox-pixel-crimson-logo.svg`
+and intentionally does not use `{{ .ConfirmationURL }}` because the app uses numeric OTPs.
+Add `/onboarding` and `/profile` to your Supabase redirect URLs.
 Configure custom SMTP before real use — the built-in sender is rate-limited.
 
 ### Speech to text
