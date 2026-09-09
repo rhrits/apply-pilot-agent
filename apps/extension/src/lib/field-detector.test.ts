@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { answerForField, extractField } from "./field-detector";
+import { answerForField, extractField, extractGroupField, isSensitiveQuestion, matchOption } from "./field-detector";
 import { demoProfile } from "./profile";
 
 describe("field detector", () => {
@@ -61,5 +61,93 @@ describe("field detector", () => {
     document.body.innerHTML = '<label for="co">Current company</label><input id="co" />';
     const field = extractField(document.querySelector("input")!);
     expect(field?.question).toBe("Current company");
+  });
+});
+
+describe("radio and checkbox group detection", () => {
+  it("reads the question from a fieldset legend and each option from its label", () => {
+    document.body.innerHTML = `
+      <fieldset>
+        <legend>Are you legally authorized to work in this country?</legend>
+        <label><input type="radio" name="work_auth" value="yes" /> Yes</label>
+        <label><input type="radio" name="work_auth" value="no" /> No</label>
+      </fieldset>`;
+    const inputs = Array.from(document.querySelectorAll("input"));
+    const field = extractGroupField(document.querySelector("fieldset")!, inputs);
+    expect(field?.question).toBe("Are you legally authorized to work in this country?");
+    expect(field?.options).toEqual(["Yes", "No"]);
+    expect(field?.elementType).toBe("radiogroup");
+  });
+
+  it("reports the currently checked option", () => {
+    document.body.innerHTML = `
+      <fieldset>
+        <legend>Preferred contact method</legend>
+        <label><input type="radio" name="contact" value="email" checked /> Email</label>
+        <label><input type="radio" name="contact" value="phone" /> Phone</label>
+      </fieldset>`;
+    const inputs = Array.from(document.querySelectorAll("input"));
+    const field = extractGroupField(document.querySelector("fieldset")!, inputs);
+    expect(field?.currentValue).toBe("Email");
+  });
+
+  it("detects a custom ARIA radio group with no native inputs", () => {
+    document.body.innerHTML = `
+      <div role="radiogroup" aria-label="Highest level of education">
+        <div role="radio" aria-checked="false">Bachelor's</div>
+        <div role="radio" aria-checked="false">Master's</div>
+      </div>`;
+    const container = document.querySelector("[role='radiogroup']")!;
+    const choices = Array.from(container.querySelectorAll("[role='radio']"));
+    const field = extractGroupField(container, choices);
+    expect(field?.question).toBe("Highest level of education");
+    expect(field?.options).toEqual(["Bachelor's", "Master's"]);
+  });
+
+  it("caps confidence for EEO/demographic questions so they are never auto-selected", () => {
+    document.body.innerHTML = `
+      <fieldset>
+        <legend>Gender</legend>
+        <label><input type="radio" name="gender" value="m" /> Male</label>
+        <label><input type="radio" name="gender" value="f" /> Female</label>
+      </fieldset>`;
+    const inputs = Array.from(document.querySelectorAll("input"));
+    const field = extractGroupField(document.querySelector("fieldset")!, inputs);
+    expect(field?.confidence).toBeLessThanOrEqual(0.2);
+    expect(isSensitiveQuestion(field!.question)).toBe(true);
+  });
+
+  it("flags certification/consent checkboxes as sensitive", () => {
+    expect(isSensitiveQuestion("I certify that the above information is true and accurate")).toBe(true);
+    expect(isSensitiveQuestion("I agree to the terms and conditions")).toBe(true);
+    expect(isSensitiveQuestion("Preferred contact method")).toBe(false);
+  });
+});
+
+describe("option matching", () => {
+  it("matches an exact option case-insensitively", () => {
+    expect(matchOption("yes", ["Yes", "No"])).toBe("Yes");
+  });
+
+  it("resolves yes/no polarity when the exact phrase differs", () => {
+    expect(matchOption("No", ["Yes, I require sponsorship", "No, I do not require sponsorship"])).toBe("No, I do not require sponsorship");
+  });
+
+  it("does not let a short value match an unrelated long option by accident", () => {
+    // Both options contain "Yes" as a substring; the closer-length one should win.
+    expect(matchOption("Yes", ["Yes", "Yes, but I will need relocation assistance in the future"])).toBe("Yes");
+  });
+
+  it("only checks a lone standalone checkbox for an affirmative answer", () => {
+    expect(matchOption("Yes", ["Subscribe to job alerts"])).toBe("Subscribe to job alerts");
+    expect(matchOption("No", ["Subscribe to job alerts"])).toBeNull();
+  });
+
+  it("falls back to token overlap for loosely worded options", () => {
+    expect(matchOption("5+ years", ["Less than 1 year", "1-3 years", "5+ years of experience"])).toBe("5+ years of experience");
+  });
+
+  it("returns null when nothing is a plausible match", () => {
+    expect(matchOption("Purple", ["Yes", "No"])).toBeNull();
   });
 });

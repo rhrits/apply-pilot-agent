@@ -267,3 +267,164 @@ export function answerForField(field: DetectedField, profile: UserProfile): stri
   const engine = answerQuestion(`${field.label} ${field.question}`.trim(), profile);
   return engine.source === "profile" && engine.answer ? engine.answer : null;
 }
+
+/**
+ * Radio/checkbox questions this tool must never answer automatically.
+ *
+ * These fall into two families: EEO/demographic disclosures (race, gender, disability,
+ * veteran status, etc.) that are legally sensitive and optional by design, and
+ * certification/consent attestations ("I certify that...", "I agree to the terms").
+ * Both are hard-stop categories — detected and shown to the user, never auto-selected,
+ * regardless of how confident the match looks.
+ */
+const SENSITIVE_QUESTION_PATTERN = /\brace\b|ethnicit|\bgender\b|gender identity|\btransgender\b|\bsex\b|disabilit|veteran|military service|sexual orientation|criminal (record|history|conviction)|security clearance|\bpregnan|\breligio|national origin|\bi certify\b|\bi agree\b|terms (and|&) conditions|\bconsent\b|\backnowledge\b|under penalty of perjury/i;
+
+export function isSensitiveQuestion(text: string): boolean {
+  return SENSITIVE_QUESTION_PATTERN.test(text);
+}
+
+/** The visible text identifying one choice in a radio/checkbox group. */
+export function labelForChoice(element: Element): string {
+  if (element instanceof HTMLInputElement) {
+    const linked = element.labels?.[0]?.innerText;
+    if (linked) return clean(linked);
+    const aria = clean(element.getAttribute("aria-label"));
+    if (aria) return aria;
+    const labelledBy = ariaLabelledByText(element);
+    if (labelledBy) return labelledBy;
+    // Many ATS wrap the input in its own <label>, or place the text as the next sibling
+    // rather than using a `for` attribute at all.
+    const wrapping = element.closest("label");
+    if (wrapping) {
+      const text = clean((wrapping as HTMLElement).innerText || wrapping.textContent);
+      if (text) return text;
+    }
+    const sibling = element.nextElementSibling;
+    if (sibling) {
+      const text = clean((sibling as HTMLElement).innerText || sibling.textContent);
+      if (text) return text;
+    }
+    return clean(element.value) || "Option";
+  }
+  const aria = clean(element.getAttribute("aria-label"));
+  if (aria) return aria;
+  const labelledBy = ariaLabelledByText(element);
+  if (labelledBy) return labelledBy;
+  return clean((element as HTMLElement).innerText || element.textContent) || "Option";
+}
+
+function isChoiceChecked(element: Element): boolean {
+  if (element instanceof HTMLInputElement) return element.checked;
+  return element.getAttribute("aria-checked") === "true";
+}
+
+/** Groups a set of same-question radio/checkbox controls into one detected field. */
+export function extractGroupField(container: Element, elements: Element[]): DetectedField | null {
+  if (!elements.length) return null;
+  const isCheckbox = elements[0] instanceof HTMLInputElement
+    ? (elements[0] as HTMLInputElement).type === "checkbox"
+    : elements[0].getAttribute("role") === "checkbox";
+
+  const adapted = adapterQuestion(container);
+  const labelledBy = ariaLabelledByText(container);
+  const ariaLabel = clean(container.getAttribute("aria-label"));
+  const legend = container.querySelector(":scope > legend, :scope > [role='heading']");
+  const legendText = legend ? clean((legend as HTMLElement).innerText || legend.textContent) : "";
+  const preceding = precedingLabelText(container);
+  const nearby = nearbyText(container);
+  const options = elements.map(labelForChoice);
+
+  const questionCandidate = [adapted, labelledBy, ariaLabel, legendText, preceding]
+    .find((value) => Boolean(value) && !isGenericPrompt(value));
+  const question = questionCandidate || (nearby && isQuestionLike(nearby) ? nearby : "") || options.join(" / ") || "Select an option";
+
+  const currentValue = elements
+    .map((element, index) => (isChoiceChecked(element) ? options[index] : null))
+    .filter((value): value is string => Boolean(value))
+    .join(", ");
+
+  const sensitive = isSensitiveQuestion(question) || isSensitiveQuestion(nearby);
+  const classification = classify(question, isCheckbox ? "checkbox" : "radio");
+
+  return {
+    id: `uplyfox-group-${Math.random().toString(36).slice(2)}`,
+    elementType: isCheckbox ? "checkboxgroup" : "radiogroup",
+    inputType: isCheckbox ? "checkbox" : "radio",
+    label: question,
+    question,
+    questionSource: adapted ? "label" : labelledBy || ariaLabel ? "aria_label" : legendText || preceding ? "label" : "nearby_text",
+    nearbyText: nearby || undefined,
+    currentValue: currentValue || undefined,
+    options,
+    required: elements.some((element) => element.hasAttribute("required") || element.getAttribute("aria-required") === "true"),
+    kind: classification.kind,
+    // Sensitive questions are capped low so they always land in "needs review" and are
+    // never auto-selected, no matter how the text happens to classify.
+    confidence: sensitive ? Math.min(classification.confidence, 0.2) : classification.confidence,
+  };
+}
+
+const STOPWORDS = new Set(["the", "a", "an", "and", "or", "of", "to", "i", "am", "my", "is", "are"]);
+
+function tokenize(value: string): string[] {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").split(/\s+/).filter((word) => word.length > 1 && !STOPWORDS.has(word));
+}
+
+const AFFIRMATIVE = new Set(["yes", "y", "true", "agree", "accept", "i agree"]);
+const NEGATIVE = new Set(["no", "n", "false", "disagree", "decline"]);
+
+/**
+ * Picks the option that best matches a free-text profile answer.
+ *
+ * Radio/checkbox options are exact phrases the ATS wrote ("I do not require
+ * sponsorship"), while the profile stores a short free-text answer ("No"). Exact
+ * matching alone would almost never fire, so this layers progressively looser
+ * comparisons and stops at the first one that produces a confident result.
+ */
+export function matchOption(value: string, options: string[]): string | null {
+  const trimmedValue = value.trim();
+  if (!trimmedValue || !options.length) return null;
+  const normalizedValue = trimmedValue.toLowerCase();
+
+  // 1. Exact match, case-insensitive.
+  const exact = options.find((option) => option.trim().toLowerCase() === normalizedValue);
+  if (exact) return exact;
+
+  // 2. A single-option group is a standalone checkbox (e.g. "Subscribe to updates").
+  // Only affirmative answers check it; anything else is left alone deliberately.
+  if (options.length === 1) return AFFIRMATIVE.has(normalizedValue) ? options[0] : null;
+
+  // 3. Yes/no polarity: prefer the option that clearly starts with the same polarity
+  // word, so "No" does not accidentally match "No, I will require sponsorship" over a
+  // plain "No" when both exist, but still resolves correctly when only one is present.
+  if (AFFIRMATIVE.has(normalizedValue) || NEGATIVE.has(normalizedValue)) {
+    const wantAffirmative = AFFIRMATIVE.has(normalizedValue);
+    const polarity = options.filter((option) => {
+      const first = option.trim().toLowerCase().split(/[\s,.]/)[0];
+      return wantAffirmative ? AFFIRMATIVE.has(first) : NEGATIVE.has(first);
+    });
+    if (polarity.length === 1) return polarity[0];
+    if (polarity.length > 1) return polarity.reduce((shortest, option) => option.length < shortest.length ? option : shortest);
+  }
+
+  // 4. Containment either direction, preferring the closer length (avoids a short value
+  // like "Yes" preferring an unrelated long option that merely happens to contain it).
+  const containing = options.filter((option) => option.toLowerCase().includes(normalizedValue) || normalizedValue.includes(option.toLowerCase()));
+  if (containing.length) {
+    return containing.reduce((closest, option) => Math.abs(option.length - trimmedValue.length) < Math.abs(closest.length - trimmedValue.length) ? option : closest);
+  }
+
+  // 5. Token overlap, above a threshold so unrelated options are never forced to match.
+  const valueTerms = new Set(tokenize(trimmedValue));
+  if (!valueTerms.size) return null;
+  let best: { option: string; score: number } | null = null;
+  for (const option of options) {
+    const optionTerms = new Set(tokenize(option));
+    if (!optionTerms.size) continue;
+    let overlap = 0;
+    for (const term of valueTerms) if (optionTerms.has(term)) overlap += 1;
+    const score = overlap / Math.max(valueTerms.size, optionTerms.size);
+    if (score >= 0.34 && (!best || score > best.score)) best = { option, score };
+  }
+  return best?.option ?? null;
+}

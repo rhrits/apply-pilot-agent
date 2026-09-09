@@ -27,7 +27,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
 
   if (message.type === "ACTIVE_FIELD") {
     readyStatus().then(async () => {
-      await chrome.storage.session.set({ activeField: message.payload, activeTabId: tabId });
+      await chrome.storage.session.set({ activeField: message.payload, activeTabId: tabId, activeFrameId: sender.frameId ?? 0 });
       for (const port of panelPorts) port.postMessage({ type: "ACTIVE_FIELD", payload: message.payload });
       sendResponse({ ok: true });
     }).catch((error) => sendResponse({ ok: false, error: String(error) }));
@@ -35,7 +35,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
   }
 
   if (message.type === "GET_ACTIVE_FIELD") {
-    readyStatus().then(() => chrome.storage.session.get(["activeField", "activeTabId"])).then(sendResponse).catch((error) => sendResponse({ error: String(error) }));
+    readyStatus().then(() => chrome.storage.session.get(["activeField", "activeTabId", "activeFrameId"])).then(sendResponse).catch((error) => sendResponse({ error: String(error) }));
     return true;
   }
 
@@ -197,6 +197,37 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
 
   if (message.type === "GET_TRACKER") {
     readyStatus().then(() => fetchTracker()).then(sendResponse).catch((error) => sendResponse({ error: String(error) }));
+    return true;
+  }
+
+  if (message.type === "SCAN_PAGE_ALL_FRAMES") {
+    // Fans a scan/fill request out to every frame of the tab, not just the top document.
+    // Some ATS integrations (iCIMS, embedded Greenhouse/Lever widgets) render the actual
+    // application form inside an <iframe>, which a plain chrome.tabs.sendMessage without
+    // a frameId cannot reliably target — with `all_frames` content scripts it either
+    // reaches every frame at once with only one unpredictable response, or misses the
+    // frame entirely. Enumerating frames explicitly and merging their results fixes both.
+    (async () => {
+      const requestType = message.fill ? "FILL_ALL" as const : "SCAN_PAGE" as const;
+      let frameIds = [0];
+      try {
+        const frames = await chrome.webNavigation.getAllFrames({ tabId: message.tabId });
+        if (frames?.length) frameIds = frames.map((frame) => frame.frameId);
+      } catch { /* Fall back to the top frame only if frame enumeration is unavailable. */ }
+
+      const responses = await Promise.all(frameIds.map((frameId) =>
+        chrome.tabs.sendMessage(message.tabId, { type: requestType } satisfies ExtensionMessage, { frameId }).catch(() => null),
+      ));
+
+      const authenticated = responses.some((response) => response?.authenticated === true);
+      const fields = responses
+        .flatMap((response, position) => (response?.fields ?? []).map((field: Record<string, unknown>) => ({ ...field, frameId: frameIds[position] })))
+        // Reassign sequential indices once merged, since each frame numbered its own
+        // fields starting at 0 and those would otherwise collide in the fields list.
+        .map((field, index) => ({ ...field, index }));
+
+      sendResponse({ authenticated, fields });
+    })();
     return true;
   }
 

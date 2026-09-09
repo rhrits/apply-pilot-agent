@@ -6,16 +6,23 @@ const manifest: ManifestV3Export = {
   version: "0.2.0",
   description: "A resilient job-application copilot that detects, answers, fills, and always lets you copy.",
   icons: { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
-  permissions: ["storage", "activeTab", "sidePanel", "alarms"],
+  permissions: ["storage", "activeTab", "sidePanel", "alarms", "webNavigation"],
   host_permissions: ["<all_urls>"],
   background: { service_worker: "src/background.ts", type: "module" },
   action: { default_title: "Open UplyFox", default_popup: "src/popup.html", default_icon: { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" } },
   side_panel: { default_path: "src/sidepanel.html" },
   content_scripts: [
     {
+      // all_frames + match_about_blank: many ATS integrations (iCIMS, embedded
+      // Greenhouse/Lever widgets, "apply" iframes on a company's own careers page) run
+      // the actual application form inside an <iframe>. Without this, none of those
+      // forms were ever scanned — this was the leading cause of "failing to detect the
+      // questions" on portals that embed rather than redirect to their own domain.
       matches: ["<all_urls>"],
       js: ["src/content.ts"],
       run_at: "document_idle",
+      all_frames: true,
+      match_about_blank: true,
     },
     {
       // Runs in the page's own JS context so submissions made with the page's `fetch`

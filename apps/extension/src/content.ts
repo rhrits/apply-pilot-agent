@@ -1,9 +1,19 @@
 import { analyzeJobMatch, type ExtensionMessage, type PageSummary } from "@uplyfox/shared";
-import { answerForField, extractField } from "./lib/field-detector";
+import { answerForField, extractField, extractGroupField, isSensitiveQuestion, matchOption } from "./lib/field-detector";
 import { currentApplicationVerdict, installApplicationDetector } from "./lib/application-signals";
-import { insertValue } from "./lib/insertion";
+import { insertValue, selectChoiceElement } from "./lib/insertion";
 import { getProfile } from "./lib/profile";
 import "./styles.css";
+
+/**
+ * The content script now runs in every frame (see manifest.ts) so application forms
+ * embedded in an <iframe> — a common integration for iCIMS, and embedded
+ * Greenhouse/Lever widgets on a company's own careers page — are scanned too. Job
+ * detection and the application-submission detector must still run only once per page,
+ * so they are gated to the top frame; field scanning and the focus overlay run in every
+ * frame, since that is exactly where the previously-invisible fields live.
+ */
+const isTopFrame = window.top === window.self;
 
 let activeElement: Element | null = null;
 let overlay: HTMLDivElement | null = null;
@@ -181,8 +191,12 @@ scheduleJobDetection();
  * submitted an application, tell the worker so the tracked job moves to "applied".
  * The page summary is re-read at that moment so the job is recorded even if the user
  * never opened the side panel.
+ *
+ * Installed only in the top frame: a submission's confirming URL/DOM/network signals
+ * are meaningful at the page level, and installing this in every iframe (ads, chat
+ * widgets, embedded videos) would multiply irrelevant listeners for no benefit.
  */
-installApplicationDetector(() => {
+if (isTopFrame) installApplicationDetector(() => {
   void (async () => {
     const settings = await chrome.runtime.sendMessage({ type: "GET_SETTINGS" } satisfies ExtensionMessage).catch(() => null);
     if (settings?.autoTrackJobs === false) return;
@@ -218,11 +232,67 @@ function visible(element: Element) {
   return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none";
 }
 
-function collectFields() {
-  return queryDeep(FORM_SELECTOR)
+/** Nearest wrapper that groups a set of choice controls into one logical question. */
+function groupContainer(element: Element): Element {
+  return element.closest("fieldset, [role='radiogroup'], [role='group']") ?? element.parentElement ?? element;
+}
+
+/**
+ * Finds every radio/checkbox question on the page, including custom ARIA widgets that
+ * are not native `<input>` elements at all.
+ *
+ * Grouping mirrors how these actually behave: same-`name` native inputs are one
+ * question no matter where in the DOM each option sits (the standard HTML radio-group
+ * mechanism), while unnamed native inputs and ARIA-only choices are grouped by their
+ * nearest shared fieldset/group container instead.
+ */
+function findChoiceGroups(): Array<{ container: Element; elements: Element[] }> {
+  const nativeChoices = (queryDeep("input[type='radio'], input[type='checkbox']") as HTMLInputElement[]).filter(visible);
+  const ariaChoices = queryDeep("[role='radio'], [role='checkbox']").filter(visible).filter((element) => !(element instanceof HTMLInputElement));
+
+  const byName = new Map<string, HTMLInputElement[]>();
+  const byContainer = new Map<Element, Element[]>();
+
+  for (const input of nativeChoices) {
+    if (input.name) {
+      const list = byName.get(input.name) ?? [];
+      list.push(input);
+      byName.set(input.name, list);
+    } else {
+      const container = groupContainer(input);
+      const list = byContainer.get(container) ?? [];
+      list.push(input);
+      byContainer.set(container, list);
+    }
+  }
+  for (const element of ariaChoices) {
+    const container = groupContainer(element);
+    const list = byContainer.get(container) ?? [];
+    list.push(element);
+    byContainer.set(container, list);
+  }
+
+  const groups: Array<{ container: Element; elements: Element[] }> = [];
+  for (const elements of byName.values()) groups.push({ container: groupContainer(elements[0]), elements });
+  for (const [container, elements] of byContainer) groups.push({ container, elements });
+  return groups;
+}
+
+type CollectedField =
+  | { kind: "single"; element: Element; field: NonNullable<ReturnType<typeof extractField>> }
+  | { kind: "group"; elements: Element[]; field: NonNullable<ReturnType<typeof extractGroupField>> };
+
+function collectFields(): CollectedField[] {
+  const singles: CollectedField[] = queryDeep(FORM_SELECTOR)
     .filter(visible)
-    .map((element) => ({ element, field: extractField(element) }))
-    .filter((entry): entry is { element: Element; field: NonNullable<ReturnType<typeof extractField>> } => entry.field !== null);
+    .map((element) => ({ kind: "single" as const, element, field: extractField(element) }))
+    .filter((entry): entry is { kind: "single"; element: Element; field: NonNullable<ReturnType<typeof extractField>> } => entry.field !== null);
+
+  const groups: CollectedField[] = findChoiceGroups()
+    .map(({ container, elements }) => ({ kind: "group" as const, elements, field: extractGroupField(container, elements) }))
+    .filter((entry): entry is { kind: "group"; elements: Element[]; field: NonNullable<ReturnType<typeof extractGroupField>> } => entry.field !== null);
+
+  return [...singles, ...groups];
 }
 
 function currentValue(element: Element) {
@@ -236,10 +306,28 @@ async function scanPage(fill: boolean) {
   const entries = collectFields();
   const fields = entries.map((entry, index) => {
     const answer = answerForField(entry.field, profile);
-    const alreadyFilled = currentValue(entry.element).trim().length > 0;
     let filled = false;
-    if (fill && answer && !alreadyFilled && entry.field.confidence >= 0.9) filled = insertValue(entry.element, answer);
-    return { index, label: entry.field.label, question: entry.field.question, kind: entry.field.kind, value: answer ?? "", filled, needsReview: Boolean(answer) && entry.field.confidence < 0.9 };
+    let value = answer ?? "";
+
+    if (entry.kind === "single") {
+      const alreadyFilled = currentValue(entry.element).trim().length > 0;
+      if (fill && answer && !alreadyFilled && entry.field.confidence >= 0.9) filled = insertValue(entry.element, answer);
+    } else {
+      // Radio/checkbox groups. Sensitive questions (EEO/demographic disclosures,
+      // "I certify"/"I agree" attestations) are never auto-selected, regardless of
+      // confidence — extractGroupField already caps their confidence, and this check
+      // is a second, independent guard against ever silently answering on the user's
+      // behalf for one of these.
+      const alreadyAnswered = Boolean(entry.field.currentValue);
+      const sensitive = isSensitiveQuestion(entry.field.question) || isSensitiveQuestion(entry.field.nearbyText ?? "");
+      if (fill && answer && !alreadyAnswered && !sensitive) {
+        const matched = matchOption(answer, entry.field.options);
+        const target = matched ? entry.elements[entry.field.options.indexOf(matched)] : undefined;
+        if (target) { filled = selectChoiceElement(target); value = matched ?? value; }
+      }
+    }
+
+    return { index, label: entry.field.label, question: entry.field.question, kind: entry.field.kind, value, filled, needsReview: Boolean(answer) && entry.field.confidence < 0.9 };
   });
   return { authenticated: true, fields };
 }
@@ -367,6 +455,10 @@ async function getPageSummary(): Promise<PageSummary> {
 }
 
 async function detectAndNotifyJobPage() {
+  // Job detection reads and reports the whole document's identity (title/URL/description);
+  // running it per-frame would fire once per iframe on the same page and race duplicate
+  // JOB_PAGE_DETECTED messages against each other.
+  if (!isTopFrame) return;
   const summary = await getPageSummary();
   if (!summary.isJobPage || (summary.detectionConfidence ?? 0) < 0.74) return;
   const key = `${summary.url}|${summary.title}|${summary.description.slice(0, 160)}`;

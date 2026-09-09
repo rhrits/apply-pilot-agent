@@ -182,7 +182,10 @@ function SidePanel() {
     try {
       const [tabInfo] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tabInfo?.id) return;
-      const summary = await chrome.tabs.sendMessage(tabInfo.id, { type: "GET_PAGE_SUMMARY" } satisfies ExtensionMessage).catch(() => null);
+      // Pinned to the top frame: with the content script now injected into every
+      // iframe too, an unaddressed sendMessage reaches all of them and only one
+      // (unpredictable) response would be returned otherwise.
+      const summary = await chrome.tabs.sendMessage(tabInfo.id, { type: "GET_PAGE_SUMMARY" } satisfies ExtensionMessage, { frameId: 0 }).catch(() => null);
       setPageMatch(summary && !summary.error && summary.isJobPage ? summary as PageSummary : null);
     } finally {
       endPanelWork();
@@ -233,7 +236,7 @@ function SidePanel() {
   async function useSelectedText() {
     const id = await activeTabId();
     if (!id) return;
-    const result = await chrome.tabs.sendMessage(id, { type: "GET_SELECTION_TEXT" } satisfies ExtensionMessage).catch(() => null);
+    const result = await chrome.tabs.sendMessage(id, { type: "GET_SELECTION_TEXT" } satisfies ExtensionMessage, { frameId: 0 }).catch(() => null);
     if (!result?.text) { setStatus("Select the question or job text on the page first."); return; }
     setSelectedText(result.text);
     setQuestion(result.text);
@@ -247,13 +250,21 @@ function SidePanel() {
     setStatus(result?.item ? "Saved. This question now answers instantly, with no AI call." : result?.error ?? "Could not save answer memory.");
   }
 
+  /**
+   * Scans (or fills) every frame of the tab, not just the top document.
+   *
+   * Some ATS integrations render the actual application form inside an <iframe> —
+   * routing through the background worker lets it enumerate every frame via
+   * `chrome.webNavigation` and merge each frame's fields into one list, so those
+   * previously invisible forms are now included.
+   */
   async function scan(fill: boolean) {
     const id = await activeTabId();
     if (!id) return;
     beginPanelWork();
     setStatus(fill ? "Filling fields…" : "Scanning page…");
     try {
-      const result = await chrome.tabs.sendMessage(id, { type: fill ? "FILL_ALL" : "SCAN_PAGE" } satisfies ExtensionMessage);
+      const result = await chrome.runtime.sendMessage({ type: "SCAN_PAGE_ALL_FRAMES", tabId: id, fill } satisfies ExtensionMessage);
       if (!result?.authenticated) { setStatus("Sign in from the extension popup to scan this page."); return; }
       const scanned: ScannedField[] = result.fields ?? [];
       setFields(scanned);
@@ -272,7 +283,7 @@ function SidePanel() {
     try {
       const file = await chrome.runtime.sendMessage({ type: "GET_RESUME_FILE" } satisfies ExtensionMessage);
       if (!file || file.error) { setStatus(file?.error ?? "Could not load your resume."); return; }
-      const result = await chrome.tabs.sendMessage(id, { type: "ATTACH_RESUME", fileName: file.fileName, mimeType: file.mimeType, dataUrl: file.dataUrl } satisfies ExtensionMessage).catch(() => null);
+      const result = await chrome.tabs.sendMessage(id, { type: "ATTACH_RESUME", fileName: file.fileName, mimeType: file.mimeType, dataUrl: file.dataUrl } satisfies ExtensionMessage, { frameId: 0 }).catch(() => null);
       setStatus(result?.ok ? `Attached ${file.fileName} to the upload field.` : result?.error ?? "Could not attach the resume.");
     } finally {
       endPanelWork();
@@ -285,7 +296,7 @@ function SidePanel() {
     beginPanelWork();
     setStatus("Saving this job…");
     try {
-      const summary = await chrome.tabs.sendMessage(id, { type: "GET_PAGE_SUMMARY" } satisfies ExtensionMessage).catch(() => null);
+      const summary = await chrome.tabs.sendMessage(id, { type: "GET_PAGE_SUMMARY" } satisfies ExtensionMessage, { frameId: 0 }).catch(() => null);
       if (!summary || summary.error) { setStatus("Could not read this page. Reload and try again."); return; }
       if (summary.isJobPage !== true) { setStatus("This page does not look like a job posting. Open a job page before saving."); return; }
       const result = await chrome.runtime.sendMessage({ type: "SAVE_JOB", job: summary } satisfies ExtensionMessage);
@@ -312,7 +323,10 @@ function SidePanel() {
     if (!answer) return;
     const result = await chrome.runtime.sendMessage({ type: "GET_ACTIVE_FIELD" } satisfies ExtensionMessage);
     const id = result?.activeTabId;
-    if (id) { await chrome.tabs.sendMessage(id, { type: "INSERT_IN_ACTIVE_FIELD", value: answer.answer } satisfies ExtensionMessage); setStatus("Inserted into the focused field"); }
+    // The focused field may live inside an iframe; targeting the frame it was actually
+    // found in (rather than assuming the top frame) is what makes Insert work there too.
+    const frameId = typeof result?.activeFrameId === "number" ? result.activeFrameId : 0;
+    if (id) { await chrome.tabs.sendMessage(id, { type: "INSERT_IN_ACTIVE_FIELD", value: answer.answer } satisfies ExtensionMessage, { frameId }); setStatus("Inserted into the focused field"); }
     else setStatus("Focus a field first");
   }
 
