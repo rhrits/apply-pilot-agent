@@ -191,7 +191,7 @@ export type ExtensionMessage =
   | { type: "AUTH_STATUS" }
   | { type: "AUTH_REQUEST_OTP"; email: string }
   | { type: "AUTH_VERIFY_OTP"; email: string; token: string }
-  | { type: "AUTH_SIGN_OUT" }
+  | { type: "AUTH_SIGN_OUT"; clearLocalData?: boolean }
   | { type: "GET_AUTH_TOKEN" }
   | { type: "GET_PROFILE" }
   | { type: "REFRESH_PROFILE" }

@@ -16,6 +16,7 @@ import {
 import { getSupabaseBrowserClient } from "../../lib/supabase";
 import { commitProfile } from "../../lib/onboarding-store";
 import { AuthGate } from "../../components/auth-gate";
+import { AccountSecurity } from "../../components/account-security";
 import { Markdown } from "../../components/markdown";
 import "./profile.css";
 
@@ -379,6 +380,8 @@ function ProfileWorkspace() {
         <Link className="save-button wide" href="/onboarding">Rebuild from the wizard</Link>
       </section>
     </div>}
+
+    <AccountSecurity />
 
     <div className={`save-bar ${dirty ? "visible" : ""}`}>
       <span>{saveState === "error" ? notice || "Save failed." : "You have unsaved changes."}</span>

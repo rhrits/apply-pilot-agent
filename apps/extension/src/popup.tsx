@@ -71,7 +71,7 @@ function Popup() {
     await loadAuth(); setStep("email"); setCode("");
   }
   async function signOut() {
-    await chrome.runtime.sendMessage({ type: "AUTH_SIGN_OUT" } satisfies ExtensionMessage);
+    await chrome.runtime.sendMessage({ type: "AUTH_SIGN_OUT", clearLocalData: true } satisfies ExtensionMessage);
     setAuth({ configured: isExtensionConfigured(), authenticated: false, accessState: isExtensionConfigured() ? "unauthenticated" : "unconfigured", userId: null, email: null, profile: null }); setMessage("Signed out");
   }
   async function refreshProfile() {

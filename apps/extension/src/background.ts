@@ -62,7 +62,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
   }
 
   if (message.type === "AUTH_SIGN_OUT") {
-    clearExtensionSession().then(async () => {
+    clearExtensionSession(message.clearLocalData === true).then(async () => {
       const status = await authStatus();
       for (const port of panelPorts) port.postMessage({ type: "AUTH_STATUS", status });
       sendResponse({ ok: true });

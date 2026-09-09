@@ -141,10 +141,14 @@ export async function getExtensionAuthStatus(): Promise<ExtensionAuthStatus> {
   return { configured: true, authenticated: true, accessState: "ready", userId: user.id, email: user.email ?? null, profile: currentProfile, ...urls };
 }
 
-export async function clearExtensionSession() {
+export async function clearExtensionSession(clearLocalData = false) {
   const supabase = getExtensionSupabase();
   await supabase?.auth.signOut();
-  await clearUserScopedStorage();
+  if (clearLocalData) {
+    await Promise.all([chrome.storage.local.clear(), chrome.storage.session.clear()]);
+  } else {
+    await clearUserScopedStorage();
+  }
 }
 
 /** Downloads the user's most recent resume and returns it as a data URL for file-input attachment. */

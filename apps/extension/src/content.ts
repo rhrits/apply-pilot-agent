@@ -131,6 +131,11 @@ document.addEventListener("mouseup", () => {
     lastSelectedText = selection.slice(0, 1600);
   }, 0);
 });
+window.addEventListener("message", (event) => {
+  if (event.source !== window || event.origin !== window.location.origin) return;
+  if (event.data?.source !== "applypilot-web" || event.data?.type !== "APPLY_PILOT_LOGOUT") return;
+  chrome.runtime.sendMessage({ type: "AUTH_SIGN_OUT", clearLocalData: event.data.clearLocalData === true } satisfies ExtensionMessage).catch(() => undefined);
+});
 document.addEventListener("click", (event) => {
   if (overlay && !overlay.contains(event.target as Node) && event.target !== activeElement) removeOverlay();
 });
