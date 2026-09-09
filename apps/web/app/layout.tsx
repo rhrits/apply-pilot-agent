@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 import "./features.css";
+import "./theme-overrides.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://ap.coderscookies.com"),

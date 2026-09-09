@@ -7,6 +7,7 @@ import { CopyButton, DictationControl, ExternalIcon, InsertIcon, SaveIcon, SyncI
 import "./sidepanel.css";
 import "./sidepanel-auth.css";
 import "./sidepanel-tabs.css";
+import "./brand-overrides.css";
 
 const API_URL = extensionConfig.aiApiUrl;
 type Tab = "assistant" | "profile" | "fields" | "tracker";

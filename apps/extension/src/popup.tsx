@@ -5,6 +5,7 @@ import { extensionConfig, isExtensionConfigured } from "./lib/config";
 import "./ui.css";
 import "./popup-auth.css";
 import "./popup-settings.css";
+import "./brand-overrides.css";
 
 type AuthState = ExtensionAuthStatus;
 

@@ -1,0 +1,107 @@
+:root {
+  --uplyfox-purple: #5546d9;
+  --uplyfox-purple-hover: #4536cb;
+  --uplyfox-wine: #8b1e3f;
+  --uplyfox-wine-soft: #fdf2f5;
+  --uplyfox-wine-border: #f5d7e1;
+  --uplyfox-gradient: linear-gradient(135deg, #991b1b 0%, #7f1d35 48%, #312e81 100%);
+  --uplyfox-purple-soft: #f4f2ff;
+  --uplyfox-purple-border: #ded9fa;
+}
+
+button,
+a,
+input,
+select,
+textarea { -webkit-tap-highlight-color: transparent; }
+
+button,
+a[class*="button"],
+a[class*="-button"],
+.save-button,
+.hero-button,
+.wide-link,
+.primary-button,
+.login-button,
+.access-button.primary,
+.send-email-button,
+.copy-code-button,
+.approve,
+.refresh-button {
+  border-radius: 11px;
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease;
+}
+
+.primary-button,
+.save-button,
+.login-button,
+.hero-button,
+.wide-link,
+.access-button.primary,
+.send-email-button,
+.approve {
+  background: var(--uplyfox-gradient) !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+  color: #fff !important;
+  box-shadow: 0 5px 16px rgba(127,29,53,.2);
+}
+
+.primary-button:hover,
+.save-button:hover,
+.login-button:hover,
+.hero-button:hover,
+.wide-link:hover,
+.access-button.primary:hover,
+.send-email-button:hover,
+.approve:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(127,29,53,.28);
+}
+
+.ghost-button,
+.access-button.secondary,
+.refresh-button,
+.copy-email-button,
+.copy-code-button,
+.reject,
+.close-button {
+  border: 1px solid var(--uplyfox-purple-border) !important;
+  border-radius: 10px;
+  background: #fff !important;
+  color: var(--uplyfox-purple) !important;
+}
+
+.ghost-button:hover,
+.access-button.secondary:hover,
+.refresh-button:hover,
+.copy-code-button:hover,
+.reject:hover {
+  border-color: var(--uplyfox-wine-border) !important;
+  background: var(--uplyfox-wine-soft) !important;
+  color: var(--uplyfox-wine) !important;
+  transform: translateY(-1px);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--uplyfox-purple) !important;
+  box-shadow: 0 0 0 4px rgba(85,70,217,.12) !important;
+}
+
+.status-pill.approved,
+.access-badge.success,
+.access-badge.approved,
+.source-chip.resume,
+.activity-icon.done,
+.pill:not(.pending) {
+  background: var(--uplyfox-wine-soft) !important;
+  border-color: var(--uplyfox-wine-border) !important;
+  color: var(--uplyfox-wine) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  a[class*="button"],
+  a[class*="-button"] { transition: none; }
+}
