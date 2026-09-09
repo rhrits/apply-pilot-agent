@@ -8,7 +8,7 @@ const panelPorts = new Set<chrome.runtime.Port>();
 
 chrome.runtime.onInstalled.addListener(async () => {
   const current = await chrome.storage.local.get("settings");
-  await chrome.storage.local.set({ extensionInstalledAt: new Date().toISOString(), settings: { autoSuggest: current.settings?.autoSuggest !== false, liveAI: current.settings?.liveAI === true } });
+  await chrome.storage.local.set({ extensionInstalledAt: new Date().toISOString(), settings: { autoSuggest: current.settings?.autoSuggest !== false, liveAI: current.settings?.liveAI !== false } });
 });
 
 async function authStatus() {
@@ -27,6 +27,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
   if (message.type === "ACTIVE_FIELD") {
     readyStatus().then(async () => {
       await chrome.storage.session.set({ activeField: message.payload, activeTabId: tabId });
+      for (const port of panelPorts) port.postMessage({ type: "ACTIVE_FIELD", payload: message.payload });
       sendResponse({ ok: true });
     }).catch((error) => sendResponse({ ok: false, error: String(error) }));
     return true;
@@ -89,13 +90,13 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
   }
 
   if (message.type === "GET_SETTINGS") {
-    chrome.storage.local.get("settings").then((result) => sendResponse({ autoSuggest: result.settings?.autoSuggest !== false, liveAI: result.settings?.liveAI === true } satisfies ExtensionSettings));
+    chrome.storage.local.get("settings").then((result) => sendResponse({ autoSuggest: result.settings?.autoSuggest !== false, liveAI: result.settings?.liveAI !== false } satisfies ExtensionSettings));
     return true;
   }
 
   if (message.type === "UPDATE_SETTINGS") {
     readyStatus().then(() => chrome.storage.local.get("settings")).then(async (result) => {
-      const settings = { autoSuggest: result.settings?.autoSuggest !== false, liveAI: result.settings?.liveAI === true, ...message.settings } satisfies ExtensionSettings;
+      const settings = { autoSuggest: result.settings?.autoSuggest !== false, liveAI: result.settings?.liveAI !== false, ...message.settings } satisfies ExtensionSettings;
       await chrome.storage.local.set({ settings });
       sendResponse(settings);
     }).catch((error) => sendResponse({ error: String(error) }));
@@ -120,7 +121,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         const { data } = (await supabase?.auth.getSession()) ?? { data: { session: null } };
         const accessToken = data.session?.access_token;
         if (!accessToken) { sendResponse({ answer: "", error: "Not signed in" }); return; }
-        const response = await fetch(extensionConfig.aiApiUrl, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ question: message.question, page: message.page }) });
+        const response = await fetch(extensionConfig.aiApiUrl, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ question: message.question, page: message.page, field: message.field, selectedText: message.selectedText }) });
         const payload = await response.json();
         sendResponse(response.ok ? { answer: payload.answer ?? "", source: payload.source, notice: payload.notice } : { answer: "", error: payload.error ?? "Request failed" });
       } catch (error) { sendResponse({ answer: "", error: String(error) }); }

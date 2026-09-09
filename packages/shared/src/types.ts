@@ -12,15 +12,20 @@ export type FieldKind =
 
 export type FieldElementType = "input" | "textarea" | "select" | "contenteditable";
 
+export type QuestionSource = "selected_text" | "nearby_text" | "label" | "aria_label" | "placeholder" | "name" | "id" | "unknown";
+
 export interface DetectedField {
   id: string;
   elementType: FieldElementType;
   inputType?: string;
   label: string;
   question: string;
+  questionSource?: QuestionSource;
+  nearbyText?: string;
   name?: string;
   placeholder?: string;
   ariaLabel?: string;
+  currentValue?: string;
   options: string[];
   required: boolean;
   kind: FieldKind;
@@ -145,6 +150,13 @@ export interface ActiveFieldPayload {
   page: { url: string; title: string; hostname: string };
 }
 
+export interface SuggestionRequest {
+  question: string;
+  page?: { url: string; title: string; hostname: string };
+  field?: DetectedField;
+  selectedText?: string;
+}
+
 export interface ExtensionSettings {
   autoSuggest: boolean;
   liveAI: boolean;
@@ -169,6 +181,7 @@ export type ExtensionMessage =
   | { type: "GET_AUTH_TOKEN" }
   | { type: "GET_PROFILE" }
   | { type: "REFRESH_PROFILE" }
+  | { type: "GET_SELECTION_TEXT" }
   | { type: "GET_SETTINGS" }
   | { type: "UPDATE_SETTINGS"; settings: Partial<ExtensionSettings> }
   | { type: "FIND_ANSWER_MEMORY"; question: string }
@@ -182,7 +195,7 @@ export type ExtensionMessage =
   | { type: "SAVE_JOB"; job: PageSummary }
   | { type: "GET_TRACKER" }
   | { type: "TRANSCRIBE_AUDIO"; dataUrl: string; mimeType: string }
-  | { type: "SUGGEST_ANSWER"; question: string; page: ActiveFieldPayload["page"] }
+  | { type: "SUGGEST_ANSWER"; question: string; page: ActiveFieldPayload["page"]; field?: DetectedField; selectedText?: string }
   | { type: "OPEN_SIDE_PANEL"; tabId?: number }
   | { type: "INSERT_IN_ACTIVE_FIELD"; value: string }
   | { type: "COPY_TEXT"; value: string };

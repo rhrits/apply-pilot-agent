@@ -39,7 +39,7 @@ function Popup() {
     setMessage(result.accessState === "ready" ? `Profile data synced for ${result.email}` : result.configured ? "Sign in to sync your profile" : "Extension configuration is missing");
   }
   useEffect(() => { void loadAuth(); }, []);
-  useEffect(() => { chrome.runtime.sendMessage({ type: "GET_SETTINGS" } satisfies ExtensionMessage).then((settings) => { setAutoSuggest(settings?.autoSuggest !== false); setLiveAI(settings?.liveAI === true); }).catch(() => undefined); }, []);
+  useEffect(() => { chrome.runtime.sendMessage({ type: "GET_SETTINGS" } satisfies ExtensionMessage).then((settings) => { setAutoSuggest(settings?.autoSuggest !== false); setLiveAI(settings?.liveAI !== false); }).catch(() => undefined); }, []);
   useEffect(() => { chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => setActiveTabId(tab?.id ?? null)).catch(() => undefined); }, []);
 
   async function toggleAutoSuggest() {

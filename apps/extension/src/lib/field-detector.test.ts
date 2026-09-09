@@ -17,4 +17,20 @@ describe("field detector", () => {
     expect(field?.kind).toBe("experience");
     expect(field?.confidence).toBeGreaterThan(0.7);
   });
+
+  it("keeps a meaningful placeholder when the visible label is generic", () => {
+    document.body.innerHTML = '<label for="answer">Answer</label><textarea id="answer" placeholder="Why do you want to join this company?"></textarea>';
+    const field = extractField(document.querySelector("textarea")!);
+    expect(field?.question).toBe("Why do you want to join this company?");
+    expect(field?.questionSource).toBe("placeholder");
+    expect(field?.placeholder).toBe("Why do you want to join this company?");
+  });
+
+  it("preserves field metadata for answer generation", () => {
+    document.body.innerHTML = '<label for="work-mode">Work mode</label><select id="work-mode" required><option>Remote</option><option>Hybrid</option></select>';
+    const field = extractField(document.querySelector("select")!);
+    expect(field?.options).toEqual(["Remote", "Hybrid"]);
+    expect(field?.required).toBe(true);
+    expect(field?.inputType).toBe("select");
+  });
 });

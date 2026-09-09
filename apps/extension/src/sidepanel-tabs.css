@@ -24,6 +24,9 @@
 
 /* Dictation */
 .label-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.assistant-tools{display:flex;align-items:center;gap:5px}
+.selection-button{padding:6px 8px;border:1px solid #d9d7f0;border-radius:20px;background:#fff;color:#4338ca;font:700 9px system-ui;cursor:pointer}
+.selection-button:hover{background:#f5f3ff}
 .dictation{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
 .mic-button{position:relative;display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border:1px solid #d9d7f0;border-radius:20px;background:#fff;color:#4338ca;font:700 10px system-ui;cursor:pointer}
 .mic-button:hover{background:#f5f3ff}

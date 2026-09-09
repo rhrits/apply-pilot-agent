@@ -96,6 +96,7 @@ function SidePanel() {
   const [tab, setTab] = useState<Tab>("assistant");
   const [active, setActive] = useState<ActiveFieldPayload | null>(null);
   const [question, setQuestion] = useState("");
+  const [selectedText, setSelectedText] = useState("");
   const [answer, setAnswer] = useState<AnswerResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
@@ -122,8 +123,9 @@ function SidePanel() {
 
     // Opening this port asks the worker for a fresh profile, so the panel is never stale.
     const port = chrome.runtime.connect({ name: "applypilot-panel" });
-    port.onMessage.addListener((message: { type: string; profile?: UserProfile; status?: { accessState?: ExtensionAccessState } }) => {
+    port.onMessage.addListener((message: { type: string; profile?: UserProfile; status?: { accessState?: ExtensionAccessState }; payload?: ActiveFieldPayload }) => {
       if (message.type === "PROFILE_SYNCED" && message.profile) setProfile(message.profile);
+      if (message.type === "ACTIVE_FIELD" && message.payload) { setActive(message.payload); setQuestion(message.payload.field.question); setSelectedText(""); setAnswer(null); }
       if (message.type === "AUTH_STATUS") {
         setAccessState(message.status?.accessState ?? "unauthenticated");
         setAuthenticated(message.status?.accessState === "ready");
@@ -157,13 +159,24 @@ function SidePanel() {
       }
       const tokenResult = await chrome.runtime.sendMessage({ type: "GET_AUTH_TOKEN" } satisfies ExtensionMessage);
       if (!tokenResult?.accessToken) throw new Error("Sign in from the extension popup first");
-      const response = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenResult.accessToken}` }, body: JSON.stringify({ question: prompt, page: active?.page }) });
+      const response = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenResult.accessToken}` }, body: JSON.stringify({ question: prompt, page: active?.page, field: active?.field, selectedText: selectedText || undefined }) });
       const result = await response.json() as AnswerResponse & { error?: string };
       if (!response.ok) throw new Error(result.error || "Request failed");
       setAnswer(result.answer ? result : null);
       if (result.notice) setStatus(result.notice);
     } catch (error) { setAnswer(null); setStatus(error instanceof Error ? error.message : "Could not generate an answer."); }
     finally { setLoading(false); }
+  }
+
+  async function useSelectedText() {
+    const id = await activeTabId();
+    if (!id) return;
+    const result = await chrome.tabs.sendMessage(id, { type: "GET_SELECTION_TEXT" } satisfies ExtensionMessage).catch(() => null);
+    if (!result?.text) { setStatus("Select the question or job text on the page first."); return; }
+    setSelectedText(result.text);
+    setQuestion(result.text);
+    setAnswer(null);
+    setStatus("Selected text added. Review it, then generate an answer.");
   }
 
   async function saveMemory() {
@@ -266,7 +279,7 @@ function SidePanel() {
     {tab === "assistant" && <>
       <div className="label-row">
         <label className="label" htmlFor="question">Question or field prompt</label>
-        <DictationControl onText={(text) => setQuestion((current) => `${current} ${text}`.trim())} />
+        <div className="assistant-tools"><button className="selection-button" onClick={() => void useSelectedText()} type="button">Use selected text</button><DictationControl onText={(text) => setQuestion((current) => `${current} ${text}`.trim())} /></div>
       </div>
       <textarea id="question" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Paste a question, focus a field on the page, or dictate…" rows={4} />
       <button className="generate" onClick={generate} disabled={loading}>{loading ? "Generating…" : "Generate answer"}</button>

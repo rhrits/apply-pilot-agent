@@ -8,6 +8,7 @@ let activeElement: Element | null = null;
 let overlay: HTMLDivElement | null = null;
 let timer: number | undefined;
 let requestToken = 0;
+let lastSelectedText = "";
 
 function removeOverlay() {
   overlay?.remove();
@@ -87,7 +88,7 @@ async function requestLiveSuggestion(element: Element, field: NonNullable<Return
   if (token !== requestToken || activeElement !== element) return;
   if (!tokenResult?.accessToken) { renderOverlay(element, { kind: "none", question }); return; }
 
-  const result = await chrome.runtime.sendMessage({ type: "SUGGEST_ANSWER", question, page } satisfies ExtensionMessage).catch(() => null);
+  const result = await chrome.runtime.sendMessage({ type: "SUGGEST_ANSWER", question, page, field } satisfies ExtensionMessage).catch(() => null);
   if (token !== requestToken || activeElement !== element) return;
   if (result?.answer) renderOverlay(element, { kind: "suggestion", text: result.answer, question, source: result.source ?? "ai" });
   else renderOverlay(element, { kind: "none", question });
@@ -100,7 +101,7 @@ async function analyze(element: Element) {
   const page = { url: location.href, title: document.title, hostname: location.hostname };
   chrome.runtime.sendMessage({ type: "ACTIVE_FIELD", payload: { field, page } } satisfies ExtensionMessage).catch(() => undefined);
 
-  const settings = await chrome.runtime.sendMessage({ type: "GET_SETTINGS" } satisfies ExtensionMessage).catch(() => ({ autoSuggest: true, liveAI: false }));
+  const settings = await chrome.runtime.sendMessage({ type: "GET_SETTINGS" } satisfies ExtensionMessage).catch(() => ({ autoSuggest: true, liveAI: true }));
   if (settings?.autoSuggest === false || activeElement !== element) return;
 
   const profile = await getProfile().catch(() => null);
@@ -121,6 +122,12 @@ document.addEventListener("focusin", (event) => {
   const target = event.target as Element;
   window.clearTimeout(timer);
   timer = window.setTimeout(() => analyze(target), 80);
+});
+document.addEventListener("mouseup", () => {
+  window.setTimeout(() => {
+    const selection = window.getSelection()?.toString().replace(/\s+/g, " ").trim() ?? "";
+    lastSelectedText = selection.slice(0, 1600);
+  }, 0);
 });
 document.addEventListener("click", (event) => {
   if (overlay && !overlay.contains(event.target as Node) && event.target !== activeElement) removeOverlay();
@@ -239,6 +246,11 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, _sender, sendRe
       try { sendResponse(getPageSummary()); } catch (error) { sendResponse({ error: String(error) }); }
     });
     return true;
+  }
+  if (message.type === "GET_SELECTION_TEXT") {
+    const selection = window.getSelection()?.toString().replace(/\s+/g, " ").trim() ?? lastSelectedText;
+    sendResponse({ text: (selection || lastSelectedText).slice(0, 1600), page: { url: location.href, title: document.title, hostname: location.hostname } });
+    return false;
   }
   if (message.type === "COPY_TEXT") {
     navigator.clipboard.writeText(message.value).then(() => sendResponse({ ok: true }));

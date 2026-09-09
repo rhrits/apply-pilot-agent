@@ -1,9 +1,22 @@
-import { answerQuestion, type DetectedField, type FieldKind, type UserProfile } from "@applypilot/shared";
+import { answerQuestion, type DetectedField, type FieldKind, type QuestionSource, type UserProfile } from "@applypilot/shared";
 
 const TEXT_TYPES = new Set(["text", "email", "tel", "url", "number", "search", ""]);
 
 function clean(value: string | null | undefined): string {
   return value?.replace(/\s+/g, " ").trim() ?? "";
+}
+
+function isGenericPrompt(value: string): boolean {
+  return /^(answer|response|enter answer|enter response|text|text field|field|value|input|type here|write here|select|choose)$/i.test(value.trim());
+}
+
+function isQuestionLike(value: string): boolean {
+  return /\?|:\s*$|^(tell|describe|explain|share|provide|list|why|how|what|where|when|which|please|enter|select|choose)\b/i.test(value.trim()) || value.trim().length >= 45;
+}
+
+function currentValue(element: Element): string {
+  if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) return clean(element.value);
+  return clean((element as HTMLElement).innerText || element.textContent);
 }
 
 function nearbyText(element: Element): string {
@@ -55,20 +68,36 @@ export function extractField(element: Element): DetectedField | null {
   const ariaLabel = clean(element.getAttribute("aria-label"));
   const name = clean(element.getAttribute("name"));
   const id = clean(element.id);
-  const context = clean([label, placeholder, ariaLabel, name, id, nearbyText(element)].filter(Boolean).join(" | "));
+  const nearby = nearbyText(element);
+  const context = clean([label, placeholder, ariaLabel, name, id, nearby].filter(Boolean).join(" | "));
   const inputType = element instanceof HTMLInputElement ? element.type : element instanceof HTMLSelectElement ? "select" : "textarea";
   const classification = classify(context, inputType);
   const options = element instanceof HTMLSelectElement ? Array.from(element.options).map((option) => clean(option.text)).filter(Boolean) : [];
+
+  const questionCandidate: Array<{ value: string; source: QuestionSource }> = [
+    ...(nearby && isQuestionLike(nearby) ? [{ value: nearby, source: "nearby_text" as const }] : []),
+    ...(label && !isGenericPrompt(label) ? [{ value: label, source: "label" as const }] : []),
+    ...(placeholder && !isGenericPrompt(placeholder) ? [{ value: placeholder, source: "placeholder" as const }] : []),
+    ...(ariaLabel && !isGenericPrompt(ariaLabel) ? [{ value: ariaLabel, source: "aria_label" as const }] : []),
+    ...(label ? [{ value: label, source: "label" as const }] : []),
+    ...(placeholder ? [{ value: placeholder, source: "placeholder" as const }] : []),
+    ...(name ? [{ value: name, source: "name" as const }] : []),
+    ...(id ? [{ value: id, source: "id" as const }] : []),
+  ];
+  const question = questionCandidate[0] ?? { value: "Focused field", source: "unknown" as const };
 
   return {
     id: id || `applypilot-${Math.random().toString(36).slice(2)}`,
     elementType: element instanceof HTMLSelectElement ? "select" : (element as HTMLElement).isContentEditable ? "contenteditable" : element instanceof HTMLTextAreaElement ? "textarea" : "input",
     inputType,
     label: label || placeholder || ariaLabel || name || id,
-    question: label || nearbyText(element) || placeholder || name || id,
+    question: question.value,
+    questionSource: question.source,
+    nearbyText: nearby || undefined,
     name: name || undefined,
     placeholder: placeholder || undefined,
     ariaLabel: ariaLabel || undefined,
+    currentValue: currentValue(element) || undefined,
     options,
     required: element.hasAttribute("required") || element.getAttribute("aria-required") === "true",
     ...classification,
