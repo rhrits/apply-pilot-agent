@@ -8,7 +8,7 @@ const panelPorts = new Set<chrome.runtime.Port>();
 
 chrome.runtime.onInstalled.addListener(async () => {
   const current = await chrome.storage.local.get("settings");
-  await chrome.storage.local.set({ extensionInstalledAt: new Date().toISOString(), settings: { autoSuggest: current.settings?.autoSuggest !== false, liveAI: current.settings?.liveAI !== false } });
+  await chrome.storage.local.set({ extensionInstalledAt: new Date().toISOString(), settings: { autoSuggest: current.settings?.autoSuggest !== false, liveAI: current.settings?.liveAI !== false, autoTrackJobs: current.settings?.autoTrackJobs !== false } });
 });
 
 async function authStatus() {
@@ -90,13 +90,13 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
   }
 
   if (message.type === "GET_SETTINGS") {
-    chrome.storage.local.get("settings").then((result) => sendResponse({ autoSuggest: result.settings?.autoSuggest !== false, liveAI: result.settings?.liveAI !== false } satisfies ExtensionSettings));
+    chrome.storage.local.get("settings").then((result) => sendResponse({ autoSuggest: result.settings?.autoSuggest !== false, liveAI: result.settings?.liveAI !== false, autoTrackJobs: result.settings?.autoTrackJobs !== false } satisfies ExtensionSettings));
     return true;
   }
 
   if (message.type === "UPDATE_SETTINGS") {
     readyStatus().then(() => chrome.storage.local.get("settings")).then(async (result) => {
-      const settings = { autoSuggest: result.settings?.autoSuggest !== false, liveAI: result.settings?.liveAI !== false, ...message.settings } satisfies ExtensionSettings;
+      const settings = { autoSuggest: result.settings?.autoSuggest !== false, liveAI: result.settings?.liveAI !== false, autoTrackJobs: result.settings?.autoTrackJobs !== false, ...message.settings } satisfies ExtensionSettings;
       await chrome.storage.local.set({ settings });
       sendResponse(settings);
     }).catch((error) => sendResponse({ error: String(error) }));
@@ -136,6 +136,20 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
 
   if (message.type === "SAVE_JOB") {
     readyStatus().then(() => saveJobToSupabase(message.job)).then(sendResponse).catch((error) => sendResponse({ ok: false, error: String(error) }));
+    return true;
+  }
+
+  if (message.type === "JOB_PAGE_DETECTED") {
+    (async () => {
+      try {
+        await readyStatus();
+        const settings = await chrome.storage.local.get("settings");
+        if (settings.settings?.autoTrackJobs === false) { sendResponse({ ok: false, ignored: true }); return; }
+        const result = await saveJobToSupabase(message.job);
+        for (const port of panelPorts) port.postMessage({ type: "JOB_SAVED", job: message.job, result });
+        sendResponse(result);
+      } catch (error) { sendResponse({ ok: false, error: String(error) }); }
+    })();
     return true;
   }
 

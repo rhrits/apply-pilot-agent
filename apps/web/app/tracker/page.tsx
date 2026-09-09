@@ -61,7 +61,7 @@ function TrackerWorkspace() {
       if (!data.user) return;
       const { data: rows } = await supabase
         .from("applications")
-        .select("id, status, created_at, updated_at, jobs(id, company, title, url, location, work_mode, employment_type, salary, source, priority, next_step, next_step_date, notes, contact_name, tags, tasks)")
+        .select("id, status, created_at, updated_at, jobs(id, company, title, url, location, work_mode, employment_type, salary, source, priority, next_step, next_step_date, notes, contact_name, tags, tasks, job_description, match_score, match_details)")
         .eq("user_id", data.user.id)
         .order("created_at", { ascending: false });
       if (!rows) return;
@@ -88,6 +88,9 @@ function TrackerWorkspace() {
             source: String(job.source ?? "Cloud sync"),
             tags: Array.isArray(job.tags) ? job.tags.map(String) : [],
             tasks: Array.isArray(job.tasks) ? job.tasks as TrackerTask[] : [],
+            jobDescription: String(job.job_description ?? ""),
+            matchScore: typeof job.match_score === "number" ? job.match_score : job.match_score == null ? undefined : Number(job.match_score),
+            matchAnalysis: job.match_details && typeof job.match_details === "object" ? job.match_details as JobApplication["matchAnalysis"] : undefined,
             createdAt: row.created_at,
             updatedAt: row.updated_at ?? row.created_at,
           };
@@ -130,7 +133,7 @@ function TrackerWorkspace() {
     if (!supabase) return null;
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) return null;
-    const { data: savedJob } = await supabase.from("jobs").insert({ user_id: userData.user.id, company: job.company, title: job.title, url: job.url, location: job.location, work_mode: job.workMode, employment_type: job.employmentType, salary: job.salary, source: job.source, priority: job.priority, next_step: job.nextStep, next_step_date: job.nextStepDate || null, notes: job.notes, contact_name: job.contactName, tags: job.tags ?? [], tasks: job.tasks ?? [] }).select("id").single();
+    const { data: savedJob } = await supabase.from("jobs").insert({ user_id: userData.user.id, company: job.company, title: job.title, url: job.url, location: job.location, work_mode: job.workMode, employment_type: job.employmentType, salary: job.salary, source: job.source, priority: job.priority, next_step: job.nextStep, next_step_date: job.nextStepDate || null, notes: job.notes, contact_name: job.contactName, tags: job.tags ?? [], tasks: job.tasks ?? [], job_description: job.jobDescription ?? "", match_score: job.matchScore ?? null, match_details: job.matchAnalysis ?? {} }).select("id").single();
     if (!savedJob) return null;
     await supabase.from("applications").insert({ user_id: userData.user.id, job_id: savedJob.id, status: job.status });
     return savedJob.id;
@@ -289,6 +292,7 @@ function TrackerWorkspace() {
             <h3>{job.title}</h3>
             <strong className="company-name">{job.company}</strong>
             <span className="job-location">{job.location || "Location not added"} · {job.workMode}</span>
+            {job.matchScore !== undefined && <span className={`match-score ${job.matchScore >= 75 ? "strong" : job.matchScore >= 50 ? "medium" : "weak"}`}>{job.matchScore}% match</span>}
             {tasks.length > 0 && <div className="task-meter"><span style={{ width: `${(doneCount / tasks.length) * 100}%` }} /><em>{doneCount}/{tasks.length} done</em></div>}
             <div className="job-card-footer">
               <span>{job.nextStep || "No next step"}</span>
@@ -306,6 +310,9 @@ function TrackerWorkspace() {
         <span className="eyebrow">{selected.company}</span>
         <h2>{selected.title}</h2>
         <p className="drawer-meta">{[selected.location, selected.employmentType, selected.workMode].filter(Boolean).join(" · ")}</p>
+
+        {selected.matchScore !== undefined && <section className={`match-panel ${selected.matchScore >= 75 ? "strong" : selected.matchScore >= 50 ? "medium" : "weak"}`}><strong>{selected.matchScore}% match</strong><span>{selected.matchAnalysis?.summary ?? "Match calculated from the saved job description."}</span>{(selected.matchAnalysis?.matchedSkills?.length ?? 0) > 0 && <small>Matched: {selected.matchAnalysis?.matchedSkills.join(", ")}</small>}{(selected.matchAnalysis?.missingSkills?.length ?? 0) > 0 && <small>Missing from profile: {selected.matchAnalysis?.missingSkills.join(", ")}</small>}</section>}
+        {selected.jobDescription && <details className="job-description"><summary>Job description</summary><p>{selected.jobDescription}</p></details>}
 
         <div className="drawer-actions">
           {selected.url && <a href={selected.url} target="_blank" rel="noreferrer">Open job ↗</a>}

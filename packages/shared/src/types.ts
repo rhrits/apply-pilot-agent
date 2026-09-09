@@ -132,10 +132,23 @@ export interface JobApplication {
   contactName?: string;
   source?: string;
   tags?: string[];
+  jobDescription?: string;
+  matchScore?: number;
+  matchAnalysis?: JobMatchAnalysis;
   /** Per-application checklist so follow-ups are never tracked in a separate tool. */
   tasks?: TrackerTask[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface JobMatchAnalysis {
+  score: number;
+  matchedSkills: string[];
+  missingSkills: string[];
+  matchedKeywords: string[];
+  descriptionLength: number;
+  analyzedAt: string;
+  summary: string;
 }
 
 export interface TrackerTask {
@@ -160,6 +173,7 @@ export interface SuggestionRequest {
 export interface ExtensionSettings {
   autoSuggest: boolean;
   liveAI: boolean;
+  autoTrackJobs: boolean;
 }
 
 export interface AnswerMemoryItem {
@@ -192,6 +206,7 @@ export type ExtensionMessage =
   | { type: "GET_RESUME_FILE" }
   | { type: "ATTACH_RESUME"; fileName: string; mimeType: string; dataUrl: string }
   | { type: "GET_PAGE_SUMMARY" }
+  | { type: "JOB_PAGE_DETECTED"; job: PageSummary }
   | { type: "SAVE_JOB"; job: PageSummary }
   | { type: "GET_TRACKER" }
   | { type: "TRANSCRIBE_AUDIO"; dataUrl: string; mimeType: string }
@@ -205,7 +220,16 @@ export interface PageSummary {
   url: string;
   hostname: string;
   company: string;
+  location?: string;
+  workMode?: JobApplication["workMode"];
+  employmentType?: JobApplication["employmentType"];
+  salary?: string;
   description: string;
+  skills?: string[];
+  isJobPage?: boolean;
+  detectionConfidence?: number;
+  detectionSource?: string;
+  matchAnalysis?: JobMatchAnalysis;
 }
 
 export interface ScannedField {

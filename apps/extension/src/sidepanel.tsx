@@ -85,6 +85,7 @@ function TrackerTab({ tracker, onRefresh }: { tracker: TrackerSnapshot | null; o
         <strong>{job.title}</strong>
         <small>{job.company}</small>
       </div>
+      {job.matchScore !== undefined && <span className="job-match-score">{job.matchScore}%</span>}
       <span className={`job-status ${job.status}`}>{STATUS_LABELS[job.status] ?? job.status}</span>
       {job.url && <a className="icon-button" href={job.url} target="_blank" rel="noopener noreferrer" title="Open posting" aria-label="Open posting"><ExternalIcon /></a>}
     </div>)}
@@ -216,6 +217,7 @@ function SidePanel() {
     setStatus("Saving this job…");
     const summary = await chrome.tabs.sendMessage(id, { type: "GET_PAGE_SUMMARY" } satisfies ExtensionMessage).catch(() => null);
     if (!summary || summary.error) { setStatus("Could not read this page. Reload and try again."); return; }
+    if (summary.isJobPage !== true) { setStatus("This page does not look like a job posting. Open a job page before saving."); return; }
     const result = await chrome.runtime.sendMessage({ type: "SAVE_JOB", job: summary } satisfies ExtensionMessage);
     setStatus(result?.duplicate ? "Already saved — view it in your job tracker." : result?.ok ? "Saved to your job tracker." : result?.error ?? "Could not save this job.");
     if (result?.ok) void loadTracker();

@@ -16,7 +16,7 @@ function Popup() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("Checking your ApplyPilot session…");
   const [autoSuggest, setAutoSuggest] = useState(true);
-  const [liveAI, setLiveAI] = useState(false);
+  const [liveAI, setLiveAI] = useState(true);
   const [activeTabId, setActiveTabId] = useState<number | null>(null);
 
   async function loadAuth() {
@@ -53,6 +53,7 @@ function Popup() {
     setLiveAI(next);
     await chrome.runtime.sendMessage({ type: "UPDATE_SETTINGS", settings: { liveAI: next } } satisfies ExtensionMessage);
   }
+
 
   async function requestCode() {
     if (!email.trim()) { setMessage("Enter your email first"); return; }

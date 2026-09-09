@@ -1,4 +1,4 @@
-import type { ExtensionMessage, PageSummary } from "@applypilot/shared";
+import { analyzeJobMatch, type ExtensionMessage, type PageSummary } from "@applypilot/shared";
 import { answerForField, extractField } from "./lib/field-detector";
 import { insertValue } from "./lib/insertion";
 import { getProfile } from "./lib/profile";
@@ -9,6 +9,8 @@ let overlay: HTMLDivElement | null = null;
 let timer: number | undefined;
 let requestToken = 0;
 let lastSelectedText = "";
+let lastDetectedJobKey = "";
+let jobDetectionTimer: number | undefined;
 
 function removeOverlay() {
   overlay?.remove();
@@ -134,13 +136,32 @@ document.addEventListener("click", (event) => {
 });
 window.addEventListener("scroll", removeOverlay, { passive: true });
 
+function scheduleJobDetection() {
+  window.clearTimeout(jobDetectionTimer);
+  jobDetectionTimer = window.setTimeout(() => void detectAndNotifyJobPage(), 1200);
+}
+
 const observer = new MutationObserver(() => {
   if (activeElement && !document.contains(activeElement)) {
     activeElement = null;
     removeOverlay();
   }
+  scheduleJobDetection();
 });
 observer.observe(document.documentElement, { childList: true, subtree: true });
+window.addEventListener("popstate", scheduleJobDetection);
+window.addEventListener("load", scheduleJobDetection);
+const originalPushState = history.pushState;
+history.pushState = function (...args) {
+  originalPushState.apply(this, args);
+  scheduleJobDetection();
+};
+const originalReplaceState = history.replaceState;
+history.replaceState = function (...args) {
+  originalReplaceState.apply(this, args);
+  scheduleJobDetection();
+};
+scheduleJobDetection();
 
 const FORM_SELECTOR = "input, textarea, select, [contenteditable='true']";
 
@@ -196,26 +217,115 @@ function attachResume(fileName: string, mimeType: string, dataUrl: string) {
   return { ok: true };
 }
 
-/** Best-effort extraction of company/job description for the "Save job" action. */
-function guessCompany(): string {
+type JobPostingData = { title?: string; company?: string; description?: string; location?: string; employmentType?: string; salary?: string; skills?: string[] };
+
+function cleanPageValue(value: unknown, maxLength = 4000): string {
+  return typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, maxLength) : "";
+}
+
+function readJobPostingData(): JobPostingData {
+  const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
+  for (const script of scripts) {
+    try {
+      const parsed = JSON.parse(script.textContent ?? "") as Record<string, unknown> | Array<Record<string, unknown>>;
+      const candidates = Array.isArray(parsed) ? parsed : [parsed, ...(Array.isArray(parsed["@graph"]) ? parsed["@graph"] as Array<Record<string, unknown>> : [])];
+      const job = candidates.find((item) => String(item?.["@type"] ?? "").toLowerCase().includes("jobposting"));
+      if (!job) continue;
+      const organization = job.hiringOrganization as Record<string, unknown> | undefined;
+      const address = (job.jobLocation as Record<string, unknown> | Array<Record<string, unknown>> | undefined);
+      const locationValue = Array.isArray(address) ? address[0] : address;
+      const postal = locationValue?.address as Record<string, unknown> | undefined;
+      const salaryValue = job.baseSalary as Record<string, unknown> | undefined;
+      const salaryRange = salaryValue?.value as Record<string, unknown> | undefined;
+      return {
+        title: cleanPageValue(job.title, 200),
+        company: cleanPageValue(organization?.name, 160),
+        description: cleanPageValue(job.description, 12000),
+        location: cleanPageValue([postal?.addressLocality, postal?.addressRegion, postal?.addressCountry].filter(Boolean).join(", "), 200),
+        employmentType: cleanPageValue(job.employmentType, 80),
+        salary: cleanPageValue([salaryRange?.minValue, salaryRange?.maxValue].filter(Boolean).join("–") || salaryValue?.value, 120),
+        skills: cleanPageValue(job.skills, 500).split(/[,;|]/).map((item) => item.trim()).filter(Boolean).slice(0, 30),
+      };
+    } catch { /* Ignore malformed JSON-LD and continue with DOM extraction. */ }
+  }
+  return {};
+}
+
+function firstText(selectors: string[], maxLength = 400): string {
+  for (const selector of selectors) {
+    const element = document.querySelector(selector) as HTMLElement | HTMLMetaElement | null;
+    const value = element instanceof HTMLMetaElement ? element.content : element?.innerText || element?.textContent;
+    const text = cleanPageValue(value, maxLength);
+    if (text) return text;
+  }
+  return "";
+}
+
+/** Best-effort extraction of company/job description for the job detector and tracker. */
+function guessCompany(data: JobPostingData): string {
+  if (data.company) return data.company;
   const og = document.querySelector('meta[property="og:site_name"]') as HTMLMetaElement | null;
   if (og?.content?.trim()) return og.content.trim();
-  const candidate = document.querySelector('[itemprop="hiringOrganization"], [class*="company-name" i], [data-company]');
-  const text = (candidate as HTMLElement | null)?.innerText?.trim();
-  if (text && text.length < 80) return text;
+  const text = firstText(['[itemprop="hiringOrganization"] [itemprop="name"]', '[class*="company-name" i]', '[data-company]', '[class*="employer" i]'], 160);
+  if (text) return text;
   return location.hostname.replace(/^www\./, "").split(".")[0];
 }
 
-function guessDescription(): string {
+function guessDescription(data: JobPostingData): string {
+  if (data.description && data.description.length >= 120) return data.description;
   const meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
-  if (meta?.content?.trim()) return meta.content.trim().slice(0, 600);
-  const block = document.querySelector('[class*="job-description" i], [class*="jobdescription" i], [id*="job-description" i], article, main');
-  const text = (block as HTMLElement | null)?.innerText ?? document.body.innerText ?? "";
-  return text.replace(/\s+/g, " ").trim().slice(0, 600);
+  if (meta?.content?.trim() && meta.content.length >= 120) return cleanPageValue(meta.content, 12000);
+  const block = document.querySelector('[itemprop="description"], [class*="job-description" i], [class*="jobdescription" i], [id*="job-description" i], [class*="job-details" i], article, main');
+  const text = (block as HTMLElement | null)?.innerText ?? "";
+  return cleanPageValue(text || document.body.innerText, 12000);
 }
 
-function getPageSummary(): PageSummary {
-  return { title: document.title, url: location.href, hostname: location.hostname, company: guessCompany(), description: guessDescription() };
+function guessJobTitle(data: JobPostingData): string {
+  return data.title || firstText(['h1[itemprop="title"]', '[data-testid*="job-title" i]', '[class*="job-title" i]', 'h1'], 200) || cleanPageValue(document.title, 200);
+}
+
+function detectJobPage(data: JobPostingData, title: string, description: string): { isJobPage: boolean; confidence: number; source: string } {
+  const urlSignal = /\/jobs?\b|\/careers?\b|\/positions?\b|\/vacanc|\/opening|\/apply\b|jobId=|gh_jid=|lever\.co|greenhouse\.io/i.test(location.href);
+  const titleSignal = /\b(engineer|developer|designer|manager|analyst|scientist|architect|recruiter|consultant|intern|director|specialist|coordinator|lead|officer|administrator)\b/i.test(title);
+  const descriptionSignal = /\b(responsibilities|qualifications|requirements|what you will do|about the role|experience with|job description|benefits)\b/i.test(description);
+  if (data.title && data.description && data.description.length >= 120) return { isJobPage: true, confidence: 0.98, source: "json-ld-jobposting" };
+  if (titleSignal && description.length >= 400 && (urlSignal || descriptionSignal)) return { isJobPage: true, confidence: 0.86, source: "dom-job-signals" };
+  if (urlSignal && titleSignal && description.length >= 180) return { isJobPage: true, confidence: 0.74, source: "url-and-content" };
+  return { isJobPage: false, confidence: Math.min(0.55, (titleSignal ? 0.25 : 0) + (descriptionSignal ? 0.2 : 0) + (urlSignal ? 0.1 : 0)), source: "insufficient-job-signals" };
+}
+
+async function getPageSummary(): Promise<PageSummary> {
+  const data = readJobPostingData();
+  const title = guessJobTitle(data);
+  const description = guessDescription(data);
+  const detection = detectJobPage(data, title, description);
+  const summary: PageSummary = {
+    title,
+    url: location.href,
+    hostname: location.hostname,
+    company: guessCompany(data),
+    location: data.location || firstText(['[itemprop="jobLocation"]', '[class*="job-location" i]', '[class*="location" i]'], 200),
+    workMode: /remote/i.test(`${title} ${description}`) ? "remote" : /hybrid/i.test(`${title} ${description}`) ? "hybrid" : /onsite|on-site|in office/i.test(`${title} ${description}`) ? "onsite" : "unknown",
+    employmentType: /intern/i.test(data.employmentType || description) ? "internship" : /contract|freelance/i.test(data.employmentType || description) ? "contract" : /part[- ]?time/i.test(data.employmentType || description) ? "part-time" : "full-time",
+    salary: data.salary || firstText(['[itemprop="baseSalary"]', '[class*="salary" i]', '[class*="compensation" i]'], 120),
+    description,
+    skills: data.skills ?? [],
+    isJobPage: detection.isJobPage,
+    detectionConfidence: detection.confidence,
+    detectionSource: detection.source,
+  };
+  const profile = await getProfile().catch(() => null);
+  if (profile && summary.isJobPage) summary.matchAnalysis = analyzeJobMatch(summary, profile);
+  return summary;
+}
+
+async function detectAndNotifyJobPage() {
+  const summary = await getPageSummary();
+  if (!summary.isJobPage || (summary.detectionConfidence ?? 0) < 0.74) return;
+  const key = `${summary.url}|${summary.title}|${summary.description.slice(0, 160)}`;
+  if (key === lastDetectedJobKey) return;
+  lastDetectedJobKey = key;
+  chrome.runtime.sendMessage({ type: "JOB_PAGE_DETECTED", job: summary } satisfies ExtensionMessage).catch(() => undefined);
 }
 
 async function hasReadyAccess() {
@@ -243,7 +353,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, _sender, sendRe
   if (message.type === "GET_PAGE_SUMMARY") {
     hasReadyAccess().then((ready) => {
       if (!ready) { sendResponse({ error: "Complete sign-in and profile setup first." }); return; }
-      try { sendResponse(getPageSummary()); } catch (error) { sendResponse({ error: String(error) }); }
+      getPageSummary().then(sendResponse).catch((error) => sendResponse({ error: String(error) }));
     });
     return true;
   }

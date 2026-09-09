@@ -24,3 +24,12 @@
 .drawer-notes-editor{width:100%;padding:13px;border:1px solid #e4e3ed;border-radius:9px;background:#fafaff;font:12px 'DM Sans';line-height:1.6;resize:vertical;outline:0}
 .drawer-footer{display:flex;justify-content:space-between;align-items:center;margin:22px 0 10px}
 .text-link.danger{color:#d05a4a}
+.match-score{display:inline-flex;width:max-content;margin-top:9px;padding:4px 7px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:9px;font-weight:800}
+.match-score.strong,.match-panel.strong{background:#d1fae5;color:#047857}
+.match-score.weak,.match-panel.weak{background:#fee2e2;color:#b91c1c}
+.match-panel{display:grid;gap:5px;margin:16px 0;padding:13px;border-radius:11px;background:#fef3c7;color:#92400e}
+.match-panel strong{font-size:20px}
+.match-panel span,.match-panel small{font-size:11px;line-height:1.5}
+.job-description{margin:14px 0;padding:11px;border:1px solid #eceaf6;border-radius:9px;background:#fafaff}
+.job-description summary{cursor:pointer;font-size:11px;font-weight:800;color:var(--purple)}
+.job-description p{max-height:240px;overflow:auto;font-size:11px;line-height:1.6;color:var(--muted);white-space:pre-wrap}

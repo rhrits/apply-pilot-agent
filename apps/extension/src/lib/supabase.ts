@@ -169,15 +169,17 @@ export async function fetchResumeFile(): Promise<{ fileName: string; mimeType: s
 
 /** Saves the current page as a tracked job opportunity (jobs + applications rows) for the signed-in user. */
 export async function saveJobToSupabase(job: PageSummary): Promise<{ ok: boolean; error?: string; duplicate?: boolean }> {
+  if (job.isJobPage !== true) return { ok: false, error: "This page was not detected as a job posting." };
   const supabase = getExtensionSupabase();
   if (!supabase) return { ok: false, error: "Extension setup is missing. Please contact support." };
   const user = await getExtensionUser();
   if (!user) return { ok: false, error: "Sign in to save this job." };
 
-  const { data: existing } = await supabase.from("jobs").select("id").eq("user_id", user.id).eq("url", job.url).maybeSingle();
+    const normalizedUrl = job.url.replace(/[?#].*$/, "").replace(/\/$/, "");
+    const { data: existing } = await supabase.from("jobs").select("id").eq("user_id", user.id).in("url", [job.url, normalizedUrl]).limit(1).maybeSingle();
   if (existing) return { ok: true, duplicate: true };
 
-  const { data: savedJob, error: jobError } = await supabase.from("jobs").insert({ user_id: user.id, company: job.company, title: job.title, url: job.url, source: job.hostname, job_description: job.description }).select("id").single();
+    const { data: savedJob, error: jobError } = await supabase.from("jobs").insert({ user_id: user.id, company: job.company, title: job.title, url: normalizedUrl || job.url, location: job.location, work_mode: job.workMode, employment_type: job.employmentType, salary: job.salary, source: job.hostname, job_description: job.description, match_score: job.matchAnalysis?.score ?? null, match_details: job.matchAnalysis ?? null, tags: ["auto-detected", ...(job.skills ?? []).slice(0, 8)] }).select("id").single();
   if (jobError || !savedJob) return { ok: false, error: jobError?.message ?? "Could not save the job." };
   const { error: applicationError } = await supabase.from("applications").insert({ user_id: user.id, job_id: savedJob.id, status: "saved" });
   if (applicationError) return { ok: false, error: applicationError.message };
@@ -191,6 +193,7 @@ export interface TrackedJob {
   url: string;
   status: string;
   createdAt: string;
+  matchScore?: number;
 }
 
 export interface TrackerSnapshot {
@@ -208,7 +211,7 @@ export async function fetchTracker(): Promise<TrackerSnapshot | { error: string 
   if (!user) return { error: "Sign in to view your tracker." };
 
   const [applicationsResult, answersResult] = await Promise.all([
-    supabase.from("applications").select("id,status,created_at,jobs(id,company,title,url)").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50),
+    supabase.from("applications").select("id,status,created_at,jobs(id,company,title,url,match_score)").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50),
     supabase.from("answer_library").select("id", { count: "exact", head: true }).eq("user_id", user.id),
   ]);
 
@@ -227,6 +230,7 @@ export async function fetchTracker(): Promise<TrackerSnapshot | { error: string 
       url: String(job?.url ?? ""),
       status,
       createdAt: String(row.created_at ?? ""),
+      matchScore: job?.match_score == null ? undefined : Number(job.match_score),
     };
   });
 
