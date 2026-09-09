@@ -1,0 +1,39 @@
+/* Purple/wine enchanted forest workspace. Organic doodles without violating the
+   product's no-green palette. */
+.dashboard{position:relative;background:radial-gradient(circle at 88% 8%,rgba(139,30,63,.07),transparent 24%),radial-gradient(circle at 20% 92%,rgba(85,70,217,.09),transparent 30%),#f7f5ff}
+.dashboard::after{position:fixed;right:-90px;bottom:-90px;z-index:0;width:280px;height:180px;border:2px dashed rgba(85,70,217,.1);border-radius:50%;content:"";pointer-events:none;transform:rotate(-12deg)}
+.dashboard>.main{position:relative;z-index:1;width:calc(100% - 244px)}
+
+.forest-sidebar{position:sticky;top:0;z-index:10;height:100vh;overflow:hidden;border-right:1px solid rgba(255,255,255,.1);background:linear-gradient(180deg,#24234a 0%,#2f2855 58%,#4b203c 100%);box-shadow:14px 0 40px rgba(36,35,74,.13)}
+.forest-sidebar::before,.forest-sidebar::after{position:absolute;pointer-events:none;content:""}
+.forest-sidebar::before{right:-55px;bottom:62px;width:165px;height:250px;border:2px solid rgba(255,255,255,.07);border-left-color:transparent;border-radius:50% 48% 0 50%;transform:rotate(-18deg)}
+.forest-sidebar::after{left:-75px;bottom:-60px;width:250px;height:145px;border:2px dashed rgba(255,255,255,.08);border-radius:50%}
+.forest-logo{position:relative;z-index:1;display:flex;color:#fff;text-decoration:none}
+.forest-logo-box{display:grid;place-items:center;flex:0 0 auto;width:43px;height:43px;border:1px solid rgba(255,255,255,.18);border-radius:15px;background:rgba(255,255,255,.09);box-shadow:0 8px 20px rgba(0,0,0,.16);backdrop-filter:blur(10px)}
+.forest-logo-box img{border-radius:12px}
+.forest-logo>span:last-child{display:grid;align-content:center;font-size:18px;line-height:1}
+.forest-logo strong{color:#eeb4c5}.forest-logo small{margin-top:6px;color:#aaa7c7;font:600 8px 'DM Sans';letter-spacing:.1em;text-transform:uppercase}
+.forest-nav{position:relative;z-index:1;gap:7px}
+.forest-nav a{display:flex;align-items:center;gap:10px;border:1px solid transparent;border-radius:13px}
+.forest-nav a>span{display:grid;place-items:center;width:23px;height:23px;border-radius:8px;background:rgba(255,255,255,.06);font-size:12px}
+.forest-nav a:hover{border-color:rgba(255,255,255,.09);background:rgba(255,255,255,.07);transform:translateX(2px)}
+.forest-nav a.active{border-color:rgba(255,255,255,.15);background:linear-gradient(110deg,rgba(139,30,63,.48),rgba(85,70,217,.3));box-shadow:0 7px 18px rgba(12,10,30,.13)}
+.forest-note{position:relative;z-index:1;background:rgba(255,255,255,.06);backdrop-filter:blur(10px)}
+.forest-spark{position:absolute;right:11px;top:9px;color:#eeb4c5;animation:forest-twinkle 2.8s ease-in-out infinite}
+
+/* Glass workspace cards. */
+.dashboard .card,.profile-page .card,.tracker-page .card,.answers-page .card,.settings-page .card{border:1px solid rgba(255,255,255,.84);border-radius:18px;background:rgba(255,255,255,.72);box-shadow:0 12px 34px rgba(49,46,129,.07),inset 0 1px rgba(255,255,255,.95);backdrop-filter:blur(16px) saturate(1.08)}
+.dashboard .card:hover,.profile-page .card:hover{border-color:rgba(85,70,217,.16);box-shadow:0 16px 38px rgba(49,46,129,.1)}
+
+/* Workspace inputs: rounded glass, custom select arrow and hover/focus behavior. */
+.profile-page :is(input:not([type=checkbox]),select,textarea),.tracker-page :is(input:not([type=checkbox]),select,textarea),.answers-page :is(input:not([type=checkbox]),select,textarea),.settings-page :is(input:not([type=checkbox]),select,textarea){border:1px solid rgba(85,70,217,.14)!important;border-radius:12px!important;background:rgba(255,255,255,.78)!important;box-shadow:inset 0 1px rgba(255,255,255,.9);transition:border-color .18s,box-shadow .18s,transform .18s,background .18s}
+.profile-page :is(input:not([type=checkbox]),select,textarea):hover,.tracker-page :is(input:not([type=checkbox]),select,textarea):hover,.answers-page :is(input:not([type=checkbox]),select,textarea):hover,.settings-page :is(input:not([type=checkbox]),select,textarea):hover{border-color:rgba(85,70,217,.34)!important;background:#fff!important}
+.profile-page select,.tracker-page select,.answers-page select,.settings-page select{appearance:none;padding-right:34px!important;background-image:linear-gradient(45deg,transparent 50%,#5546d9 50%),linear-gradient(135deg,#5546d9 50%,transparent 50%)!important;background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%!important;background-size:5px 5px,5px 5px!important;background-repeat:no-repeat!important}
+:is(.profile-page,.tracker-page,.answers-page,.settings-page) input[type=checkbox]{appearance:none;position:relative;width:20px;height:20px;border:1px solid #cfc9e8;border-radius:7px;background:rgba(255,255,255,.8);cursor:pointer;transition:.18s}
+:is(.profile-page,.tracker-page,.answers-page,.settings-page) input[type=checkbox]:checked{border-color:#5546d9;background:linear-gradient(135deg,#8b1e3f,#5546d9);box-shadow:0 0 0 3px rgba(85,70,217,.1)}
+:is(.profile-page,.tracker-page,.answers-page,.settings-page) input[type=checkbox]:checked::after{position:absolute;left:5px;top:1px;color:#fff;font-size:12px;font-weight:900;content:"✓"}
+
+@keyframes forest-twinkle{0%,100%{opacity:.45;transform:scale(.8) rotate(0)}50%{opacity:1;transform:scale(1.15) rotate(15deg)}}
+@media(max-width:900px){.dashboard>.main{width:calc(100% - 190px)}}
+@media(max-width:620px){.dashboard{display:block}.dashboard>.main{width:100%}.forest-sidebar{position:sticky;top:0;width:100%;height:auto;padding:10px;overflow-x:auto;border-right:0;border-bottom:1px solid rgba(255,255,255,.12)}.forest-logo{display:none}.forest-nav{display:flex;min-width:max-content}.forest-nav a{padding:8px 10px}.forest-note{display:none}}
+@media(prefers-reduced-motion:reduce){.forest-spark{animation:none}}

@@ -20,10 +20,12 @@ import { getSupabaseBrowserClient } from "../../lib/supabase";
 import { commitProfile } from "../../lib/onboarding-store";
 import { deleteStoredResume, getResumePreviewUrl, getStoredResume, getStoredResumeFile, markResumeParsed, storeResumeFile, type StoredResume } from "../../lib/resume-store";
 import { AuthGate } from "../../components/auth-gate";
+import { WorkspaceSidebar } from "../../components/workspace-sidebar";
 import { AccountSecurity } from "../../components/account-security";
 import { EditableRecordList } from "../../components/editable-record-list";
 import { Markdown } from "../../components/markdown";
 import "./profile.css";
+import "./profile-forest.css";
 
 type Tab = "overview" | "document" | "details" | "sources";
 type SaveState = "clean" | "dirty" | "saving" | "saved" | "error";
@@ -58,12 +60,21 @@ function ProfileWorkspace() {
   const [analysis, setAnalysis] = useState<ResumeAnalysis | null>(null);
   const [liveJob, setLiveJob] = useState<{ title: string; description: string; skills: string[]; company: string } | null>(null);
   const [newSkill, setNewSkill] = useState("");
+  const [skillQuery, setSkillQuery] = useState("");
+  const [showAllSkills, setShowAllSkills] = useState(false);
   const [newCustomLabel, setNewCustomLabel] = useState("");
   const [newCustomValue, setNewCustomValue] = useState("");
 
   const loaded = useRef(false);
   const completeness = useMemo(() => profileCompleteness(profile), [profile]);
   const liveMatch = useMemo(() => liveJob ? analyzeJobMatch(liveJob, profile) : null, [liveJob, profile]);
+  const filteredSkills = useMemo(() => {
+    const query = skillQuery.trim().toLowerCase();
+    return (profile.skills ?? [])
+      .map((skill, index) => ({ skill, index }))
+      .filter(({ skill }) => !query || `${skill.name} ${skill.proficiency ?? ""}`.toLowerCase().includes(query));
+  }, [profile.skills, skillQuery]);
+  const visibleSkills = showAllSkills || skillQuery ? filteredSkills : filteredSkills.slice(0, 16);
 
   // The extension opens this page with the current job context. The web app cannot
   // inspect another browser tab itself, so the extension passes only public job text
@@ -326,10 +337,9 @@ function ProfileWorkspace() {
     ["availability", "Availability"],
   ];
 
-  return <main className="main profile-page">
+  return <div className="dashboard"><WorkspaceSidebar /><main className="main profile-page">
     <div className="topbar">
       <div><div className="eyebrow">Application profile</div><h1>Your source of truth</h1></div>
-      <Link href="/dashboard" className="text-link">Back to overview</Link>
     </div>
 
     <section className="profile-hero">
@@ -341,6 +351,7 @@ function ProfileWorkspace() {
           <p className="profile-email">{email}</p>
         </div>
       </div>
+      <div className="profile-fox-habitat" aria-hidden="true"><span className="profile-fox-moon" /><img src="/uplyfox-pixel-crimson-animated-logo.svg" alt="" /></div>
       <div className="profile-score">
         <svg viewBox="0 0 80 80" width="76" height="76">
           <circle cx="40" cy="40" r="34" fill="none" stroke="#e4e0ff" strokeWidth="7" />
@@ -422,9 +433,13 @@ function ProfileWorkspace() {
       <section className="card">
         <div className="section-head">
           <h3>Skills <span className="count">{profile.skills?.length ?? 0}</span></h3>
-          <span className="card-hint">Years and level are editable</span>
+          <span className="card-hint">Search, edit, and tune your strongest skills</span>
         </div>
-        <div className="skill-rows">{(profile.skills ?? []).map((skill, index) => <div className="skill-row" key={index}>
+        <div className="skills-toolbar">
+          <label className="skill-search"><span className="sr-only">Search skills</span><input type="search" value={skillQuery} onChange={(event) => setSkillQuery(event.target.value)} placeholder="Search 60+ skills…" /></label>
+          {(profile.skills?.length ?? 0) > 16 && <button className="ghost-button" type="button" onClick={() => setShowAllSkills((current) => !current)}>{showAllSkills ? "Show less" : `Show all ${profile.skills?.length}`}</button>}
+        </div>
+        <div className="skill-rows">{visibleSkills.map(({ skill, index }) => <div className="skill-row" key={index}>
           <input
             value={skill.name}
             placeholder="Skill"
@@ -452,7 +467,9 @@ function ProfileWorkspace() {
           <button onClick={() => removeSkill(index)} aria-label={`Remove ${skill.name || `skill ${index + 1}`}`}>×</button>
         </div>)}
           {!profile.skills?.length && <p className="empty-state">No skills yet. Import a resume or add them below.</p>}
+          {Boolean(profile.skills?.length) && !visibleSkills.length && <p className="empty-state">No skills match “{skillQuery}”.</p>}
         </div>
+        {!showAllSkills && !skillQuery && filteredSkills.length > 16 && <p className="skills-collapsed-note">Showing 16 of {filteredSkills.length} skills. Search above or show all to edit the rest.</p>}
         <div className="inline-add">
           <input value={newSkill} onChange={(event) => setNewSkill(event.target.value)} onKeyDown={(event) => event.key === "Enter" && addSkill()} placeholder="Add a skill" />
           <button className="ghost-button" onClick={addSkill}>Add</button>
@@ -640,5 +657,5 @@ function ProfileWorkspace() {
     </div>
     {saveState === "saved" && <div className="save-toast">Profile saved</div>}
     {loading && <div className="save-toast">Loading your profile…</div>}
-  </main>;
+  </main></div>;
 }

@@ -1,0 +1,65 @@
+/* Modern enchanted-grove profile UI. Purple/wine only — the forest language comes
+   from curved branches, stars, hills, and glass rather than literal green. */
+.profile-page{position:relative;max-width:none;padding:28px 34px 110px}
+.profile-page::before{position:absolute;right:25px;top:92px;z-index:-1;width:150px;height:150px;border:2px dashed rgba(139,30,63,.1);border-radius:45% 55% 40% 60%;content:"";transform:rotate(12deg)}
+.profile-page .topbar{margin-bottom:24px}
+.profile-page .topbar h1{font-size:31px;letter-spacing:-.045em}
+
+.profile-hero{position:relative;overflow:hidden;padding:25px 28px;border:1px solid rgba(255,255,255,.85)!important;border-radius:24px!important;background:linear-gradient(120deg,rgba(255,255,255,.84),rgba(244,242,255,.72))!important;box-shadow:0 18px 46px rgba(49,46,129,.09),inset 0 1px rgba(255,255,255,.95);backdrop-filter:blur(18px)}
+.profile-hero::before{position:absolute;right:98px;bottom:-89px;width:250px;height:150px;border:2px dashed rgba(85,70,217,.12);border-radius:50%;content:"";transform:rotate(-9deg)}
+.profile-hero::after{position:absolute;right:17%;top:13px;color:rgba(139,30,63,.26);font-size:17px;content:"✦";animation:profile-fox-twinkle 3s ease-in-out infinite}
+.profile-avatar{border:2px solid rgba(255,255,255,.9);border-radius:19px!important;background:linear-gradient(135deg,#8b1e3f,#312e81)!important;box-shadow:0 8px 20px rgba(127,29,53,.2)}
+.profile-hero h2{letter-spacing:-.035em}
+.profile-fox-habitat{position:relative;display:grid;place-items:center;width:92px;height:76px;margin-left:auto;border:1px solid rgba(255,255,255,.9);border-radius:22px;background:linear-gradient(145deg,rgba(253,242,245,.7),rgba(238,236,255,.74));box-shadow:0 10px 24px rgba(49,46,129,.1),inset 0 1px #fff;overflow:hidden}
+.profile-fox-habitat::before,.profile-fox-habitat::after{position:absolute;bottom:-22px;width:75px;height:43px;border:2px dashed rgba(85,70,217,.13);border-radius:50%;content:""}
+.profile-fox-habitat::before{left:-16px}.profile-fox-habitat::after{right:-20px;border-color:rgba(139,30,63,.12)}
+.profile-fox-habitat img{position:relative;z-index:2;width:52px;height:52px;border-radius:14px;filter:drop-shadow(0 5px 7px rgba(49,46,129,.16));animation:profile-fox-float 4s ease-in-out infinite}
+.profile-fox-moon{position:absolute;right:10px;top:8px;width:12px;height:12px;border:2px solid rgba(139,30,63,.25);border-left-color:transparent;border-radius:50%}
+
+.missing-bar{border-color:var(--wine-border);border-radius:15px;background:rgba(253,242,245,.72);box-shadow:0 7px 22px rgba(139,30,63,.05);backdrop-filter:blur(12px)}
+.missing-bar span{border-color:var(--wine-border);background:rgba(255,255,255,.8);color:var(--wine)}
+
+.profile-tabs{position:sticky;top:12px;z-index:12;display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:20px 0;padding:6px;border:1px solid rgba(255,255,255,.88);border-radius:18px;background:rgba(244,242,255,.72);box-shadow:0 12px 30px rgba(49,46,129,.09);backdrop-filter:blur(18px)}
+.profile-tabs button{position:relative;margin:0;padding:11px 12px;border:1px solid transparent!important;border-radius:13px!important;font-size:11px;transition:.2s}
+.profile-tabs button::before{display:inline-grid;place-items:center;width:20px;height:20px;margin-right:6px;border-radius:7px;background:rgba(85,70,217,.07);content:"✦";font-size:9px;vertical-align:middle}
+.profile-tabs button:nth-child(2)::before{content:"✎"}.profile-tabs button:nth-child(3)::before{content:"⌁"}.profile-tabs button:nth-child(4)::before{content:"◈"}
+.profile-tabs button:hover{border-color:rgba(85,70,217,.13)!important;background:rgba(255,255,255,.6);transform:translateY(-1px)}
+.profile-tabs button.active{border-color:var(--wine-border)!important;background:rgba(255,255,255,.9)!important;color:var(--wine)!important;box-shadow:0 6px 15px rgba(139,30,63,.1)}
+.profile-tabs button.active::before{background:var(--wine-soft);color:var(--wine)}
+
+.profile-stack{gap:18px}.profile-columns{gap:18px}
+.profile-page .card{position:relative;padding:21px;border-radius:20px!important;overflow:hidden}
+.profile-page .card::after{position:absolute;right:-22px;bottom:-24px;width:72px;height:52px;border:1px dashed rgba(85,70,217,.08);border-radius:50%;content:"";pointer-events:none}
+.profile-page .card .section-head h3{font-size:15px;letter-spacing:-.02em}
+.profile-page .card h3 .count{background:rgba(85,70,217,.08)}
+
+/* Projects and experience are glass panels with visually calm collapsed rows. */
+.profile-columns>.card:first-child{background:linear-gradient(145deg,rgba(255,255,255,.78),rgba(244,242,255,.66))}
+.profile-columns>.card:last-child{background:linear-gradient(145deg,rgba(255,255,255,.8),rgba(253,242,245,.64))}
+.record-card{border-color:rgba(85,70,217,.1);border-radius:14px;background:rgba(255,255,255,.66);box-shadow:0 4px 14px rgba(49,46,129,.04);backdrop-filter:blur(9px)}
+.record-card:hover{border-color:rgba(85,70,217,.22);box-shadow:0 8px 22px rgba(49,46,129,.08);transform:translateY(-1px)}
+.record-card.open{border-color:var(--purple-border);background:rgba(255,255,255,.9)}
+.record-head{padding:11px}.drag-handle{padding:4px;border-radius:7px;background:var(--purple-soft);color:var(--purple)}
+.record-actions button{border-radius:8px}
+
+/* 60+ skills: two compact columns, bounded viewport, search and show-all control. */
+.skills-toolbar{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+.skill-search{flex:1}.skill-search input{padding-left:13px!important}
+.skill-rows{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;max-height:420px;padding:2px 4px 4px 2px;overflow:auto;scrollbar-color:#c8c1ea transparent;scrollbar-width:thin}
+.skill-row{grid-template-columns:minmax(110px,1fr) 58px 96px 28px;padding:6px;border:1px solid rgba(85,70,217,.09);border-radius:13px;background:rgba(255,255,255,.62);transition:border-color .18s,box-shadow .18s,transform .18s}
+.skill-row:hover{border-color:rgba(85,70,217,.22);box-shadow:0 6px 16px rgba(49,46,129,.06);transform:translateY(-1px)}
+.skill-row :is(input,select){padding:7px 8px!important;border-radius:9px!important;font-size:10px!important}
+.skill-row>button{border-radius:9px}
+.skills-collapsed-note{margin:2px 0 12px;color:var(--muted);font-size:10px}
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+
+.upload-drop{border-color:rgba(85,70,217,.28);border-radius:17px;background:rgba(244,242,255,.55);transition:.2s}
+.upload-drop:hover{border-color:var(--wine);background:rgba(253,242,245,.66);transform:translateY(-2px)}
+.resume-file-row{border-color:rgba(85,70,217,.1);border-radius:15px;background:rgba(255,255,255,.68)}
+.resume-preview-frame{height:min(70vh,720px);border-radius:16px;box-shadow:0 12px 28px rgba(49,46,129,.09)}
+
+@keyframes profile-fox-twinkle{0%,100%{opacity:.3;transform:scale(.75) rotate(0)}50%{opacity:1;transform:scale(1.15) rotate(16deg)}}
+@keyframes profile-fox-float{0%,100%{transform:translateY(2px) rotate(-2deg)}50%{transform:translateY(-3px) rotate(2deg)}}
+@media(max-width:1180px){.skill-rows{grid-template-columns:1fr}.profile-columns{grid-template-columns:1fr}}
+@media(max-width:760px){.profile-page{padding:20px 18px 110px}.profile-tabs{top:6px;display:flex;overflow-x:auto}.profile-tabs button{flex:0 0 auto}.skills-toolbar{align-items:stretch;flex-direction:column}.skill-row{grid-template-columns:1fr 58px 28px}.skill-row select{grid-column:1/-1}}
+@media(prefers-reduced-motion:reduce){.profile-hero::after,.profile-fox-habitat img{animation:none}.record-card:hover,.skill-row:hover,.upload-drop:hover{transform:none}}

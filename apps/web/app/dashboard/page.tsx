@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AuthGate } from "../../components/auth-gate";
+import { WorkspaceSidebar } from "../../components/workspace-sidebar";
 import { buildReviewQueue, emptyProfile, type ProfileSources } from "@uplyfox/shared";
 import { getSupabaseBrowserClient } from "../../lib/supabase";
 import { applicationVelocity, nextActions, staleApplications, type ApplicationRecord } from "../../lib/application-insights";
@@ -172,7 +173,7 @@ function DashboardContent() {
     { done: data.jobCount > 0, label: "Track your first opportunity", detail: `${data.jobCount} job${data.jobCount === 1 ? "" : "s"} tracked`, href: "/tracker" },
   ];
 
-  return <div className="dashboard"><aside className="sidebar"><div className="logo"><img src="/uplyfox-pixel-crimson-animated-logo.svg" width={32} height={32} alt="" /><span>Uply<strong style={{color: '#8b1e3f'}}>Fox</strong></span></div><nav className="nav"><Link className="active" href="/dashboard">Overview</Link><Link href="/profile">My profile & resume</Link><Link href="/tracker">Job tracker</Link><Link href="/answer-library">Answer library</Link><Link href="/settings">Settings</Link></nav><div className="sidebar-bottom"><strong>Browser extension</strong><p>Sign in to the extension popup with this same email, then press <em>Refresh profile data</em> to sync.</p></div></aside><main className="main">
+  return <div className="dashboard"><WorkspaceSidebar /><main className="main">
     <div className="topbar"><div><div className="eyebrow">Your workspace</div><h1>{greeting()}, {displayName}</h1></div><div className="avatar">{initials(data.firstName, data.lastName, data.email)}</div></div>
 
     <section className="hero">

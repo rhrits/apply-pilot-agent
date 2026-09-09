@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { getSupabaseBrowserClient } from "../../lib/supabase";
 import { AuthGate } from "../../components/auth-gate";
+import { WorkspaceSidebar } from "../../components/workspace-sidebar";
 import { AccountSecurity } from "../../components/account-security";
 import { clearUplyFoxBrowserData } from "../../lib/session-cleanup";
 import "../dashboard.css";
@@ -86,16 +86,7 @@ function SettingsWorkspace() {
     }
   }
 
-  return <div className="dashboard"><aside className="sidebar">
-    <div className="logo"><img src="/uplyfox-pixel-crimson-animated-logo.svg" width={32} height={32} alt="" /><span>Uply<strong style={{ color: "#8b1e3f" }}>Fox</strong></span></div>
-    <nav className="nav">
-      <Link href="/dashboard">Overview</Link>
-      <Link href="/profile">My profile &amp; resume</Link>
-      <Link href="/tracker">Job tracker</Link>
-      <Link href="/answer-library">Answer library</Link>
-      <Link className="active" href="/settings">Settings</Link>
-    </nav>
-  </aside><main className="main settings-page">
+  return <div className="dashboard"><WorkspaceSidebar /><main className="main settings-page">
     <div className="topbar"><div><div className="eyebrow">Account</div><h1>Settings</h1></div></div>
 
     <section className="card">

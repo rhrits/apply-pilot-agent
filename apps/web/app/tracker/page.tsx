@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ApplicationStatus, JobApplication, TrackerTask } from "@uplyfox/shared";
 import { getSupabaseBrowserClient } from "../../lib/supabase";
 import { AuthGate } from "../../components/auth-gate";
+import { WorkspaceSidebar } from "../../components/workspace-sidebar";
 import "./tracker.css";
 
 const statuses: Array<{ value: ApplicationStatus; label: string; accent: string }> = [
@@ -204,7 +205,7 @@ function TrackerWorkspace() {
     if (job) move(job, status);
   }
 
-  return <main className="main tracker-page">
+  return <div className="dashboard"><WorkspaceSidebar /><main className="main tracker-page">
     <div className="topbar">
       <div>
         <div className="eyebrow">Application command center</div>
@@ -212,7 +213,6 @@ function TrackerWorkspace() {
         <p className="page-subtitle">Drag a card to change its stage, keep a checklist per role, and never lose a follow-up.</p>
       </div>
       <div className="topbar-actions">
-        <Link href="/dashboard" className="text-link">Overview</Link>
         <button className="save-button" onClick={() => setShowForm((value) => !value)}>＋ Add opportunity</button>
       </div>
     </div>
@@ -374,5 +374,5 @@ function TrackerWorkspace() {
         </div>
       </aside>
     </div>}
-  </main>;
+  </main></div>;
 }

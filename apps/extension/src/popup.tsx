@@ -7,6 +7,7 @@ import "./popup-auth.css";
 import "./popup-settings.css";
 import "./popup-fox.css";
 import "./brand-overrides.css";
+import "./popup-jungle.css";
 
 type AuthState = ExtensionAuthStatus;
 
@@ -66,7 +67,9 @@ function Popup() {
         return;
       }
       setAuth(result);
-      setMessage(result.accessState === "ready" ? `Profile data synced for ${result.email}` : result.configured ? "Sign in to sync your profile" : "Extension configuration is missing");
+      // The account card directly below already displays the email and sync state.
+      // Repeating both here made the popup read like the same row was rendered twice.
+      setMessage(result.accessState === "ready" ? "Ready for your next application" : result.configured ? "Sign in to sync your profile" : "Extension configuration is missing");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not load your UplyFox session.");
     } finally {
