@@ -478,5 +478,13 @@ alter table public.resumes add column extraction_confidence jsonb;
 
 ## 7. Explicitly out of scope
 
-Auto-submission of applications, LinkedIn scraping, and bulk/blind apply. These conflict
-with the product's core promise that the user reviews and confirms every submission.
+Bulk/blind apply and LinkedIn automation. Bulk apply removes the review gate by definition, and
+LinkedIn's User Agreement expressly prohibits automated access.
+
+**Auto-submission was previously listed here and has been moved.** It is now in scope behind a
+mandatory, structurally enforced confirmation gate — the user still reviews and approves every
+submission, but the agent does the filling and navigation first. See
+[UPLYFOX-AUTO-APPLY-PLAN.md](UPLYFOX-AUTO-APPLY-PLAN.md).
+
+The distinguishing property is not "does a machine click submit" but "did a human see the exact
+thing being submitted, and approve it".

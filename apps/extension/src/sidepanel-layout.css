@@ -1,0 +1,49 @@
+/* Keep the Chrome side panel inside its viewport. The old min-width forced horizontal
+   overflow, which clipped tracker rows and made the panel look like it disappeared. */
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+.panel {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 14px 12px 20px;
+  overflow-x: hidden;
+}
+
+.match-profile-link {
+  width: 100%;
+  margin-top: 10px;
+  padding: 7px 9px;
+  border: 1px solid var(--uplyfox-purple-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--uplyfox-purple);
+  font: 700 10px system-ui;
+  cursor: pointer;
+}
+
+.match-profile-link:hover {
+  border-color: var(--uplyfox-wine-border);
+  background: var(--uplyfox-wine-soft);
+  color: var(--uplyfox-wine);
+}
+
+@media (max-width: 360px) {
+  .panel {
+    padding-inline: 9px;
+  }
+
+  .quick-actions button {
+    flex-basis: 45%;
+  }
+}

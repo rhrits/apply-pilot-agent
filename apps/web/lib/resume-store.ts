@@ -73,6 +73,33 @@ export async function getResumePreviewUrl(storagePath: string, expiresInSeconds 
   return error ? null : data?.signedUrl ?? null;
 }
 
+/**
+ * Downloads the already-saved original so extraction can be an explicit second step.
+ *
+ * Uploading and parsing are intentionally separate: the candidate can first confirm
+ * that the exact PDF is stored and previewable, then choose when to spend the parsing
+ * request. The signed URL is short-lived and the bytes never pass through our server
+ * again except when the user explicitly clicks Extract.
+ */
+export async function getStoredResumeFile(resume?: Pick<StoredResume, "name" | "storagePath" | "mimeType">): Promise<File | null> {
+  const stored = resume ?? await getStoredResume();
+  if (!stored?.storagePath) return null;
+  const url = await getResumePreviewUrl(stored.storagePath, 300);
+  if (!url) return null;
+  const response = await fetch(url);
+  if (!response.ok) return null;
+  const blob = await response.blob();
+  return new File([blob], stored.name, { type: stored.mimeType || blob.type || "application/pdf" });
+}
+
+/** Stores parsed text after explicit extraction without replacing the original file. */
+export async function markResumeParsed(id: string, parsedText: string): Promise<boolean> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return false;
+  const { error } = await supabase.from("resumes").update({ parsed_text: parsedText.slice(0, 200_000), parsing_status: "parsed" }).eq("id", id);
+  return !error;
+}
+
 /** Removes both the storage object and its row. Used by replace and by manual delete. */
 export async function deleteStoredResume(resume: Pick<StoredResume, "id" | "storagePath">): Promise<ResumeStoreResult> {
   const supabase = getSupabaseBrowserClient();

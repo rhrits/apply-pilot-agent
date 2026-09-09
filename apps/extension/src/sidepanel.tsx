@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { describeApplicationSignals, type ActiveFieldPayload, type AnswerResponse, type ApplicationVerdict, type ExtensionAccessState, type ExtensionMessage, type PageSummary, type ScannedField, type UserProfile } from "@uplyfox/shared";
 import { extensionConfig } from "./lib/config";
 import type { TrackerSnapshot } from "./lib/supabase";
 import { CopyButton, DictationControl, ExternalIcon, InsertIcon, SaveIcon, SyncIcon } from "./components/ui";
 import "./sidepanel.css";
+import "./sidepanel-layout.css";
 import "./sidepanel-auth.css";
 import "./sidepanel-tabs.css";
 import "./brand-overrides.css";
+import "./sidepanel-fox.css";
 
 const API_URL = extensionConfig.aiApiUrl;
 type Tab = "assistant" | "profile" | "fields" | "tracker";
@@ -110,15 +112,28 @@ function SidePanel() {
   const [tracker, setTracker] = useState<TrackerSnapshot | null>(null);
   const [pageMatch, setPageMatch] = useState<PageSummary | null>(null);
   const [appliedToast, setAppliedToast] = useState<{ title: string; url: string; reason: string } | null>(null);
+  const [panelBusy, setPanelBusy] = useState(false);
+  const panelWorkCount = useRef(0);
+
+  function beginPanelWork() {
+    panelWorkCount.current += 1;
+    setPanelBusy(true);
+  }
+
+  function endPanelWork() {
+    panelWorkCount.current = Math.max(0, panelWorkCount.current - 1);
+    if (panelWorkCount.current === 0) setPanelBusy(false);
+  }
 
   useEffect(() => {
-    chrome.runtime.sendMessage({ type: "AUTH_STATUS" } satisfies ExtensionMessage).then((result) => {
+    beginPanelWork();
+    void chrome.runtime.sendMessage({ type: "AUTH_STATUS" } satisfies ExtensionMessage).then((result) => {
       setAccessState(result?.accessState ?? "unauthenticated");
       setAuthenticated(result?.accessState === "ready");
       setAccountEmail(result?.email ?? null);
       setProfile(result?.accessState === "ready" ? result.profile ?? null : null);
       if (result?.accessState === "ready") { void loadTracker(); void loadPageMatch(); }
-    }).catch(() => undefined);
+    }).catch(() => undefined).finally(endPanelWork);
 
     chrome.runtime.sendMessage({ type: "GET_ACTIVE_FIELD" } satisfies ExtensionMessage).then((result) => {
       const payload = result?.activeField as ActiveFieldPayload | undefined;
@@ -148,8 +163,13 @@ function SidePanel() {
   }, []);
 
   async function loadTracker() {
-    const result = await chrome.runtime.sendMessage({ type: "GET_TRACKER" } satisfies ExtensionMessage).catch(() => null);
-    if (result && !result.error) setTracker(result as TrackerSnapshot);
+    beginPanelWork();
+    try {
+      const result = await chrome.runtime.sendMessage({ type: "GET_TRACKER" } satisfies ExtensionMessage).catch(() => null);
+      if (result && !result.error) setTracker(result as TrackerSnapshot);
+    } finally {
+      endPanelWork();
+    }
   }
 
   /**
@@ -158,10 +178,26 @@ function SidePanel() {
    * only for opportunities that were already saved to the tracker.
    */
   async function loadPageMatch() {
-    const [tabInfo] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tabInfo?.id) return;
-    const summary = await chrome.tabs.sendMessage(tabInfo.id, { type: "GET_PAGE_SUMMARY" } satisfies ExtensionMessage).catch(() => null);
-    setPageMatch(summary && !summary.error && summary.isJobPage ? summary as PageSummary : null);
+    beginPanelWork();
+    try {
+      const [tabInfo] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tabInfo?.id) return;
+      const summary = await chrome.tabs.sendMessage(tabInfo.id, { type: "GET_PAGE_SUMMARY" } satisfies ExtensionMessage).catch(() => null);
+      setPageMatch(summary && !summary.error && summary.isJobPage ? summary as PageSummary : null);
+    } finally {
+      endPanelWork();
+    }
+  }
+
+  function openProfileMatch() {
+    if (!pageMatch) return;
+    const params = new URLSearchParams({
+      matchTitle: pageMatch.title || `${pageMatch.company} role`,
+      matchCompany: pageMatch.company || "",
+      matchDescription: pageMatch.description.slice(0, 18_000),
+      matchSkills: (pageMatch.skills ?? []).slice(0, 40).join(","),
+    });
+    void chrome.tabs.create({ url: `${extensionConfig.webAppUrl}/profile?${params.toString()}#overview` });
   }
 
   async function activeTabId() {
@@ -172,6 +208,7 @@ function SidePanel() {
   async function generate() {
     const prompt = question.trim();
     if (!prompt) return;
+    beginPanelWork();
     setLoading(true); setStatus("");
     try {
       // Local memory first, then the server (which checks the saved answer library
@@ -190,7 +227,7 @@ function SidePanel() {
       setAnswer(result.answer ? result : null);
       if (result.notice) setStatus(result.notice);
     } catch (error) { setAnswer(null); setStatus(error instanceof Error ? error.message : "Could not generate an answer."); }
-    finally { setLoading(false); }
+    finally { setLoading(false); endPanelWork(); }
   }
 
   async function useSelectedText() {
@@ -213,6 +250,7 @@ function SidePanel() {
   async function scan(fill: boolean) {
     const id = await activeTabId();
     if (!id) return;
+    beginPanelWork();
     setStatus(fill ? "Filling fields…" : "Scanning page…");
     try {
       const result = await chrome.tabs.sendMessage(id, { type: fill ? "FILL_ALL" : "SCAN_PAGE" } satisfies ExtensionMessage);
@@ -223,35 +261,51 @@ function SidePanel() {
       const filledCount = scanned.filter((item) => item.filled).length;
       setStatus(fill ? `Filled ${filledCount} of ${scanned.length} detected fields.` : `Detected ${scanned.length} fields on this page.`);
     } catch { setStatus("Reload the page, then scan again."); }
+    finally { endPanelWork(); }
   }
 
   async function attachResume() {
     const id = await activeTabId();
     if (!id) return;
+    beginPanelWork();
     setStatus("Fetching your resume…");
-    const file = await chrome.runtime.sendMessage({ type: "GET_RESUME_FILE" } satisfies ExtensionMessage);
-    if (!file || file.error) { setStatus(file?.error ?? "Could not load your resume."); return; }
-    const result = await chrome.tabs.sendMessage(id, { type: "ATTACH_RESUME", fileName: file.fileName, mimeType: file.mimeType, dataUrl: file.dataUrl } satisfies ExtensionMessage).catch(() => null);
-    setStatus(result?.ok ? `Attached ${file.fileName} to the upload field.` : result?.error ?? "Could not attach the resume.");
+    try {
+      const file = await chrome.runtime.sendMessage({ type: "GET_RESUME_FILE" } satisfies ExtensionMessage);
+      if (!file || file.error) { setStatus(file?.error ?? "Could not load your resume."); return; }
+      const result = await chrome.tabs.sendMessage(id, { type: "ATTACH_RESUME", fileName: file.fileName, mimeType: file.mimeType, dataUrl: file.dataUrl } satisfies ExtensionMessage).catch(() => null);
+      setStatus(result?.ok ? `Attached ${file.fileName} to the upload field.` : result?.error ?? "Could not attach the resume.");
+    } finally {
+      endPanelWork();
+    }
   }
 
   async function saveJob() {
     const id = await activeTabId();
     if (!id) return;
+    beginPanelWork();
     setStatus("Saving this job…");
-    const summary = await chrome.tabs.sendMessage(id, { type: "GET_PAGE_SUMMARY" } satisfies ExtensionMessage).catch(() => null);
-    if (!summary || summary.error) { setStatus("Could not read this page. Reload and try again."); return; }
-    if (summary.isJobPage !== true) { setStatus("This page does not look like a job posting. Open a job page before saving."); return; }
-    const result = await chrome.runtime.sendMessage({ type: "SAVE_JOB", job: summary } satisfies ExtensionMessage);
-    setStatus(result?.duplicate ? "Already saved — view it in your job tracker." : result?.ok ? "Saved to your job tracker." : result?.error ?? "Could not save this job.");
-    if (result?.ok) void loadTracker();
+    try {
+      const summary = await chrome.tabs.sendMessage(id, { type: "GET_PAGE_SUMMARY" } satisfies ExtensionMessage).catch(() => null);
+      if (!summary || summary.error) { setStatus("Could not read this page. Reload and try again."); return; }
+      if (summary.isJobPage !== true) { setStatus("This page does not look like a job posting. Open a job page before saving."); return; }
+      const result = await chrome.runtime.sendMessage({ type: "SAVE_JOB", job: summary } satisfies ExtensionMessage);
+      setStatus(result?.duplicate ? "Already saved — view it in your job tracker." : result?.ok ? "Saved to your job tracker." : result?.error ?? "Could not save this job.");
+      if (result?.ok) void loadTracker();
+    } finally {
+      endPanelWork();
+    }
   }
 
   async function syncNow() {
+    beginPanelWork();
     setStatus("Syncing from your workspace…");
-    const result = await chrome.runtime.sendMessage({ type: "REFRESH_PROFILE" } satisfies ExtensionMessage);
-    if (result?.profile) { setProfile(result.profile); await loadTracker(); setStatus("Profile and tracker synced."); }
-    else setStatus(result?.error ?? "Sync failed.");
+    try {
+      const result = await chrome.runtime.sendMessage({ type: "REFRESH_PROFILE" } satisfies ExtensionMessage);
+      if (result?.profile) { setProfile(result.profile); await loadTracker(); setStatus("Profile and tracker synced."); }
+      else setStatus(result?.error ?? "Sync failed.");
+    } finally {
+      endPanelWork();
+    }
   }
 
   async function insert() {
@@ -269,12 +323,13 @@ function SidePanel() {
   if (accessState !== "ready") {
     const title = accessState === "loading" ? "Checking access…" : accessState === "profile_required" ? "Create your profile first" : accessState === "unconfigured" ? "Extension setup required" : "Sign in to UplyFox";
     const description = accessState === "profile_required" ? "Your account is connected, but the assistant stays locked until you complete your verified profile." : accessState === "unconfigured" ? "This extension build is missing its secure configuration." : "Open the UplyFox extension popup and sign in to use the page assistant.";
-    return <main className="panel"><header><img className="brand-mark" src="/icons/48.png" width={36} height={36} alt="" /><div><h1>UplyFox</h1><p>Page assistant</p></div><span className="ready off">LOCKED</span></header><section className="auth-banner"><strong>{title}</strong><br />{description}</section>{accessState === "profile_required" && <button className="generate" onClick={openOnboarding}>Create your profile</button>}<footer>UplyFox only reads or fills application data after authentication and profile setup.</footer></main>;
+    return <main className="panel"><header><img className="brand-mark" src="/uplyfox-pixel-crimson-logo.svg" width={36} height={36} alt="UplyFox fox" /><div><h1>UplyFox</h1><p>Page assistant</p></div><span className="ready off">LOCKED</span></header><section className="auth-banner"><strong>{title}</strong><br />{description}</section>{accessState === "profile_required" && <button className="generate" onClick={openOnboarding}>Create your profile</button>}<footer>UplyFox only reads or fills application data after authentication and profile setup.</footer></main>;
   }
 
   return <main className="panel">
+    {panelBusy && <div className="sidepanel-fox-work" role="status" aria-live="polite"><div className="sidepanel-fox-orbit"><span /><img src="/uplyfox-pixel-crimson-animated-logo.svg" alt="" /></div><strong>UplyFox is working…</strong><small>Fetching and preparing your data</small></div>}
     <header>
-      <img className="brand-mark" src="/icons/48.png" width={36} height={36} alt="" />
+      <img className="brand-mark" src="/uplyfox-pixel-crimson-logo.svg" width={36} height={36} alt="UplyFox fox" />
       <div><h1>UplyFox</h1><p>Page assistant</p></div>
       <span className={`ready ${authenticated ? "" : "off"}`}>{authenticated ? "SYNCED" : "SIGN IN"}</span>
     </header>
@@ -315,6 +370,7 @@ function SidePanel() {
         {pageMatch.matchAnalysis.missingSkills.slice(0, 6).map((skill) => <span className="chip missing" key={skill}>{skill}</span>)}
       </div>}
       {pageMatch.matchAnalysis.summary && <p className="match-summary">{pageMatch.matchAnalysis.summary}</p>}
+      <button className="match-profile-link" type="button" onClick={openProfileMatch}>Open this match in profile</button>
     </section>}
 
     <div className="quick-actions">

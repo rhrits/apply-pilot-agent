@@ -8,6 +8,7 @@ import {
   describeReviewQueue,
   emptyProfile,
   groupProjects,
+  analyzeJobMatch,
   mergeProfile,
   profileCompleteness,
   type ProfileSources,
@@ -17,7 +18,7 @@ import {
 } from "@uplyfox/shared";
 import { getSupabaseBrowserClient } from "../../lib/supabase";
 import { commitProfile } from "../../lib/onboarding-store";
-import { deleteStoredResume, getResumePreviewUrl, getStoredResume, storeResumeFile, type StoredResume } from "../../lib/resume-store";
+import { deleteStoredResume, getResumePreviewUrl, getStoredResume, getStoredResumeFile, markResumeParsed, storeResumeFile, type StoredResume } from "../../lib/resume-store";
 import { AuthGate } from "../../components/auth-gate";
 import { AccountSecurity } from "../../components/account-security";
 import { EditableRecordList } from "../../components/editable-record-list";
@@ -55,12 +56,30 @@ function ProfileWorkspace() {
   const [resumePreviewUrl, setResumePreviewUrl] = useState<string | null>(null);
   const [showResumePreview, setShowResumePreview] = useState(false);
   const [analysis, setAnalysis] = useState<ResumeAnalysis | null>(null);
+  const [liveJob, setLiveJob] = useState<{ title: string; description: string; skills: string[]; company: string } | null>(null);
   const [newSkill, setNewSkill] = useState("");
   const [newCustomLabel, setNewCustomLabel] = useState("");
   const [newCustomValue, setNewCustomValue] = useState("");
 
   const loaded = useRef(false);
   const completeness = useMemo(() => profileCompleteness(profile), [profile]);
+  const liveMatch = useMemo(() => liveJob ? analyzeJobMatch(liveJob, profile) : null, [liveJob, profile]);
+
+  // The extension opens this page with the current job context. The web app cannot
+  // inspect another browser tab itself, so the extension passes only public job text
+  // through the URL and the score is calculated locally from the loaded profile.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const title = params.get("matchTitle");
+    const description = params.get("matchDescription");
+    if (!title || !description) return;
+    setLiveJob({
+      title,
+      description,
+      company: params.get("matchCompany") || "",
+      skills: (params.get("matchSkills") || "").split(",").map((skill) => skill.trim()).filter(Boolean),
+    });
+  }, []);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -192,32 +211,54 @@ function ProfileWorkspace() {
     return () => window.removeEventListener("keydown", onKeyDown);
   });
 
-  async function importResume() {
+  function validResumeFile(file: File): string | null {
+    if (file.size > 8 * 1024 * 1024) return "That resume is larger than 8 MB.";
+    const allowed = file.type === "application/pdf" || file.type === "text/plain" || file.type === "text/markdown" || /\.(pdf|txt|md)$/i.test(file.name);
+    return allowed ? null : "Choose a PDF, TXT, or Markdown resume.";
+  }
+
+  /** Step 1: save the exact original. This never calls the extraction endpoint. */
+  async function uploadResume() {
     if (!resumeFile) { setNotice("Choose a resume file first."); return; }
+    const invalid = validResumeFile(resumeFile);
+    if (invalid) { setNotice(invalid); return; }
+    setResumeBusy(true); setNotice(""); setAnalysis(null);
+    try {
+      const stored = await storeResumeFile(resumeFile);
+      if (!stored.ok || !stored.resume) throw new Error(stored.error || "Could not save the resume.");
+      setStoredResume(stored.resume);
+      setResumeFile(null);
+      setShowResumePreview(true);
+      const preview = await getResumePreviewUrl(stored.resume.storagePath);
+      setResumePreviewUrl(preview);
+      selectTab("sources");
+      setNotice("Resume uploaded and saved. Check the preview, then click Extract when you are ready.");
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Resume upload failed."); }
+    finally { setResumeBusy(false); }
+  }
+
+  /** Step 2: parse the saved original only after the user explicitly asks. */
+  async function extractSavedResume() {
+    if (!storedResume) { setNotice("Upload and save a resume first."); return; }
     setResumeBusy(true); setNotice("");
     try {
+      const file = await getStoredResumeFile(storedResume);
+      if (!file) throw new Error("Could not read the saved resume. Upload it again.");
       const form = new FormData();
-      form.append("file", resumeFile);
+      form.append("file", file);
       const response = await fetch("/api/resume/analyze", { method: "POST", body: form });
       const result = await response.json() as ResumeAnalysis & { error?: string };
       if (!response.ok) throw new Error(result.error || "Could not read that resume.");
       setAnalysis(result);
       // Resume wins: re-merging under "resume" replaces anything a weaker source had filled.
       const merged = mergeProfile(profile, result.profile, "resume", sources);
-      // Seed a sensible order for freshly imported projects (resume first, supporting
-      // evidence after). The candidate can reorder from here and that order is saved.
       const grouped = groupProjects(merged.profile);
       setProfile({ ...merged.profile, projects: [...grouped.primary, ...grouped.secondary] });
       setSources(merged.sources);
-      // Persist the original file so the extension can attach this exact document.
-      const stored = await storeResumeFile(resumeFile, result.rawText ?? result.formattedText ?? "");
-      if (stored.ok && stored.resume) setStoredResume(stored.resume);
-      setResumeFile(null);
+      await markResumeParsed(storedResume.id, result.rawText ?? result.formattedText ?? "");
       setSaveState("dirty");
-      setNotice(stored.ok
-        ? "Resume extracted and saved. Review the highlighted values, then save."
-        : `Resume extracted, but the file could not be stored: ${stored.error ?? "upload failed"}`);
-    } catch (error) { setNotice(error instanceof Error ? error.message : "Resume import failed."); }
+      setNotice("Resume extracted. Review the flagged values, then save your profile.");
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Resume extraction failed."); }
     finally { setResumeBusy(false); }
   }
 
@@ -348,6 +389,22 @@ function ProfileWorkspace() {
           <button className="ghost-button" onClick={() => selectTab(entry.tab)}>Fix</button>
         </li>)}
       </ul>
+    </section>}
+
+    {liveMatch && liveJob && <section className="profile-match-card" aria-labelledby="profile-match-heading">
+      <div className="profile-match-head">
+        <div>
+          <span className="profile-match-kicker">Live resume match</span>
+          <h2 id="profile-match-heading">{liveJob.title}{liveJob.company ? ` · ${liveJob.company}` : ""}</h2>
+          <p>Calculated from the profile you are editing and the job currently open in the extension.</p>
+        </div>
+        <strong className="profile-match-score">{liveMatch.score}%</strong>
+      </div>
+      <div className="profile-match-columns">
+        <div><span>Matched skills</span><div className="profile-match-chips">{liveMatch.matchedSkills.length ? liveMatch.matchedSkills.slice(0, 10).map((skill) => <b key={skill}>{skill}</b>) : <small>No direct skill matches yet.</small>}</div></div>
+        <div><span>Missing skills</span><div className="profile-match-chips missing">{liveMatch.missingSkills.length ? liveMatch.missingSkills.slice(0, 10).map((skill) => <b key={skill}>{skill}</b>) : <small>No detected gaps.</small>}</div></div>
+      </div>
+      <p className="profile-match-summary">{liveMatch.summary}</p>
     </section>}
 
     {tab === "overview" && <div className="profile-stack" role="tabpanel" id="profile-panel-overview" aria-labelledby="profile-tab-overview">
@@ -519,9 +576,9 @@ function ProfileWorkspace() {
     {tab === "sources" && <div className="profile-stack" role="tabpanel" id="profile-panel-sources" aria-labelledby="profile-tab-sources">
       {storedResume && <section className="card">
         <div className="section-head"><h3>Stored resume</h3><span className="pill">Used by the extension</span></div>
-        <p className="card-hint">This is the exact file the browser extension attaches to job-board upload fields.</p>
+        <p className="card-hint">This is the exact original file the browser extension attaches to job-board upload fields. Uploading does not extract or change your profile.</p>
         <div className="resume-file-row">
-          <div className="resume-file-icon">PDF</div>
+          <div className="resume-file-icon">{storedResume.mimeType === "application/pdf" || /\.pdf$/i.test(storedResume.name) ? "PDF" : "FILE"}</div>
           <div className="resume-file-meta">
             <strong>{storedResume.name}</strong>
             <small>{storedResume.fileSize ? `${Math.round(storedResume.fileSize / 1024)} KB` : "Stored"} · uploaded {storedResume.createdAt ? new Date(storedResume.createdAt).toLocaleDateString() : "recently"}</small>
@@ -545,14 +602,18 @@ function ProfileWorkspace() {
 
       <section className="card">
         <div className="section-head"><h3>{storedResume ? "Replace your resume" : "Re-import your resume"}</h3></div>
-        <p className="card-hint">Your resume always takes priority. Re-importing refreshes every field it covers and leaves your manual edits elsewhere untouched.{storedResume ? " Uploading a new file replaces the stored one." : ""}</p>
+        <p className="card-hint">First upload and save the original. It will appear in the preview above and become available to the extension. Extraction is a separate action and only runs when you click it.{storedResume ? " Uploading a new file replaces the stored one." : ""}</p>
         <label className="upload-drop">
           <input type="file" accept="application/pdf,.txt,.md,text/plain" onChange={(event) => setResumeFile(event.target.files?.[0] ?? null)} />
           <span className="upload-icon">↑</span>
           <strong>{resumeFile ? resumeFile.name : "Choose a resume file"}</strong>
           <small>PDF, TXT, or Markdown · up to 8 MB</small>
         </label>
-        <button className="save-button wide" onClick={importResume} disabled={resumeBusy}>{resumeBusy ? "Extracting…" : "Extract and apply"}</button>
+        <div className="resume-actions">
+          <button className="save-button" onClick={uploadResume} disabled={resumeBusy || !resumeFile}>{resumeBusy ? "Saving…" : "Upload and save"}</button>
+          <button className="ghost-button" onClick={extractSavedResume} disabled={resumeBusy || !storedResume}>{resumeBusy ? "Working…" : "Extract saved resume"}</button>
+        </div>
+        {!storedResume && <p className="empty-state resume-action-note">Upload the file first. The extraction button becomes available after it is safely stored.</p>}
       </section>
 
       {analysis && <section className="card">

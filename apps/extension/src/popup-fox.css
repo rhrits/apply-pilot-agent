@@ -1,0 +1,91 @@
+/* Popup fox states: static identity, animated work state. */
+.popup-shell {
+  position: relative;
+}
+
+.static-fox {
+  object-fit: cover;
+  box-shadow: 0 4px 12px rgba(127, 29, 53, .2);
+}
+
+.fox-loading {
+  position: absolute;
+  z-index: 30;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+  padding: 24px;
+  background: rgba(248, 247, 255, .94);
+  color: #1f2040;
+  text-align: center;
+}
+
+.fox-loading-orbit {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 116px;
+  height: 116px;
+  margin-bottom: 5px;
+}
+
+.fox-loading-orbit img {
+  position: relative;
+  z-index: 2;
+  width: 76px;
+  height: 76px;
+  border-radius: 17px;
+  box-shadow: 0 9px 22px rgba(127, 29, 53, .25);
+  animation: fox-head-circle 2.4s ease-in-out infinite;
+}
+
+.fox-orbit-ring {
+  position: absolute;
+  inset: 5px;
+  border: 2px solid #ded9fa;
+  border-top-color: #8b1e3f;
+  border-right-color: #5546d9;
+  border-radius: 50%;
+  animation: fox-ring-spin 1.5s linear infinite;
+}
+
+.fox-orbit-ring::after {
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #8b1e3f;
+  box-shadow: 0 0 0 3px #fdf2f5;
+  content: "";
+}
+
+.fox-loading strong {
+  font: 700 13px 'Space Grotesk', system-ui, sans-serif;
+}
+
+.fox-loading small {
+  color: #73748c;
+  font: 500 10px/1.4 Inter, system-ui, sans-serif;
+}
+
+@keyframes fox-ring-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fox-head-circle {
+  0%, 100% { transform: rotate(-3deg) translateY(1px) scale(.98); }
+  25% { transform: rotate(3deg) translate(-2px, -2px) scale(1); }
+  50% { transform: rotate(-2deg) translateY(-3px) scale(1.02); }
+  75% { transform: rotate(3deg) translate(2px, -1px) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fox-loading-orbit img,
+  .fox-orbit-ring {
+    animation: none;
+  }
+}
