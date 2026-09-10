@@ -5,12 +5,12 @@
 html,
 body,
 #root {
-  width: 380px !important;
-  height: 600px !important;
-  max-width: 380px !important;
-  max-height: 600px !important;
-  min-width: 380px !important;
-  min-height: 600px !important;
+  width: 500px !important;
+  height: 560px !important;
+  max-width: 500px !important;
+  max-height: 560px !important;
+  min-width: 500px !important;
+  min-height: 560px !important;
   margin: 0 !important;
   overflow: hidden !important;
   background: transparent !important;
@@ -25,10 +25,10 @@ body {
 }
 
 .popup-shell {
-  width: 380px !important;
-  height: 600px !important;
-  min-height: 600px !important;
-  max-height: 600px !important;
+  width: 500px !important;
+  height: 560px !important;
+  min-height: 560px !important;
+  max-height: 560px !important;
   margin: 0 !important;
   padding: 14px !important;
   overflow: hidden !important;
@@ -117,7 +117,7 @@ body {
   border-radius: 26px !important;
 }
 
-@media (max-width: 380px) {
+@media (max-width: 500px) {
   html,
   body,
   #root,

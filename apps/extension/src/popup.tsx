@@ -52,7 +52,11 @@ function Popup() {
   async function loadAuth() {
     beginFoxWork();
     try {
-      const result = await chrome.runtime.sendMessage({ type: "AUTH_STATUS" } satisfies ExtensionMessage) as AuthState;
+      const result = await chrome.runtime.sendMessage({ type: "AUTH_STATUS" } satisfies ExtensionMessage).catch((error) => ({
+        ...auth,
+        accessState: "unauthenticated" as const,
+        error: error instanceof Error ? error.message : "The extension background worker did not respond.",
+      })) as AuthState & { error?: string };
       if (result.accessState === "profile_required") {
         setAuth({ ...result, authenticated: false });
         setMessage("Your profile is required before the extension can be used. Opening onboarding…");
@@ -70,7 +74,7 @@ function Popup() {
       setAuth(result);
       // The account card directly below already displays the email and sync state.
       // Repeating both here made the popup read like the same row was rendered twice.
-      setMessage(result.accessState === "ready" ? "Ready for your next application" : result.configured ? "Sign in to sync your profile" : "Extension configuration is missing");
+      setMessage(result.error || (result.accessState === "ready" ? "Ready for your next application" : result.configured ? "Sign in to sync your profile" : "Extension configuration is missing"));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not load your UplyFox session.");
     } finally {
@@ -123,6 +127,8 @@ function Popup() {
       const result = await chrome.runtime.sendMessage({ type: "AUTH_REQUEST_OTP", email } satisfies ExtensionMessage) as { ok: boolean; error?: string };
       if (!result.ok) { setMessage(result.error || "Could not send sign-in email"); return; }
       setStep("code"); setMessage("Check your email and enter the code");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "The sign-in service did not respond. Reload the extension and try again.");
     } finally {
       setBusy(false);
       endFoxWork();
@@ -136,6 +142,8 @@ function Popup() {
       if (!result.ok) { setMessage(result.error || "Invalid or expired code"); return; }
       setStep("email"); setCode("");
       await loadAuth();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not verify that code. Try again.");
     } finally {
       setBusy(false);
       endFoxWork();
