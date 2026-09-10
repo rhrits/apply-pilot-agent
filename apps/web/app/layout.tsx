@@ -6,7 +6,7 @@ import "./theme-overrides.css";
 import "./forest-ui.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://ap.coderscookies.com"),
+  metadataBase: new URL("https://uply.foxea.xyz"),
   title: {
     default: "UplyFox | AI Job Application Assistant",
     template: "%s | UplyFox",
@@ -16,11 +16,11 @@ export const metadata: Metadata = {
   authors: [{ name: "Hritik" }],
   creator: "Hritik",
   keywords: ["auto job apply agent", "job application assistant", "AI job application assistant", "resume autofill", "job search productivity"],
-  alternates: { canonical: "https://ap.coderscookies.com" },
+  alternates: { canonical: "https://uply.foxea.xyz" },
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://ap.coderscookies.com",
+    url: "https://uply.foxea.xyz",
     siteName: "UplyFox",
     title: "UplyFox | AI Job Application Assistant",
     description: "Build one verified profile, answer repetitive application questions, and stay in control of every submission.",

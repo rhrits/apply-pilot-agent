@@ -60,7 +60,7 @@
 - Fetch profile, experience, skills, education, and projects under Supabase RLS.
 - Send the access token to the server AI route, which validates it before retrieving context.
 - Remove demo autofill data from production behavior; signed-out users get no profile autofill.
-- Build local extensions from the web app's public Supabase configuration; use `VITE_WEB_APP_URL=https://ap.coderscookies.com` for production builds.
+- Build local extensions from the web app's public Supabase configuration; use `VITE_WEB_APP_URL=https://uply.foxea.xyz` for production builds.
 
 ## Security and privacy gates
 

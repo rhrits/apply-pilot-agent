@@ -29,7 +29,7 @@ References:
 
 ## Auth-first user journey
 
-1. Visit `ap.coderscookies.com`.
+1. Visit `uply.foxea.xyz`.
 2. Sign in with email OTP/magic link.
 3. Complete the onboarding checklist: contact details, application answers, resume, work authorization, preferences.
 4. Review the extracted profile before enabling the extension.

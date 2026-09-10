@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
   const webEnv = loadEnv(mode, new URL("../web", import.meta.url).pathname, "");
   const supabaseUrl = extensionEnv.VITE_SUPABASE_URL || webEnv.NEXT_PUBLIC_SUPABASE_URL || "";
   const supabaseAnonKey = extensionEnv.VITE_SUPABASE_ANON_KEY || webEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY || webEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "";
-  const webAppUrl = extensionEnv.VITE_WEB_APP_URL || (mode === "production" ? "https://ap.coderscookies.com" : webEnv.NEXT_PUBLIC_APP_URL || "http://localhost:3000");
+  const webAppUrl = extensionEnv.VITE_WEB_APP_URL || (mode === "production" ? "https://uply.foxea.xyz" : webEnv.NEXT_PUBLIC_APP_URL || "http://localhost:3000");
   return {
     plugins: [react(), crx({ manifest })],
     resolve: {

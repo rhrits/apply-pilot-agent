@@ -7,7 +7,7 @@
  * Defaulting to production means a forgotten env var degrades to the right target
  * instead of a dead one; local development sets the variable explicitly.
  */
-export const PRODUCTION_WEB_APP_URL = "https://ap.coderscookies.com";
+export const PRODUCTION_WEB_APP_URL = "https://uply.foxea.xyz";
 
 const webAppUrl = (import.meta.env.VITE_WEB_APP_URL || PRODUCTION_WEB_APP_URL).replace(/\/$/, "");
 

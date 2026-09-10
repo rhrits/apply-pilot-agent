@@ -46,8 +46,7 @@ user-visible are deferred (see "Out of scope" at the end) to avoid risky schema 
    - `apps/web/app/layout.tsx`: title/description/OG/Twitter/icons → UplyFox (done).
    - `apps/web/app/opengraph-image.tsx`: redraw with the UplyFox logo mark, wine/purple
      gradient background, and the new tagline instead of the ApplyPilot wordmark.
-   - Keep `metadataBase`/canonical domain as-is (`ap.coderscookies.com`) — a domain move is
-     an infra decision outside this rebrand and is called out under "Out of scope".
+   - Set `metadataBase`/canonical domain to the production app domain (`uply.foxea.xyz`).
 
 4. **User-facing UI text** (every page that currently renders "ApplyPilot")
    - `app/page.tsx` (landing) — already swapped to UplyFox; also **simplify copy** (Phase 1.5).
@@ -119,8 +118,8 @@ user-visible are deferred (see "Out of scope" at the end) to avoid risky schema 
   `202609090002_access_code_email.sql`). Renaming a deployed Postgres function requires a
   new migration (create `is_uplyfox_admin`, update every policy/RPC call site, drop the old
   one) — a schema change, not a text rebrand. Tracked as a follow-up migration, not done here.
-- **Hosting domain** (`ap.coderscookies.com`). Changing the canonical domain is a DNS/infra
-  step independent of this branding pass; the app will keep working under the current domain
-  until a new one is provisioned.
+- **Hosting domain** (`uply.foxea.xyz`). The application code now uses the new canonical
+  domain; DNS, hosting, and redirect configuration still need to be managed by the deployment
+  provider.
 - **GitHub repository URL** (`github.com/rhrits/apply-pilot-agent`) — renaming the repo is a
   separate decision from renaming the product in-app; links are left pointing at the real repo.

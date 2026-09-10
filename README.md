@@ -171,7 +171,7 @@ UplyFox uses Supabase email OTP. Supabase's default template sends a magic
 Magic Link template. The branded HTML source is maintained in
 [supabase/templates/magic-link.html](supabase/templates/magic-link.html); paste its
 contents into Supabase Dashboard → Authentication → Email Templates → Magic Link.
-It uses the public logo at `https://ap.coderscookies.com/uplyfox-pixel-crimson-logo.svg`
+It uses the public logo at `https://uply.foxea.xyz/uplyfox-pixel-crimson-logo.svg`
 and intentionally does not use `{{ .ConfirmationURL }}` because the app uses numeric OTPs.
 Add `/onboarding` and `/profile` to your Supabase redirect URLs.
 Configure custom SMTP before real use — the built-in sender is rate-limited.
