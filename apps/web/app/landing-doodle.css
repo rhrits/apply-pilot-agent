@@ -1,0 +1,65 @@
+/* UplyFox doodle grove landing theme.
+   Organic strokes and translucent surfaces use purple/wine/lavender only — no green. */
+.landing-page{
+  --doodle-ink:#1f2040;
+  --doodle-purple:#312e81;
+  --doodle-purple-bright:#5546d9;
+  --doodle-lavender:#f1efff;
+  --doodle-wine:#8b1e3f;
+  --doodle-wine-soft:#fdf2f5;
+  --doodle-line:rgba(85,70,217,.18);
+  position:relative;
+  isolation:isolate;
+  background:
+    radial-gradient(circle at 6% 12%,rgba(139,30,63,.08),transparent 21rem),
+    radial-gradient(circle at 93% 29%,rgba(85,70,217,.1),transparent 25rem),
+    #faf9ff;
+}
+
+/* Paper-like doodle dots and curved branches stay behind all content. */
+.landing-page::before{position:fixed;z-index:-2;inset:0;pointer-events:none;opacity:.36;content:"";background-image:radial-gradient(rgba(85,70,217,.22) 1px,transparent 1px);background-size:24px 24px;mask-image:linear-gradient(180deg,#000,transparent 72%)}
+.landing-page::after{position:fixed;z-index:-1;right:-90px;bottom:8vh;width:300px;height:240px;border:2px dashed rgba(139,30,63,.13);border-radius:62% 38% 55% 45%;content:"";pointer-events:none;transform:rotate(-18deg)}
+
+.landing-page .landing-nav{border-bottom:1px solid rgba(255,255,255,.75);background:rgba(250,249,255,.68);box-shadow:0 6px 25px rgba(49,46,129,.04);backdrop-filter:blur(18px)}
+.landing-page .nav-inner{height:82px}.landing-page .brand-lockup{font-size:20px}.landing-page .brand-lockup img{width:38px;height:38px;border:2px solid rgba(255,255,255,.85);border-radius:13px;box-shadow:0 8px 18px rgba(127,29,53,.18)}
+.landing-page .desktop-nav{gap:8px;margin-left:auto}.landing-page .desktop-nav a{padding:9px 12px;border:1px solid transparent;border-radius:999px;color:#73748c}.landing-page .desktop-nav a:hover{border-color:#ded9fa;background:rgba(255,255,255,.7);color:var(--doodle-purple);text-decoration:none}
+.landing-page .nav-signin{padding:9px 11px;border-radius:999px}.landing-page .nav-signin:hover{background:var(--doodle-wine-soft);color:var(--doodle-wine);text-decoration:none}
+
+.landing-page .hero-section{position:relative;overflow:hidden;padding-top:104px;background:transparent}
+.landing-page .hero-section::before{position:absolute;top:45px;right:7%;width:104px;height:72px;border:2px dashed rgba(139,30,63,.2);border-left-color:transparent;border-radius:50%;content:"";transform:rotate(18deg);animation:doodle-drift 7s ease-in-out infinite}
+.landing-page .hero-section::after{position:absolute;top:94px;right:12%;width:38px;height:38px;border:2px solid rgba(85,70,217,.2);border-radius:50%;content:"✦";color:var(--doodle-wine);font-size:16px;text-align:center;line-height:34px;animation:doodle-twinkle 3.2s ease-in-out infinite}
+.landing-page .hero-copy h1{letter-spacing:-.08em}.landing-page .hero-copy h1 span{color:var(--doodle-ink)}
+.landing-page .hero-copy .hero-wine-word{color:var(--doodle-wine)!important;-webkit-text-fill-color:var(--doodle-wine)!important}
+.landing-page .hero-copy .hero-lede{color:#68677f}.landing-page .hero-actions{gap:12px}.landing-page .hero-actions .button{border-radius:15px;box-shadow:0 10px 25px rgba(49,46,129,.1)}
+.landing-page .hero-actions .button-primary{border:1px solid rgba(255,255,255,.6);background:linear-gradient(135deg,var(--doodle-wine),var(--doodle-purple))!important;box-shadow:0 12px 26px rgba(127,29,53,.2)}
+.landing-page .hero-actions .button-ghost{border:1px solid rgba(85,70,217,.16);background:rgba(255,255,255,.62);backdrop-filter:blur(12px)}
+.landing-page .hero-proof{color:#74728b}.landing-page .hero-agent-callout{border:1px solid rgba(255,255,255,.85);border-radius:17px;background:rgba(255,255,255,.58);box-shadow:0 10px 28px rgba(49,46,129,.07);backdrop-filter:blur(15px)}
+
+.landing-page .product-preview{filter:drop-shadow(0 20px 35px rgba(49,46,129,.08))}.landing-page .preview-glow{background:radial-gradient(ellipse,rgba(222,217,250,.88),rgba(253,242,245,.42) 42%,transparent 72%)}
+.landing-page .browser-window{border:1px solid rgba(255,255,255,.9);border-radius:21px;background:rgba(255,255,255,.68);box-shadow:0 30px 70px rgba(46,38,119,.13),inset 0 1px rgba(255,255,255,.98);backdrop-filter:blur(15px)}
+.landing-page .window-bar{border-bottom-color:rgba(231,228,241,.7);background:rgba(248,247,255,.7)}.landing-page .dashboard-preview-body{background:rgba(255,255,255,.28)}
+.landing-page .extension-window{border-color:rgba(255,255,255,.95);background:rgba(255,255,255,.83);box-shadow:0 28px 55px rgba(49,46,129,.18);backdrop-filter:blur(18px)}
+.landing-page .preview-badge{border:1px solid rgba(255,255,255,.85);border-radius:999px!important;background:rgba(255,255,255,.76)!important;box-shadow:0 8px 18px rgba(49,46,129,.08);backdrop-filter:blur(12px)}
+.landing-page .badge-profile{color:var(--doodle-purple)!important}.landing-page .badge-safe{color:var(--doodle-wine)!important}
+
+.landing-page .trust-strip{border-color:rgba(85,70,217,.12);background:rgba(255,255,255,.58);backdrop-filter:blur(15px)}.landing-page .trust-strip-inner>div{border-color:rgba(85,70,217,.1)}
+.landing-page .section{position:relative}.landing-page .section-product{background:rgba(255,255,255,.56)}
+.landing-page .section-intro h2{letter-spacing:-.075em}.landing-page .section-intro p{color:#74728b}
+.landing-page .feature-grid{gap:16px}.landing-page .feature-card{position:relative;min-height:220px;padding:25px;border:1px solid rgba(255,255,255,.9);border-radius:21px;background:rgba(255,255,255,.64);box-shadow:0 12px 32px rgba(49,46,129,.055),inset 0 1px rgba(255,255,255,.95);backdrop-filter:blur(16px);overflow:hidden}
+.landing-page .feature-card::after{position:absolute;right:-25px;bottom:-31px;width:100px;height:70px;border:1px dashed rgba(85,70,217,.14);border-radius:50%;content:"";transform:rotate(-14deg)}.landing-page .feature-card:hover{border-color:rgba(85,70,217,.28);box-shadow:0 18px 42px rgba(49,46,129,.11);transform:translateY(-6px) rotate(-.3deg)}
+.landing-page .feature-card:nth-child(3n+2){background:rgba(253,242,245,.59)}.landing-page .feature-card:nth-child(3n){background:rgba(244,242,255,.64)}
+.landing-page .feature-card h3{color:var(--doodle-ink)}.landing-page .feature-card p{color:#74728b}.landing-page .feature-card a{color:var(--doodle-purple)}.landing-page .feature-card a:hover{color:var(--doodle-wine)}
+
+.landing-page .product-surfaces{margin-top:96px}.landing-page .surface-card{position:relative;border:1px solid rgba(255,255,255,.92);border-radius:21px;background:rgba(255,255,255,.62);box-shadow:0 14px 35px rgba(49,46,129,.065),inset 0 1px rgba(255,255,255,.98);backdrop-filter:blur(17px);overflow:hidden}.landing-page .surface-card::before{position:absolute;right:-18px;top:-28px;width:82px;height:62px;border:1px dashed rgba(139,30,63,.14);border-radius:50%;content:"";transform:rotate(20deg)}
+.landing-page .suggestion-browser,.landing-page .autofill-panel,.landing-page .resume-panel,.landing-page .profile-panel{border-color:rgba(85,70,217,.13);border-radius:15px;background:rgba(248,247,255,.64);box-shadow:inset 0 1px rgba(255,255,255,.8)}
+.landing-page .surface-caption{color:#7c798e}.landing-page .caption-dot{box-shadow:0 0 0 4px rgba(85,70,217,.08)}
+
+.landing-page .workflow-section{background:linear-gradient(180deg,rgba(244,242,255,.76),rgba(253,242,245,.54))}.landing-page .workflow-step{border-color:rgba(255,255,255,.9);border-radius:18px;background:rgba(255,255,255,.6);box-shadow:0 8px 25px rgba(49,46,129,.05);backdrop-filter:blur(12px)}.landing-page .workflow-step:hover,.landing-page .workflow-step.active{border-color:rgba(85,70,217,.25);background:rgba(255,255,255,.82);box-shadow:0 14px 35px rgba(49,46,129,.09)}.landing-page .flow-visual{border:1px solid rgba(255,255,255,.9);border-radius:26px;background:rgba(255,255,255,.5);box-shadow:0 16px 45px rgba(49,46,129,.08);backdrop-filter:blur(15px)}
+
+.landing-page .trust-section{position:relative;overflow:hidden;background:linear-gradient(145deg,#24234a,#3a2851 65%,#5a2541)}.landing-page .trust-section::before{position:absolute;right:5%;top:10%;width:150px;height:110px;border:2px dashed rgba(255,255,255,.12);border-radius:50%;content:"";transform:rotate(-16deg)}.landing-page .trust-list>div{border-color:rgba(255,255,255,.14)}
+.landing-page .open-source-section{background:rgba(244,242,255,.78)}.landing-page .open-source-card{border:1px solid rgba(255,255,255,.95);border-radius:25px;background:rgba(255,255,255,.63);box-shadow:0 14px 35px rgba(49,46,129,.08);backdrop-filter:blur(16px)}
+.landing-page .landing-footer{background:rgba(255,255,255,.67);backdrop-filter:blur(14px)}.landing-page .footer-bottom{border-top-color:rgba(85,70,217,.12)}
+
+@keyframes doodle-drift{0%,100%{transform:rotate(18deg) translateY(0)}50%{transform:rotate(12deg) translateY(-7px)}}@keyframes doodle-twinkle{0%,100%{opacity:.35;transform:scale(.8) rotate(0)}50%{opacity:1;transform:scale(1.15) rotate(18deg)}}
+@media(max-width:720px){.landing-page .hero-section{padding-top:64px}.landing-page .hero-section::before{top:25px;right:2%;width:70px;height:52px}.landing-page .hero-section::after{top:50px;right:8%}.landing-page .feature-card{border-radius:18px}.landing-page .product-surfaces{margin-top:70px}.landing-page .surface-card{border-radius:18px}.landing-page .open-source-card{border-radius:20px}}
+@media(prefers-reduced-motion:reduce){.landing-page .feature-card:hover,.landing-page .workflow-step:hover{transform:none}.landing-page .hero-section::before,.landing-page .hero-section::after{animation:none}}

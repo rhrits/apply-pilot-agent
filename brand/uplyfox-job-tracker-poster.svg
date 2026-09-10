@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350" role="img" aria-labelledby="title desc">
+  <title id="title">Track every opportunity</title>
+  <desc id="desc">UplyFox branded poster featuring the job tracker, application stages, and browser extension autofill.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#11142e"/><stop offset=".55" stop-color="#1d1b50"/><stop offset="1" stop-color="#38152f"/></linearGradient>
+    <linearGradient id="logo" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#991b1b"/><stop offset=".48" stop-color="#7f1d35"/><stop offset="1" stop-color="#312e81"/></linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff" stop-opacity=".15"/><stop offset="1" stop-color="#fff" stop-opacity=".05"/></linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="22" stdDeviation="24" flood-color="#050611" flood-opacity=".5"/></filter>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#fff" stroke-opacity=".05"/></pattern>
+    <style>.sans{font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}</style>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg)"/><rect width="1080" height="1350" fill="url(#grid)"/>
+  <g class="sans" fill="#fff">
+    <text x="92" y="110" font-size="24" font-weight="900" letter-spacing="6" fill="#c4b5fd">UPLYFOX</text>
+    <text x="92" y="195" font-size="24" font-weight="700" letter-spacing="4" fill="#f0abfc">JOB SEARCH, ORGANIZED</text>
+    <text x="92" y="278" font-size="65" font-weight="900" letter-spacing="-3">TRACK EVERY</text>
+    <text x="92" y="348" font-size="65" font-weight="900" letter-spacing="-3" fill="#c4b5fd">OPPORTUNITY.</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="398" y="420" width="284" height="284" rx="68" fill="url(#logo)"/>
+    <path d="M434 520 466 462l63 44c9-2 18-3 27-3s18 1 27 3l63-44 5 78c0 69-47 117-95 141-48-24-95-72-95-141Z" fill="#fffdfb"/>
+    <path d="m434 520 63 28-32 19Z" fill="#ead7d2"/><path d="m646 520-63 28 32 19Z" fill="#e7d9e6"/>
+    <path d="M479 567 524 549l18 20-32 31-31-9Z" fill="#2b1022"/><path d="M601 567 556 549l-18 20 32 31 31-9Z" fill="#2b1022"/>
+    <rect x="509" y="570" width="11" height="11" rx="2" fill="#fffdfb"/><rect x="565" y="570" width="11" height="11" rx="2" fill="#fffdfb"/><path d="m520 635 26 19 26-19" fill="none" stroke="#2b1022" stroke-linecap="round" stroke-width="8"/>
+  </g>
+  <g class="sans" transform="translate(92 780)">
+    <rect width="896" height="260" rx="28" fill="url(#card)" stroke="#fff" stroke-opacity=".14"/>
+    <text x="34" y="54" font-size="17" font-weight="800" letter-spacing="3" fill="#d8cfe7">APPLICATION TRACKER</text>
+    <g transform="translate(34 82)"><rect width="188" height="122" rx="18" fill="#fff" fill-opacity=".09"/><circle cx="28" cy="32" r="7" fill="#c4b5fd"/><text x="48" y="38" font-size="19" font-weight="800" fill="#fff">SAVED</text><text x="24" y="78" font-size="34" font-weight="900" fill="#fff">12</text><text x="24" y="102" font-size="15" fill="#d8cfe7">opportunities</text></g>
+    <g transform="translate(246 82)"><rect width="188" height="122" rx="18" fill="#fff" fill-opacity=".09"/><circle cx="28" cy="32" r="7" fill="#f0abfc"/><text x="48" y="38" font-size="19" font-weight="800" fill="#fff">APPLYING</text><text x="24" y="78" font-size="34" font-weight="900" fill="#fff">05</text><text x="24" y="102" font-size="15" fill="#d8cfe7">in progress</text></g>
+    <g transform="translate(458 82)"><rect width="188" height="122" rx="18" fill="#fff" fill-opacity=".09"/><circle cx="28" cy="32" r="7" fill="#fdba74"/><text x="48" y="38" font-size="19" font-weight="800" fill="#fff">INTERVIEW</text><text x="24" y="78" font-size="34" font-weight="900" fill="#fff">03</text><text x="24" y="102" font-size="15" fill="#d8cfe7">next steps</text></g>
+    <g transform="translate(670 82)"><rect width="192" height="122" rx="18" fill="#fff" fill-opacity=".09"/><circle cx="28" cy="32" r="7" fill="#86efac"/><text x="48" y="38" font-size="19" font-weight="800" fill="#fff">OFFER</text><text x="24" y="78" font-size="34" font-weight="900" fill="#fff">01</text><text x="24" y="102" font-size="15" fill="#d8cfe7">celebrate</text></g>
+  </g>
+  <g class="sans" text-anchor="middle"><text x="540" y="1115" font-size="33" font-weight="800" fill="#fff">Auto-fill the busywork.</text><text x="540" y="1158" font-size="25" fill="#d8cfe7">Keep the decision yours.</text></g>
+  <rect x="235" y="1220" width="610" height="76" rx="38" fill="#c4b5fd"/><text x="540" y="1268" text-anchor="middle" class="sans" font-size="22" font-weight="900" fill="#211641">BUILD PROFILE · FIND · APPLY · TRACK</text>
+</svg>

@@ -13,6 +13,7 @@ import "./brand-overrides.css";
 import "./sidepanel-fox.css";
 import "./form-plan.css";
 import "./draft-review.css";
+import "./sidepanel-modern.css";
 
 const API_URL = extensionConfig.aiApiUrl;
 type Tab = "assistant" | "profile" | "fields" | "tracker";

@@ -8,6 +8,7 @@ import "./popup-settings.css";
 import "./popup-fox.css";
 import "./brand-overrides.css";
 import "./popup-jungle.css";
+import "./popup-fixed.css";
 
 type AuthState = ExtensionAuthStatus;
 

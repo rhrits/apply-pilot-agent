@@ -1,0 +1,129 @@
+/* Fixed Chrome action-popup canvas.
+   Chrome gives action popups a white outer document and lets content overflow by
+   default. Own the full viewport so only the UplyFox surface is visible and no browser
+   scrollbar is introduced. */
+html,
+body,
+#root {
+  width: 380px !important;
+  height: 600px !important;
+  max-width: 380px !important;
+  max-height: 600px !important;
+  min-width: 380px !important;
+  min-height: 600px !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  background: transparent !important;
+}
+
+html {
+  border-radius: 26px;
+}
+
+body {
+  padding: 0 !important;
+}
+
+.popup-shell {
+  width: 380px !important;
+  height: 600px !important;
+  min-height: 600px !important;
+  max-height: 600px !important;
+  margin: 0 !important;
+  padding: 14px !important;
+  overflow: hidden !important;
+  border-radius: 26px !important;
+}
+
+.popup-shell > .brand {
+  flex: 0 0 auto;
+  margin-bottom: 10px;
+}
+
+.popup-shell > .status {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
+.popup-shell > .account-card {
+  flex: 0 0 auto;
+  margin-top: 8px;
+  padding-top: 9px;
+  padding-bottom: 9px;
+}
+
+.popup-shell > .button,
+.popup-shell > .connection-note,
+.popup-shell > .toggle-row {
+  flex: 0 0 auto;
+}
+
+.popup-shell > .button {
+  min-height: 35px;
+  margin-top: 6px;
+  padding: 8px 10px;
+}
+
+.popup-shell > .toggle-row {
+  min-height: 42px;
+  margin-top: 6px;
+  padding: 8px 10px;
+}
+
+.popup-shell > .toggle-row small {
+  max-width: 270px;
+  line-height: 1.25;
+}
+
+.popup-shell > .connection-note {
+  max-height: 42px;
+  margin: 6px 0 0;
+  padding: 7px 9px;
+  overflow: hidden;
+  line-height: 1.3;
+}
+
+.popup-shell > .privacy-note {
+  margin-top: auto !important;
+  margin-bottom: 0 !important;
+  padding-top: 7px;
+}
+
+.popup-shell > .popup-auth {
+  flex: 1 1 auto;
+  margin-top: 9px;
+  overflow: hidden;
+}
+
+.popup-auth p {
+  margin: 8px 0 9px !important;
+  font-size: 10px !important;
+  line-height: 1.35 !important;
+}
+
+.popup-auth .button {
+  min-height: 36px;
+  margin-top: 6px;
+}
+
+.popup-auth .popup-input {
+  min-height: 38px;
+}
+
+.fox-loading {
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: 26px !important;
+}
+
+@media (max-width: 380px) {
+  html,
+  body,
+  #root,
+  .popup-shell {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+}
