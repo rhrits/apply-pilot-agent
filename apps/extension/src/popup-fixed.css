@@ -5,12 +5,12 @@
 html,
 body,
 #root {
-  width: 460px !important;
-  height: 540px !important;
-  max-width: 460px !important;
-  max-height: 540px !important;
-  min-width: 460px !important;
-  min-height: 540px !important;
+  width: 400px !important;
+  height: 500px !important;
+  max-width: 400px !important;
+  max-height: 500px !important;
+  min-width: 400px !important;
+  min-height: 500px !important;
   margin: 0 !important;
   overflow: hidden !important;
   background: transparent !important;
@@ -25,10 +25,10 @@ body {
 }
 
 .popup-shell {
-  width: 460px !important;
-  height: 540px !important;
-  min-height: 540px !important;
-  max-height: 540px !important;
+  width: 400px !important;
+  height: 500px !important;
+  min-height: 500px !important;
+  max-height: 500px !important;
   margin: 0 !important;
   padding: 14px !important;
   overflow: hidden !important;
